@@ -1,10 +1,9 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI as string;
+const MONGODB_URI = process.env.MONGODB_URI?.trim();
 
 if (!MONGODB_URI) {
-  console.error("❌ MONGODB_URI no está definida");
-  throw new Error("Falta la URI de MongoDB");
+  throw new Error("Falta la variable de entorno MONGODB_URI");
 }
 
 interface MongooseCache {
@@ -12,12 +11,35 @@ interface MongooseCache {
   promise: Promise<typeof mongoose> | null;
 }
 
-// Cache global
 declare global {
   var mongoose: MongooseCache | undefined;
 }
 
-let cached: MongooseCache = global.mongoose || {
+function getSafeConnectionLabel(uri: string) {
+  try {
+    const sanitized = uri.replace("mongodb+srv://", "").replace("mongodb://", "");
+    const hostAndDb = sanitized.split("@").pop() ?? "mongodb";
+    return hostAndDb.split("?")[0];
+  } catch {
+    return "mongodb";
+  }
+}
+
+function formatMongoError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return new Error("No se pudo conectar a MongoDB");
+  }
+
+  if (error.message.includes("querySrv")) {
+    return new Error(
+      "No se pudo resolver el DNS del cluster MongoDB. Usa una URI directa del replicaset o revisa tu red/DNS."
+    );
+  }
+
+  return error;
+}
+
+const cached: MongooseCache = global.mongoose || {
   conn: null,
   promise: null,
 };
@@ -27,39 +49,31 @@ if (!global.mongoose) {
 }
 
 async function dbConnect(): Promise<typeof mongoose> {
-  // Si ya está conectado
   if (cached.conn) {
     return cached.conn;
   }
 
-  // Si no hay conexión en progreso
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
       family: 4,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
     };
 
-    console.log("🔌 Intentando conectar a MongoDB...");
-    console.log("🔥 URI:", MONGODB_URI);
+    console.log(`Conectando a MongoDB: ${getSafeConnectionLabel(MONGODB_URI)}`);
 
-    cached.promise = mongoose
-      .connect(MONGODB_URI, opts)
-      .then((mongooseInstance) => {
-        console.log("✅ MongoDB conectado correctamente");
-        return mongooseInstance;
-      })
-      .catch((error) => {
-        console.error("❌ Error conectando a MongoDB:", error);
-        throw error;
-      });
+    cached.promise = mongoose.connect(MONGODB_URI, opts).catch((error) => {
+      const formattedError = formatMongoError(error);
+      console.error("Error conectando a MongoDB:", formattedError.message);
+      throw formattedError;
+    });
   }
 
   try {
     cached.conn = await cached.promise;
-  } catch (e) {
+  } catch (error) {
     cached.promise = null;
-    throw e;
+    throw error;
   }
 
   return cached.conn;
