@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
+  BarChart3,
   LayoutDashboard,
   Briefcase,
   Users,
@@ -17,6 +18,7 @@ import {
   ChevronLeft,
   Menu,
   CreditCard,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -37,6 +39,10 @@ const navItems: NavItem[] = [
   { href: "/dashboard/documentos", label: "Documentos", icon: FileText },
   { href: "/dashboard/leyes", label: "Codigos Legales", icon: Scale },
   { href: "/dashboard/asistente", label: "Asistente IA", icon: MessageSquare },
+  { href: "/dashboard/facturacion", label: "Facturacion", icon: CreditCard },
+  { href: "/dashboard/comunicacion", label: "Comunicacion", icon: MessageSquare },
+  { href: "/dashboard/reportes", label: "Reportes", icon: BarChart3 },
+  { href: "/dashboard/seguridad", label: "Seguridad", icon: Shield },
 ];
 
 const bottomItems: NavItem[] = [

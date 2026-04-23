@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ import {
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
+import { toLegalSlug } from "@/lib/legal-library"
 
 interface Notificacion {
   id: string
@@ -44,7 +46,7 @@ const notificacionesMock: Notificacion[] = [
     fecha: new Date(Date.now() - 1000 * 60 * 30),
     leida: false,
     prioridad: "alta",
-    enlace: "/dashboard/leyes/codigo-sustantivo-trabajo",
+    enlace: `/dashboard/leyes/${toLegalSlug("CODIGO_SUSTANTIVO_TRABAJO")}`,
   },
   {
     id: "2",
@@ -204,11 +206,11 @@ export default function NotificacionesPage() {
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">{notif.mensaje}</p>
-                      {notif.enlace && (
-                        <Button variant="link" className="h-auto p-0 text-primary text-sm">
-                          Ver detalles
+                      {notif.enlace ? (
+                        <Button variant="link" className="h-auto p-0 text-primary text-sm" asChild>
+                          <Link href={notif.enlace}>Ver detalles</Link>
                         </Button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>

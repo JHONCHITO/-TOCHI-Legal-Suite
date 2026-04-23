@@ -6,6 +6,8 @@ if (!MONGODB_URI) {
   throw new Error("Falta la variable de entorno MONGODB_URI");
 }
 
+const mongoUri = MONGODB_URI;
+
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -60,9 +62,9 @@ async function dbConnect(): Promise<typeof mongoose> {
       serverSelectionTimeoutMS: 10000,
     };
 
-    console.log(`Conectando a MongoDB: ${getSafeConnectionLabel(MONGODB_URI)}`);
+    console.log(`Conectando a MongoDB: ${getSafeConnectionLabel(mongoUri)}`);
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).catch((error) => {
+    cached.promise = mongoose.connect(mongoUri, opts).catch((error) => {
       const formattedError = formatMongoError(error);
       console.error("Error conectando a MongoDB:", formattedError.message);
       throw formattedError;

@@ -15,7 +15,7 @@ export async function createCheckoutSession(planId: string) {
   const origin = headersList.get('origin') || 'http://localhost:3000'
 
   const session = await stripe.checkout.sessions.create({
-    ui_mode: 'embedded',
+    ui_mode: 'embedded' as never,
     line_items: [
       {
         price_data: {

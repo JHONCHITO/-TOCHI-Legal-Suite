@@ -155,13 +155,12 @@ const CaseSchema = new Schema<ICase>(
 );
 
 // Generar numero interno automatico
-CaseSchema.pre("save", async function (next) {
+CaseSchema.pre("save", async function () {
   if (!this.numeroInterno) {
     const year = new Date().getFullYear();
     const count = await mongoose.models.Case.countDocuments();
     this.numeroInterno = `TOCHI-${year}-${String(count + 1).padStart(5, "0")}`;
   }
-  next();
 });
 
 const Case: Model<ICase> =
