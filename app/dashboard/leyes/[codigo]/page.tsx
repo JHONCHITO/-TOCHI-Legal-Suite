@@ -277,8 +277,12 @@ export default function CodigoDetailPage() {
                                   </p>
                                 )}
 
+                                {article.titulo ? (
+                                  <p className="text-sm font-medium">{article.titulo}</p>
+                                ) : null}
+
                                 <p className="text-sm leading-relaxed text-muted-foreground">
-                                  {article.resumen}
+                                  {article.contenido ?? article.resumen}
                                 </p>
 
                                 {article.palabrasClave?.length ? (

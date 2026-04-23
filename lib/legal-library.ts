@@ -1,9 +1,11 @@
 import { CODIGOS_COLOMBIANOS, type CodigoLegalData } from "@/lib/types";
+import penalCodeData from "@/data/codigo_penal.json";
 
 export interface LegalArticleSummary {
   numero: string;
   epigrafe: string;
   resumen: string;
+  contenido?: string;
   libro?: string;
   titulo?: string;
   capitulo?: string;
@@ -35,46 +37,53 @@ export function getCodigoLegal(codigo: string) {
   );
 }
 
-const DATA = {
-  civil: {
-    descripcion: "Código Civil Colombiano",
-    articulos: [
-      {
-        numero: "Art. 1",
-        epigrafe: "Definición de ley",
-        resumen: "La ley es una declaración de la voluntad soberana.",
-        contenido: "La ley es una declaración de la voluntad soberana que manifestada en la forma prescrita por la Constitución..."
-      },
-      {
-        numero: "Art. 2",
-        epigrafe: "Obligatoriedad",
-        resumen: "La ley es obligatoria para todos.",
-        contenido: "La ley es obligatoria tanto a los nacionales como a los extranjeros..."
-      }
-    ]
-  },
+function buildArticleFromJson(article: any): LegalArticleSummary {
+  return {
+    numero: article.numero,
+    epigrafe: article.titulo || article.numero,
+    resumen: article.contenido
+      ? article.contenido.slice(0, 140).trim() + "..."
+      : "Resumen no disponible.",
+    contenido: article.contenido,
+    titulo: article.titulo,
+    vigente: true,
+    palabrasClave: [article.numero, ...(article.titulo?.split(" ") ?? [])].map((item) => item.toString().toLowerCase()),
+  };
+}
 
-  penal: {
-    descripcion: "Código Penal Colombiano",
-    articulos: [
-      {
-        numero: "Art. 9",
-        epigrafe: "Conducta punible",
-        resumen: "Define delito",
-        contenido: "Para que la conducta sea punible se requiere..."
-      }
-    ]
-  }
+const JSON_LEGAL_LIBRARY: Record<string, LegalCodeContent> = {
+  codigo_penal: {
+    codigo: "CODIGO_PENAL",
+    descripcion: "Texto básico del Código Penal Colombiano extraído de la base de datos interna.",
+    nivelContenido: "resumen_local",
+    temasClave: ["delitos", "legalidad penal", "procedimiento penal"],
+    articulos: (penalCodeData.articulos || []).map(buildArticleFromJson),
+    notas: [
+      "Contenido cargado desde data/codigo_penal.json para una consulta más profunda en el módulo penal.",
+    ],
+  },
 };
 
 export function getLegalCodeContent(codigo: string): LegalCodeContent {
   const slug = normalizeLegalSlug(codigo);
 
-  // 🔹 Primero intenta con la librería completa
   const base = LEGAL_CODE_LIBRARY[slug];
-  if (base) return base;
+  const jsonContent = JSON_LEGAL_LIBRARY[slug];
 
-  // 🔹 Fallback mejorado (datos básicos si no existe)
+  if (slug === "codigo_penal" || slug === "penal") {
+    return jsonContent ?? base ?? {
+      codigo: "CODIGO_PENAL",
+      descripcion: "Código Penal Colombiano",
+      nivelContenido: "solo_fuentes",
+      temasClave: ["delitos"],
+      articulos: [],
+    };
+  }
+
+  if (base) {
+    return base;
+  }
+
   if (slug === "codigo_civil" || slug === "civil") {
     return {
       codigo: "CODIGO_CIVIL",
@@ -87,45 +96,31 @@ export function getLegalCodeContent(codigo: string): LegalCodeContent {
           epigrafe: "Requisitos para obligarse",
           resumen:
             "Capacidad, consentimiento, objeto lícito y causa lícita.",
+          contenido:
+            "Para que haya obligación se requiere capacidad para obligarse, consentimiento libre de vicios, objeto lícito y causa lícita.",
           vigente: true,
-          palabrasClave: ["1502", "contratos"]
+          palabrasClave: ["1502", "contratos", "capacidad"]
         },
         {
           numero: "1495",
           epigrafe: "Definición de contrato",
           resumen:
             "Acto por el cual una parte se obliga con otra.",
-          vigente: true
+          contenido:
+            "El contrato es un acto por el cual una persona se obliga para con otra a dar, hacer o no hacer alguna cosa.",
+          vigente: true,
+          palabrasClave: ["1495", "contrato", "obligacion"]
         }
       ]
     };
   }
 
-  if (slug === "codigo_penal" || slug === "penal") {
-    return {
-      codigo: "CODIGO_PENAL",
-      descripcion: "Código Penal Colombiano",
-      nivelContenido: "resumen_local",
-      temasClave: ["delitos"],
-      articulos: [
-        {
-          numero: "9",
-          epigrafe: "Conducta punible",
-          resumen:
-            "Debe ser típica, antijurídica y culpable.",
-          vigente: true
-        }
-      ]
-    };
-  }
-
-  // 🔹 Si no hay nada
   return {
     codigo: slug.toUpperCase(),
     descripcion: "Contenido no disponible aún",
     nivelContenido: "solo_fuentes",
     temasClave: [],
-    articulos: []
+    articulos: [],
   };
 }
 
