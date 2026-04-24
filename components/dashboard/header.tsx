@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Bell, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,11 +48,13 @@ export function Header() {
       {/* Right side */}
       <div className="flex items-center gap-2">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[10px] flex items-center justify-center">
-            3
-          </span>
+        <Button variant="ghost" size="icon" className="relative" asChild>
+          <Link href="/dashboard/notificaciones">
+            <Bell className="h-5 w-5" />
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
+              3
+            </span>
+          </Link>
         </Button>
 
         {/* User menu */}
@@ -75,11 +78,15 @@ export function Header() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              Perfil
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/configuracion">
+                <User className="mr-2 h-4 w-4" />
+                Perfil
+              </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>Configuracion</DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/configuracion">Configuracion</Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"

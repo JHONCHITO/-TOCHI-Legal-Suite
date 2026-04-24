@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     await dbConnect()
-    const clients = await Client.find({ abogadoId: session.user.id }).sort({ createdAt: -1 })
+    const clients = await Client.find({ abogadoAsignado: session.user.id }).sort({ createdAt: -1 })
 
     return NextResponse.json(clients)
   } catch (error) {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
     const newClient = new Client({
       ...body,
-      abogadoId: session.user.id,
+      abogadoAsignado: session.user.id,
     })
 
     await newClient.save()

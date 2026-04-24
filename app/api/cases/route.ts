@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     await dbConnect()
-    const cases = await Case.find({ abogadoId: session.user.id })
+    const cases = await Case.find({ abogadoPrincipal: session.user.id })
       .populate("clienteId", "nombre apellido email")
       .sort({ createdAt: -1 })
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
     const newCase = new Case({
       ...body,
-      abogadoId: session.user.id,
+      abogadoPrincipal: session.user.id,
       numeroRadicado: `RAD-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
     })
 

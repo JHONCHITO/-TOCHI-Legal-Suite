@@ -3,14 +3,17 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3, Briefcase, DollarSign, TrendingUp, Trophy } from "lucide-react";
+import { demoCases, demoInvoices, formatCurrencyCop } from "@/lib/demo-data";
 
 export default function ReportesPage() {
+  const facturado = demoInvoices.reduce((sum, item) => sum + item.valor, 0);
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Reportes y Analitica</h1>
         <p className="text-muted-foreground">
-          Indicadores de carga, productividad, resultados y salud comercial de la firma.
+          Indicadores para controlar carga operativa, resultados, plazos y salud comercial.
         </p>
       </div>
 
@@ -20,7 +23,7 @@ export default function ReportesPage() {
             <Briefcase className="h-5 w-5 text-primary" />
             <div>
               <p className="text-xs text-muted-foreground">Casos abiertos</p>
-              <p className="text-2xl font-bold">24</p>
+              <p className="text-2xl font-bold">{demoCases.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -28,8 +31,10 @@ export default function ReportesPage() {
           <CardContent className="flex items-center gap-3 p-4">
             <Trophy className="h-5 w-5 text-primary" />
             <div>
-              <p className="text-xs text-muted-foreground">Casos resueltos</p>
-              <p className="text-2xl font-bold">37</p>
+              <p className="text-xs text-muted-foreground">Casos activos</p>
+              <p className="text-2xl font-bold">
+                {demoCases.filter((item) => item.estado === "activo").length}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -37,8 +42,8 @@ export default function ReportesPage() {
           <CardContent className="flex items-center gap-3 p-4">
             <DollarSign className="h-5 w-5 text-primary" />
             <div>
-              <p className="text-xs text-muted-foreground">Ingreso trimestral</p>
-              <p className="text-2xl font-bold">$43M</p>
+              <p className="text-xs text-muted-foreground">Ingreso visible</p>
+              <p className="text-2xl font-bold">{formatCurrencyCop(facturado)}</p>
             </div>
           </CardContent>
         </Card>
@@ -57,14 +62,14 @@ export default function ReportesPage() {
         <Card>
           <CardHeader>
             <CardTitle>Rendimiento por area</CardTitle>
-            <CardDescription>Distribucion operativa y comercial.</CardDescription>
+            <CardDescription>Distribucion operativa actual del despacho.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {[
-              { area: "Laboral", casos: 8, rentabilidad: "Alta" },
-              { area: "Civil", casos: 6, rentabilidad: "Media" },
-              { area: "Constitucional", casos: 5, rentabilidad: "Alta" },
-              { area: "Comercial", casos: 5, rentabilidad: "Media" },
+              { area: "Laboral", casos: demoCases.filter((item) => item.tipo === "laboral").length, rentabilidad: "Alta" },
+              { area: "Comercial", casos: demoCases.filter((item) => item.tipo === "comercial").length, rentabilidad: "Alta" },
+              { area: "Constitucional", casos: demoCases.filter((item) => item.tipo === "constitucional").length, rentabilidad: "Media" },
+              { area: "Familia", casos: demoCases.filter((item) => item.tipo === "familia").length, rentabilidad: "Media" },
             ].map((item) => (
               <div key={item.area} className="flex items-center justify-between rounded-lg border p-4">
                 <div>
@@ -80,20 +85,24 @@ export default function ReportesPage() {
         <Card>
           <CardHeader>
             <CardTitle>Analitica ejecutiva</CardTitle>
-            <CardDescription>Indicadores para crecer la firma de forma controlada.</CardDescription>
+            <CardDescription>Indicadores de gestion para crecer la firma.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-3 rounded-lg border p-4">
               <BarChart3 className="h-4 w-4 text-primary" />
-              Ticket promedio de honorarios: $2.38M
+              Ticket promedio de honorarios: {formatCurrencyCop(facturado / demoInvoices.length)}
             </div>
             <div className="flex items-center gap-3 rounded-lg border p-4">
               <BarChart3 className="h-4 w-4 text-primary" />
-              Tiempo promedio de respuesta al cliente: 4.2 horas
+              Carga por abogado: {demoCases.length} expedientes en seguimiento
             </div>
             <div className="flex items-center gap-3 rounded-lg border p-4">
               <BarChart3 className="h-4 w-4 text-primary" />
-              Carga por abogado: 12 expedientes por responsable
+              Cartera pendiente: {
+                formatCurrencyCop(
+                  demoInvoices.filter((item) => item.estado !== "Pagada").reduce((sum, item) => sum + item.valor, 0)
+                )
+              }
             </div>
           </CardContent>
         </Card>
