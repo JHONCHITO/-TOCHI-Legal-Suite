@@ -19,6 +19,7 @@ import {
   Menu,
   CreditCard,
   Shield,
+  RadioTower,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard/citas", label: "Calendario", icon: Calendar },
   { href: "/dashboard/documentos", label: "Documentos", icon: FileText },
   { href: "/dashboard/leyes", label: "Codigos Legales", icon: Scale },
+  { href: "/dashboard/actualizaciones", label: "Novedades", icon: RadioTower },
   { href: "/dashboard/asistente", label: "Asistente IA", icon: MessageSquare },
   { href: "/dashboard/facturacion", label: "Facturacion", icon: CreditCard },
   { href: "/dashboard/comunicacion", label: "Comunicacion", icon: MessageSquare },
