@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Client from "@/lib/models/Client"
+import User from "@/lib/models/User"
 
 export async function GET(request: Request) {
   try {
@@ -11,13 +12,29 @@ export async function GET(request: Request) {
     }
 
     await dbConnect()
+    
+    // Obtener rol del usuario
+    const user = await User.findById(session.user.id).select("rol").lean()
+    const userRole = (user as any)?.rol || "abogado"
 
     const { searchParams } = new URL(request.url)
     const search = searchParams.get("search")
     const tipo = searchParams.get("tipo")
     const activo = searchParams.get("activo")
 
-    const query: Record<string, unknown> = { abogadoAsignado: session.user.id }
+    // Filtrar según el rol del usuario
+    let query: Record<string, unknown> = {}
+    
+    if (userRole === "superadmin" || userRole === "admin") {
+      // SuperAdmin y Admin ven todos los clientes
+      query = {}
+    } else if (userRole === "cliente") {
+      // Cliente solo ve su propio perfil
+      query = { email: session.user.email }
+    } else {
+      // Abogado/Asistente ven clientes asignados a ellos
+      query = { abogadoAsignado: session.user.id }
+    }
 
     if (tipo && tipo !== "todos") {
       query.tipo = tipo

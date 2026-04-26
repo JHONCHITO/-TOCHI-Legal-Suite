@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Appointment from "@/lib/models/Appointment"
+import User from "@/lib/models/User"
+import Client from "@/lib/models/Client"
 
 export async function GET(request: Request) {
   try {
@@ -11,13 +13,34 @@ export async function GET(request: Request) {
     }
 
     await dbConnect()
+    
+    // Obtener rol del usuario
+    const user = await User.findById(session.user.id).select("rol").lean()
+    const userRole = (user as any)?.rol || "abogado"
 
     const { searchParams } = new URL(request.url)
     const fecha = searchParams.get("fecha")
     const tipo = searchParams.get("tipo")
     const estado = searchParams.get("estado")
 
-    const query: Record<string, unknown> = { abogadoId: session.user.id }
+    // Filtrar según el rol del usuario
+    let query: Record<string, unknown> = {}
+    
+    if (userRole === "superadmin" || userRole === "admin") {
+      // SuperAdmin y Admin ven todas las citas
+      query = {}
+    } else if (userRole === "cliente") {
+      // Cliente solo ve sus propias citas
+      const clientRecord = await Client.findOne({ email: session.user.email }).select("_id").lean()
+      if (clientRecord) {
+        query = { clienteId: (clientRecord as any)._id }
+      } else {
+        return NextResponse.json([])
+      }
+    } else {
+      // Abogado/Asistente ven citas asignadas a ellos
+      query = { abogadoId: session.user.id }
+    }
 
     if (fecha) {
       const startDate = new Date(fecha)

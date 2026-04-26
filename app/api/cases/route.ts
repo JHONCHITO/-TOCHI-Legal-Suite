@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Case from "@/lib/models/Case"
 import Client from "@/lib/models/Client"
+import User from "@/lib/models/User"
 
 export async function GET(request: Request) {
   try {
@@ -12,13 +13,34 @@ export async function GET(request: Request) {
     }
 
     await dbConnect()
+    
+    // Obtener rol del usuario
+    const user = await User.findById(session.user.id).select("rol").lean()
+    const userRole = (user as any)?.rol || "abogado"
 
     const { searchParams } = new URL(request.url)
     const estado = searchParams.get("estado")
     const tipo = searchParams.get("tipo")
     const search = searchParams.get("search")
 
-    const query: Record<string, unknown> = { abogadoPrincipal: session.user.id }
+    // Filtrar según el rol del usuario
+    let query: Record<string, unknown> = {}
+    
+    if (userRole === "superadmin" || userRole === "admin") {
+      // SuperAdmin y Admin ven todos los casos
+      query = {}
+    } else if (userRole === "cliente") {
+      // Cliente solo ve sus propios casos (donde es el cliente)
+      const clientRecord = await Client.findOne({ email: session.user.email }).select("_id").lean()
+      if (clientRecord) {
+        query = { clienteId: (clientRecord as any)._id }
+      } else {
+        return NextResponse.json([]) // No tiene casos si no está registrado como cliente
+      }
+    } else {
+      // Abogado/Asistente ven casos donde son el abogado principal
+      query = { abogadoPrincipal: session.user.id }
+    }
 
     if (estado && estado !== "todos") {
       query.estado = estado
