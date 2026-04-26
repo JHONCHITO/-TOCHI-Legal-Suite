@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowRight,
@@ -7,6 +9,7 @@ import {
   CreditCard,
   DollarSign,
   FileText,
+  Loader2,
   MessageSquare,
   Scale,
   Shield,
@@ -18,15 +21,17 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useDashboard } from "@/lib/hooks/use-data";
 import {
-  demoAppointments,
-  demoCases,
-  demoClients,
-  demoInvoices,
   formatCurrencyCop,
-  getClientById,
+  formatDateShort,
+  formatTime,
   getClientDisplayName,
-} from "@/lib/demo-data";
+  caseStatusColors,
+  caseStatusLabels,
+  appointmentTypeColors,
+  appointmentTypeLabels,
+} from "@/lib/utils/format";
 import { toLegalSlug } from "@/lib/legal-library";
 
 const modules = [
@@ -42,17 +47,31 @@ const modules = [
   { title: "Alertas", description: "Vencimientos, novedades y cambios normativos.", href: "/dashboard/notificaciones", icon: Bell },
 ];
 
-const estadoColors: Record<string, string> = {
-  activo: "bg-accent/20 text-accent",
-  en_tramite: "bg-primary/20 text-primary",
-  audiencia_pendiente: "bg-amber-100 text-amber-800",
-  consulta: "bg-muted text-muted-foreground",
-};
-
 export default function DashboardPage() {
-  const totalFacturado = demoInvoices.reduce((sum, item) => sum + item.valor, 0);
-  const activeCases = demoCases.filter((item) => item.estado === "activo");
-  const upcomingAppointments = demoAppointments.slice(0, 3);
+  const { data, isLoading, isError, mutate } = useDashboard();
+
+  if (isError) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive">Error al cargar el dashboard</p>
+          <Button variant="outline" onClick={() => mutate()} className="mt-4">
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = data?.stats || {
+    casos: { total: 0, activos: 0 },
+    clientes: { total: 0, activos: 0 },
+    citas: { proximas: 0 },
+    facturacion: { totalFacturado: 0, totalPagado: 0, totalPendiente: 0 },
+  };
+
+  const recentCases = data?.recentCases || [];
+  const recentAppointments = data?.recentAppointments || [];
 
   return (
     <div className="space-y-6">
@@ -79,151 +98,195 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatsCard
-          title="Casos Activos"
-          value={activeCases.length}
-          description={`${demoCases.length} expedientes en seguimiento`}
-          icon={Briefcase}
-          trend={{ value: 12, positive: true }}
-        />
-        <StatsCard
-          title="Clientes"
-          value={demoClients.length}
-          description="CRM legal centralizado"
-          icon={Users}
-          trend={{ value: 8, positive: true }}
-        />
-        <StatsCard
-          title="Citas Proximas"
-          value={demoAppointments.length}
-          description="Agenda conectada a los expedientes"
-          icon={Calendar}
-        />
-        <StatsCard
-          title="Ingresos Visibles"
-          value={formatCurrencyCop(totalFacturado)}
-          description="COP"
-          icon={DollarSign}
-          trend={{ value: 5, positive: true }}
-        />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Modulos del ERP legal</CardTitle>
-          <CardDescription>Todo lo esencial de una firma en una sola navegacion.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {modules.map((module) => (
-              <Link
-                key={module.href}
-                href={module.href}
-                className="rounded-xl border p-4 transition-all hover:border-primary/50 hover:bg-muted/40"
-              >
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="rounded-lg bg-primary/10 p-2">
-                    <module.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <p className="font-medium">{module.title}</p>
-                </div>
-                <p className="text-sm text-muted-foreground">{module.description}</p>
-              </Link>
-            ))}
+      {isLoading ? (
+        <div className="flex h-[200px] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatsCard
+              title="Casos Activos"
+              value={stats.casos.activos}
+              description={`${stats.casos.total} expedientes en seguimiento`}
+              icon={Briefcase}
+              trend={stats.casos.activos > 0 ? { value: 12, positive: true } : undefined}
+            />
+            <StatsCard
+              title="Clientes"
+              value={stats.clientes.total}
+              description={`${stats.clientes.activos} clientes activos`}
+              icon={Users}
+              trend={stats.clientes.total > 0 ? { value: 8, positive: true } : undefined}
+            />
+            <StatsCard
+              title="Citas Proximas"
+              value={stats.citas.proximas}
+              description="En los proximos 7 dias"
+              icon={Calendar}
+            />
+            <StatsCard
+              title="Facturacion"
+              value={formatCurrencyCop(stats.facturacion.totalFacturado)}
+              description={`${formatCurrencyCop(stats.facturacion.totalPendiente)} pendiente`}
+              icon={DollarSign}
+              trend={stats.facturacion.totalPagado > 0 ? { value: 5, positive: true } : undefined}
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div>
-              <CardTitle className="text-lg">Casos recientes</CardTitle>
-              <CardDescription>Expedientes con movimiento o prioridad.</CardDescription>
-            </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/dashboard/casos">
-                Ver todos
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {demoCases.slice(0, 3).map((caso) => {
-              const client = getClientById(caso.clienteId);
-              return (
-                <Link
-                  key={caso.id}
-                  href={`/dashboard/casos/${caso.id}`}
-                  className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50"
-                >
-                  <div className="rounded-lg bg-primary/10 p-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-sm">{caso.titulo}</p>
-                      <Badge variant="secondary" className={estadoColors[caso.estado]}>
-                        {caso.estado.replace("_", " ")}
-                      </Badge>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Modulos del ERP legal</CardTitle>
+              <CardDescription>Todo lo esencial de una firma en una sola navegacion.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {modules.map((module) => (
+                  <Link
+                    key={module.href}
+                    href={module.href}
+                    className="rounded-xl border p-4 transition-all hover:border-primary/50 hover:bg-muted/40"
+                  >
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="rounded-lg bg-primary/10 p-2">
+                        <module.icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <p className="font-medium">{module.title}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {caso.numeroInterno} - {client ? getClientDisplayName(client) : "Cliente"}
-                    </p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      Proxima actuacion: {caso.fechaProximaActuacion}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </CardContent>
-        </Card>
+                    <p className="text-sm text-muted-foreground">{module.description}</p>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div>
-              <CardTitle className="text-lg">Agenda y alertas</CardTitle>
-              <CardDescription>Compromisos inmediatos del despacho.</CardDescription>
-            </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/dashboard/citas">
-                Ver calendario
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {upcomingAppointments.map((item) => {
-              const client = getClientById(item.clienteId);
-              return (
-                <div key={item.id} className="flex items-start gap-4 rounded-lg border p-4">
-                  <div className="rounded-lg bg-accent/10 p-2">
-                    <Calendar className="h-4 w-4 text-accent" />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-sm">{item.titulo}</p>
-                      <Badge variant="outline">{item.tipo}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {client ? getClientDisplayName(client) : "Cliente"}
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{item.fecha}</span>
-                      <span>
-                        {item.horaInicio} - {item.horaFin}
-                      </span>
-                    </div>
-                  </div>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div>
+                  <CardTitle className="text-lg">Casos recientes</CardTitle>
+                  <CardDescription>Expedientes con movimiento o prioridad.</CardDescription>
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </div>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/dashboard/casos">
+                    Ver todos
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {recentCases.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Briefcase className="mb-4 h-10 w-10 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">No hay casos registrados</p>
+                    <Button asChild variant="outline" size="sm" className="mt-4">
+                      <Link href="/dashboard/casos/nuevo">Crear primer caso</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  recentCases.slice(0, 3).map((caso: {
+                    _id: string;
+                    titulo: string;
+                    numeroInterno: string;
+                    estado: string;
+                    fechaProximaActuacion?: string;
+                    clienteId?: { tipo: string; nombre?: string; apellido?: string; razonSocial?: string };
+                  }) => {
+                    return (
+                      <Link
+                        key={caso._id}
+                        href={`/dashboard/casos/${caso._id}`}
+                        className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50"
+                      >
+                        <div className="rounded-lg bg-primary/10 p-2">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-sm">{caso.titulo}</p>
+                            <Badge variant="secondary" className={caseStatusColors[caso.estado]}>
+                              {caseStatusLabels[caso.estado] || caso.estado}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {caso.numeroInterno} - {caso.clienteId ? getClientDisplayName(caso.clienteId) : "Sin cliente"}
+                          </p>
+                          {caso.fechaProximaActuacion && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              Proxima actuacion: {formatDateShort(caso.fechaProximaActuacion)}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div>
+                  <CardTitle className="text-lg">Agenda y alertas</CardTitle>
+                  <CardDescription>Compromisos inmediatos del despacho.</CardDescription>
+                </div>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/dashboard/citas">
+                    Ver calendario
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {recentAppointments.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <Calendar className="mb-4 h-10 w-10 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">No hay citas proximas</p>
+                    <Button asChild variant="outline" size="sm" className="mt-4">
+                      <Link href="/dashboard/citas">Agendar cita</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  recentAppointments.slice(0, 3).map((item: {
+                    _id: string;
+                    titulo: string;
+                    tipo: string;
+                    fechaInicio: string;
+                    fechaFin: string;
+                    clienteId?: { tipo: string; nombre?: string; apellido?: string; razonSocial?: string };
+                  }) => {
+                    return (
+                      <div key={item._id} className="flex items-start gap-4 rounded-lg border p-4">
+                        <div className="rounded-lg bg-accent/10 p-2">
+                          <Calendar className="h-4 w-4 text-accent" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">{item.titulo}</p>
+                            <Badge className={appointmentTypeColors[item.tipo]}>
+                              {appointmentTypeLabels[item.tipo] || item.tipo}
+                            </Badge>
+                          </div>
+                          {item.clienteId && (
+                            <p className="text-xs text-muted-foreground">
+                              {getClientDisplayName(item.clienteId)}
+                            </p>
+                          )}
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{formatDateShort(item.fechaInicio)}</span>
+                            <span>{formatTime(item.fechaInicio)} - {formatTime(item.fechaFin)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }
