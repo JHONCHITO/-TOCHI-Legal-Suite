@@ -14,6 +14,8 @@ export interface IUser extends Document {
   especialidades?: string[];
   activo: boolean;
   emailVerified?: Date;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +61,8 @@ const UserSchema = new Schema<IUser>(
       default: true,
     },
     emailVerified: Date,
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
   },
   {
     timestamps: true,
