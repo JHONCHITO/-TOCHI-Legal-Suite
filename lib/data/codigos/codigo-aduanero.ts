@@ -17,6 +17,6 @@ export const codigoAduanero = {
       libro: "Titulo I",
       capitulo: "Disposiciones Generales"
     },
-    // AGREGA MAS ARTICULOS AQUI...
+    // AGREGA MAS ARTICULOS AQUI... se agregaran mas articulos 
   ]
 }
