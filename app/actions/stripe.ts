@@ -5,6 +5,8 @@ import { getPlanById } from '@/lib/products'
 import { headers } from 'next/headers'
 
 export async function createCheckoutSession(planId: string) {
+  const stripe = getStripe(); // ✅ IMPORTANTE
+
   const plan = getPlanById(planId)
 
   if (!plan) {
@@ -43,6 +45,8 @@ export async function createCheckoutSession(planId: string) {
 }
 
 export async function getCheckoutSession(sessionId: string) {
+  const stripe = getStripe(); // 🔥 ESTE ES EL FIX
+
   const session = await stripe.checkout.sessions.retrieve(sessionId, {
     expand: ['subscription', 'customer'],
   })
