@@ -38,7 +38,7 @@ const herramientas = [
     title: "Calendario Judicial",
     description: "Consulta días hábiles, festivos y vacancia judicial",
     icon: Calendar,
-    href: "/dashboard/herramientas/calendario",
+    href: "/dashboard/herramientas/calendario-judicial",
     color: "bg-red-500",
   },
   {

@@ -8,7 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Wand2, Copy, Download, Loader2, CheckCircle } from "lucide-react"
+import { FileText, Wand2, Copy, Download, Loader2, CheckCircle, FileType, ChevronDown } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
 
 const tiposDocumento = [
@@ -93,8 +99,8 @@ export default function GeneradorDocumentosPage() {
     })
   }
 
-  const handleDescargar = () => {
-    const blob = new Blob([documentoGenerado], { type: "text/plain" })
+  const handleDescargarTXT = () => {
+    const blob = new Blob([documentoGenerado], { type: "text/plain;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
@@ -103,6 +109,61 @@ export default function GeneradorDocumentosPage() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+    toast({ title: "Descargado", description: "Documento descargado como TXT" })
+  }
+
+  const handleDescargarDOC = () => {
+    // Crear documento Word básico
+    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head><meta charset='utf-8'><title>Documento Legal</title></head><body style="font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.5;">`
+    const footer = `</body></html>`
+    const content = documentoGenerado.replace(/\n/g, "<br>")
+    const blob = new Blob([header + content + footer], { type: "application/msword" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${tipoDocumento}-${new Date().toISOString().split("T")[0]}.doc`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast({ title: "Descargado", description: "Documento descargado como Word (.doc)" })
+  }
+
+  const handleDescargarODT = () => {
+    // Crear documento ODF/ODT básico
+    const contentXml = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" 
+xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+<office:body><office:text>
+${documentoGenerado.split('\n').map(line => `<text:p>${line}</text:p>`).join('\n')}
+</office:text></office:body></office:document-content>`
+    const blob = new Blob([contentXml], { type: "application/vnd.oasis.opendocument.text" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${tipoDocumento}-${new Date().toISOString().split("T")[0]}.odt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast({ title: "Descargado", description: "Documento descargado como ODT" })
+  }
+
+  const handleDescargarRTF = () => {
+    // Crear documento RTF
+    const rtfContent = `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}
+\\f0\\fs24 ${documentoGenerado.replace(/\n/g, "\\par ")}}`
+    const blob = new Blob([rtfContent], { type: "application/rtf" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${tipoDocumento}-${new Date().toISOString().split("T")[0]}.rtf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast({ title: "Descargado", description: "Documento descargado como RTF" })
   }
 
   return (
@@ -260,9 +321,32 @@ export default function GeneradorDocumentosPage() {
                   <Button variant="outline" size="sm" onClick={handleCopiar}>
                     {copied ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleDescargar}>
-                    <Download className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-1" />
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleDescargarDOC}>
+                        <FileType className="h-4 w-4 mr-2" />
+                        Word (.doc)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDescargarRTF}>
+                        <FileType className="h-4 w-4 mr-2" />
+                        Rich Text (.rtf)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDescargarODT}>
+                        <FileType className="h-4 w-4 mr-2" />
+                        OpenDocument (.odt)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleDescargarTXT}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Texto plano (.txt)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
             </div>

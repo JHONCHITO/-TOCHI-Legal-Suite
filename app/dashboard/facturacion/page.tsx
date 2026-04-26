@@ -211,8 +211,8 @@ export default function FacturacionPage() {
   const getClientName = (clienteId: string) => {
     const client = clients?.find((c: any) => c._id === clienteId)
     if (!client) return "Sin cliente"
-    return client.tipoPersona === "natural"
-      ? `${client.nombres} ${client.apellidos}`
+    return client.tipo === "persona_natural"
+      ? `${client.nombre || ""} ${client.apellido || ""}`
       : client.razonSocial
   }
 
@@ -288,8 +288,8 @@ export default function FacturacionPage() {
                     <SelectContent>
                       {clients?.map((client: any) => (
                         <SelectItem key={client._id} value={client._id}>
-                          {client.tipoPersona === "natural"
-                            ? `${client.nombres} ${client.apellidos}`
+                          {client.tipo === "persona_natural"
+                            ? `${client.nombre || ""} ${client.apellido || ""}`
                             : client.razonSocial}
                         </SelectItem>
                       ))}

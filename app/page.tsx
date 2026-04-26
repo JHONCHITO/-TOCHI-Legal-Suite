@@ -1,11 +1,23 @@
 import Link from 'next/link'
-import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Scale, BookOpen, Calendar, Users, Brain, FileText, Bell, Shield, ArrowRight } from 'lucide-react'
 
+async function checkSession() {
+  try {
+    // Solo intentar auth si MONGODB_URI está configurada
+    if (!process.env.MONGODB_URI) {
+      return null
+    }
+    const { auth } = await import('@/lib/auth')
+    return await auth()
+  } catch {
+    return null
+  }
+}
+
 export default async function HomePage() {
-  const session = await auth()
+  const session = await checkSession()
 
   if (session) {
     redirect('/dashboard')
