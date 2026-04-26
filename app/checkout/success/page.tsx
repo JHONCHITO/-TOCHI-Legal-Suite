@@ -6,25 +6,37 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle, Scale, ArrowRight } from 'lucide-react'
 
-interface SuccessPageProps {
-  searchParams: Promise<{ session_id?: string }>
-}
+// 🔥 IMPORTANTE: evitar ejecución en build
+export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'Pago Exitoso - TOCHI Legal Suite',
   description: 'Tu suscripcion ha sido activada exitosamente',
 }
 
-export default async function SuccessPage({ searchParams }: SuccessPageProps) {
-  const { session_id } = await searchParams
+interface SuccessPageProps {
+  searchParams: { session_id?: string } // ✅ FIX
+}
 
+export default async function SuccessPage({ searchParams }: SuccessPageProps) {
+  const session_id = searchParams?.session_id
+
+  // 🔒 validación básica
   if (!session_id) {
     redirect('/precios')
   }
 
-  const session = await getCheckoutSession(session_id)
+  let session = null
 
-  if (session.status !== 'complete') {
+  // 🔥 PROTECCIÓN STRIPE (CLAVE)
+  try {
+    session = await getCheckoutSession(session_id)
+  } catch (error) {
+    console.error('Error Stripe:', error)
+    redirect('/precios')
+  }
+
+  if (!session || session.status !== 'complete') {
     redirect('/precios')
   }
 
@@ -42,7 +54,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
             Tu suscripcion ha sido activada correctamente
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
             {plan && (
@@ -51,12 +63,14 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
                 <span className="font-medium">{plan.name}</span>
               </div>
             )}
+
             {session.customerEmail && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Email</span>
                 <span className="font-medium">{session.customerEmail}</span>
               </div>
             )}
+
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Estado</span>
               <span className="text-accent font-medium">Activo</span>
@@ -66,7 +80,9 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
           <div className="text-center text-sm text-muted-foreground">
             <p>
               Hemos enviado un correo de confirmacion a{' '}
-              <span className="font-medium text-foreground">{session.customerEmail}</span>
+              <span className="font-medium text-foreground">
+                {session.customerEmail || 'tu correo'}
+              </span>
             </p>
           </div>
 
@@ -77,6 +93,7 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>
+
             <Link href="/precios">
               <Button variant="outline" className="w-full">
                 Ver otros planes
@@ -85,7 +102,10 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
           </div>
 
           <div className="text-center pt-4 border-t">
-            <Link href="/" className="flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <Link
+              href="/"
+              className="flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
               <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
                 <Scale className="w-4 h-4 text-primary-foreground" />
               </div>
