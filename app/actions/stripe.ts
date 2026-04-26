@@ -1,6 +1,6 @@
 'use server'
 
-import { stripe } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
 import { getPlanById } from '@/lib/products'
 import { headers } from 'next/headers'
 
