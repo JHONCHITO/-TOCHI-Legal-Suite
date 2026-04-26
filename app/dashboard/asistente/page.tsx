@@ -75,56 +75,63 @@ export default function AsistentePage() {
     ];
   }, [context]);
 
-  const sendPrompt = async (prompt: string) => {
-    const trimmed = prompt.trim();
-    if (!trimmed || loading) return;
+const sendPrompt = async (prompt: string) => {
+  const trimmed = prompt.trim();
+  if (!trimmed || loading) return;
 
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: trimmed,
+  const userMessage: ChatMessage = {
+    id: `user-${Date.now()}`,
+    role: "user",
+    content: trimmed,
+  };
+
+  const nextMessages = [...messages, userMessage];
+  setMessages(nextMessages);
+  setInput("");
+  setLoading(true);
+  setError(null);
+
+  try {
+    const response = await fetch("/api/ia", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        pregunta: trimmed,
+      }),
+    });
+
+    let payload;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new Error("Respuesta inválida del servidor");
+    }
+
+    if (!response.ok) {
+      throw new Error(payload?.error || "Error del servidor");
+    }
+
+    if (!payload || !payload.respuesta) {
+      throw new Error("Respuesta vacía de la IA");
+    }
+
+    const assistantMessage: ChatMessage = {
+      id: `assistant-${Date.now()}`,
+      role: "assistant",
+      content: payload.respuesta,
+      sources: Array.isArray(payload.sources) ? payload.sources : [],
     };
 
-    const nextMessages = [...messages, userMessage];
-    setMessages(nextMessages);
-    setInput("");
-    setLoading(true);
-    setError(null);
+    setMessages((current) => [...current, assistantMessage]);
 
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: nextMessages.map((item) => ({
-            role: item.role,
-            content: item.content,
-          })),
-        }),
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload?.error || "No se pudo obtener respuesta del asistente.");
-      }
-
-      const assistantMessage: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: payload.message || "No se obtuvo contenido.",
-        sources: Array.isArray(payload.sources) ? payload.sources : [],
-      };
-
-      setMessages((current) => [...current, assistantMessage]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al consultar la IA.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Error al consultar la IA.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
