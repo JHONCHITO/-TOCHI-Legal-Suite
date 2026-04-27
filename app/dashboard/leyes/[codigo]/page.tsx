@@ -67,8 +67,14 @@ export default function CodigoDetailPage() {
   }, [filteredArticles]);
 
   useEffect(() => {
-    setExpandedSections(new Set(Object.keys(groupedArticles)));
-  }, [slug, groupedArticles]);
+  if (!groupedArticles) return;
+
+  const keys = Object.keys(groupedArticles);
+
+  if (keys.length > 0) {
+    setExpandedSections(new Set(keys));
+  }
+}, [slug]);
 
   const toggleSection = (section: string) => {
     setExpandedSections((current) => {
