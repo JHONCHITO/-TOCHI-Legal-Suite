@@ -1,63 +1,85 @@
 import OpenAI from "openai";
+import dbConnect from "@/lib/mongodb";
+import Norma from "@/lib/models/Norma";
 
 export const runtime = "nodejs";
 
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+});
+
+// 🔥 similitud coseno
+function cosineSimilarity(a: number[], b: number[]) {
+  const dot = a.reduce((sum, val, i) => sum + val * b[i], 0);
+  const magA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+  const magB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+  return dot / (magA * magB);
+}
+
 export async function POST(req: Request) {
   try {
-    // ✅ Leer body
-    const body = await req.json().catch(() => null);
+    const { pregunta } = await req.json();
 
-    if (!body) {
-      return new Response(
-        JSON.stringify({ error: "Body inválido (JSON requerido)" }),
-        { status: 400 }
-      );
+    if (!pregunta) {
+      return Response.json({ error: "Pregunta vacía" });
     }
 
-    const pregunta = body.pregunta;
+    await dbConnect();
 
-    // ✅ Validar input
-    if (!pregunta || typeof pregunta !== "string") {
-      return new Response(
-        JSON.stringify({ error: "La propiedad 'pregunta' es requerida" }),
-        { status: 400 }
-      );
-    }
-
-    // ✅ Validar API key
-    const apiKey = process.env.OPENAI_API_KEY;
-
-    if (!apiKey) {
-      console.error("❌ Falta OPENAI_API_KEY");
-      return new Response(
-        JSON.stringify({ error: "Falta OPENAI_API_KEY" }),
-        { status: 500 }
-      );
-    }
-
-    // ✅ OpenAI
-    const openai = new OpenAI({ apiKey });
-
-    const response = await openai.responses.create({
-      model: "gpt-4o-mini",
+    // 🔥 1. embedding de la pregunta
+    const emb = await openai.embeddings.create({
+      model: "text-embedding-3-small",
       input: pregunta,
     });
 
-    const texto = response.output_text ?? "Sin respuesta";
+    const queryVector = emb.data[0].embedding;
 
-    return new Response(
-      JSON.stringify({ respuesta: texto }),
-      { status: 200 }
-    );
+    // 🔥 2. traer normas con embedding
+    const normas = await Norma.find({ embedding: { $exists: true } })
+      .limit(100);
 
-  } catch (error: any) {
-    console.error("🔥 ERROR:", error);
+    // 🔥 3. calcular similitud
+    const ranked = normas
+      .map((n: any) => ({
+        ...n.toObject(),
+        score: cosineSimilarity(queryVector, n.embedding),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
 
-    return new Response(
-      JSON.stringify({
-        error: error.message || "Error interno",
-      }),
-      { status: 500 }
-    );
+    // 🔥 4. construir contexto
+    let contexto = "";
+
+    ranked.forEach((item) => {
+      contexto += `[${item.codigo}] Artículo ${item.articulo}\n`;
+      contexto += item.contenido.slice(0, 300) + "\n\n";
+    });
+
+    // 🔥 5. IA responde como abogado
+    const response = await openai.responses.create({
+      model: "gpt-4o-mini",
+      input: `
+Eres un abogado experto en derecho colombiano.
+
+Usa SOLO la información del contexto.
+
+CONTEXTO:
+${contexto}
+
+PREGUNTA:
+${pregunta}
+
+Responde claro, profesional y citando artículos.
+      `,
+    });
+
+    return Response.json({
+      respuesta: response.output_text,
+      fuentes: ranked,
+    });
+
+  } catch (error) {
+    console.error(error);
+    return Response.json({ error: "Error IA" });
   }
 }
