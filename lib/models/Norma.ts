@@ -1,18 +1,32 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
-const NormaSchema = new mongoose.Schema({
-  codigo: String,
-  nombre: String,
-  articulo: String,
-  titulo: String,
-  contenido: String,
+// 🔥 interfaz (opcional pero recomendado)
+export interface INorma extends Document {
+  codigo: string;
+  nombre: string;
+  articulo: string;
+  titulo: string;
+  contenido: string;
+  embedding?: number[];
+}
 
-  // 🔥 IMPORTANTE PARA IA
+// 🔥 esquema
+const NormaSchema: Schema<INorma> = new Schema({
+  codigo: { type: String, required: true },
+  nombre: { type: String, required: true },
+  articulo: { type: String, required: true },
+  titulo: { type: String },
+  contenido: { type: String, required: true },
+
+  // 🔥 VECTOR (CORREGIDO)
   embedding: {
     type: [Number],
-    default: []
+    default: undefined, // ⚠️ importante (NO [])
   }
 });
 
-export default mongoose.models.Norma ||
-  mongoose.model("Norma", NormaSchema);
+// 🔥 evitar duplicación en hot reload (Next.js / dev)
+const Norma: Model<INorma> =
+  mongoose.models.Norma || mongoose.model<INorma>("Norma", NormaSchema);
+
+export default Norma;

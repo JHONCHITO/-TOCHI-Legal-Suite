@@ -3,20 +3,31 @@ import mongoose from "mongoose";
 const MONGODB_URI = process.env.MONGODB_URI?.trim();
 
 if (!MONGODB_URI) {
-  throw new Error("Falta la variable de entorno MONGODB_URI");
+  throw new Error("❌ Falta la variable de entorno MONGODB_URI");
 }
 
-const mongoUri = MONGODB_URI;
-
+// 🔥 Cache global para evitar múltiples conexiones
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
 }
 
 declare global {
-  var mongoose: MongooseCache | undefined;
+  // eslint-disable-next-line no-var
+  var mongooseCache: MongooseCache | undefined;
 }
 
+// 🔥 Inicializar cache
+const cached: MongooseCache = global.mongooseCache || {
+  conn: null,
+  promise: null,
+};
+
+if (!global.mongooseCache) {
+  global.mongooseCache = cached;
+}
+
+// 🔍 Solo para log bonito
 function getSafeConnectionLabel(uri: string) {
   try {
     const sanitized = uri.replace("mongodb+srv://", "").replace("mongodb://", "");
@@ -27,54 +38,37 @@ function getSafeConnectionLabel(uri: string) {
   }
 }
 
-function formatMongoError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return new Error("No se pudo conectar a MongoDB");
-  }
-
-  if (error.message.includes("querySrv")) {
-    return new Error(
-      "No se pudo resolver el DNS del cluster MongoDB. Usa una URI directa del replicaset o revisa tu red/DNS."
-    );
-  }
-
-  return error;
-}
-
-const cached: MongooseCache = global.mongoose || {
-  conn: null,
-  promise: null,
-};
-
-if (!global.mongoose) {
-  global.mongoose = cached;
-}
-
+// 🔥 Conexión principal
 async function dbConnect(): Promise<typeof mongoose> {
   if (cached.conn) {
     return cached.conn;
   }
 
   if (!cached.promise) {
-    const opts = {
+    console.log(`🔌 Conectando a MongoDB: ${getSafeConnectionLabel(MONGODB_URI!)}`);
+
+    cached.promise = mongoose.connect(MONGODB_URI!, {
       bufferCommands: false,
-      family: 4,
       serverSelectionTimeoutMS: 10000,
-    };
-
-    console.log(`Conectando a MongoDB: ${getSafeConnectionLabel(mongoUri)}`);
-
-    cached.promise = mongoose.connect(mongoUri, opts).catch((error) => {
-      const formattedError = formatMongoError(error);
-      console.error("Error conectando a MongoDB:", formattedError.message);
-      throw formattedError;
+      family: 4, // evita problemas DNS en algunos sistemas
     });
   }
 
   try {
     cached.conn = await cached.promise;
-  } catch (error) {
+    console.log("✅ MongoDB conectado");
+  } catch (error: any) {
     cached.promise = null;
+
+    console.error("💣 Error conectando a MongoDB:", error.message);
+
+    // 🔥 errores comunes mejor explicados
+    if (error.message.includes("querySrv")) {
+      throw new Error(
+        "❌ Error DNS MongoDB. Revisa tu conexión o usa URI directa (no SRV)"
+      );
+    }
+
     throw error;
   }
 
