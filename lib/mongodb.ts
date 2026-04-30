@@ -6,7 +6,7 @@ if (!MONGODB_URI) {
   throw new Error("❌ Falta la variable de entorno MONGODB_URI");
 }
 
-// 🔥 Cache global para evitar múltiples conexiones
+// 🔥 Tipado global
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -17,7 +17,7 @@ declare global {
   var mongooseCache: MongooseCache | undefined;
 }
 
-// 🔥 Inicializar cache
+// 🔥 Cache
 const cached: MongooseCache = global.mongooseCache || {
   conn: null,
   promise: null,
@@ -27,30 +27,16 @@ if (!global.mongooseCache) {
   global.mongooseCache = cached;
 }
 
-// 🔍 Solo para log bonito
-function getSafeConnectionLabel(uri: string) {
-  try {
-    const sanitized = uri.replace("mongodb+srv://", "").replace("mongodb://", "");
-    const hostAndDb = sanitized.split("@").pop() ?? "mongodb";
-    return hostAndDb.split("?")[0];
-  } catch {
-    return "mongodb";
-  }
-}
-
 // 🔥 Conexión principal
 async function dbConnect(): Promise<typeof mongoose> {
-  if (cached.conn) {
-    return cached.conn;
-  }
+  if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    console.log(`🔌 Conectando a MongoDB: ${getSafeConnectionLabel(MONGODB_URI!)}`);
+    console.log("🔌 Conectando a MongoDB...");
 
     cached.promise = mongoose.connect(MONGODB_URI!, {
       bufferCommands: false,
       serverSelectionTimeoutMS: 10000,
-      family: 4, // evita problemas DNS en algunos sistemas
     });
   }
 
@@ -59,16 +45,7 @@ async function dbConnect(): Promise<typeof mongoose> {
     console.log("✅ MongoDB conectado");
   } catch (error: any) {
     cached.promise = null;
-
-    console.error("💣 Error conectando a MongoDB:", error.message);
-
-    // 🔥 errores comunes mejor explicados
-    if (error.message.includes("querySrv")) {
-      throw new Error(
-        "❌ Error DNS MongoDB. Revisa tu conexión o usa URI directa (no SRV)"
-      );
-    }
-
+    console.error("💣 Error MongoDB:", error.message);
     throw error;
   }
 
