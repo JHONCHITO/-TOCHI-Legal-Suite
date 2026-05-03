@@ -84,11 +84,18 @@ export async function POST(request: Request) {
       updatedAt: new Date(),
     });
 
-    await ensureSubscriptionForUser(user._id.toString(), {
-      planId: selectedPlanId,
-      resetTrial: true,
-      status: "trialing",
-    });
+    try {
+      await ensureSubscriptionForUser(user._id.toString(), {
+        planId: selectedPlanId,
+        resetTrial: true,
+        status: "trialing",
+      });
+    } catch (subscriptionError) {
+      console.warn(
+        "No se pudo crear la suscripcion inicial del usuario, se mantiene el registro:",
+        subscriptionError instanceof Error ? subscriptionError.message : subscriptionError
+      );
+    }
 
     // No devolver la contraseña
     const userResponse = {

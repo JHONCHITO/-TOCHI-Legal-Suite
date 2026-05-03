@@ -72,11 +72,18 @@ export async function POST(request: Request) {
 
     await admin.save();
 
-    await ensureSubscriptionForUser(admin._id.toString(), {
-      planId: "plan-firma",
-      resetTrial: true,
-      status: "active",
-    });
+    try {
+      await ensureSubscriptionForUser(admin._id.toString(), {
+        planId: "plan-firma",
+        resetTrial: true,
+        status: "active",
+      });
+    } catch (subscriptionError) {
+      console.warn(
+        "No se pudo crear la suscripcion del administrador, se devuelve la cuenta igualmente:",
+        subscriptionError instanceof Error ? subscriptionError.message : subscriptionError
+      );
+    }
 
     return NextResponse.json(
       {

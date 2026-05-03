@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import Subscription, {
@@ -31,6 +32,27 @@ export function createEmptyUsage() {
     aiQueries: 0,
     users: 0,
   };
+}
+
+function buildVirtualSubscription(userId: string, planId: string, status: SubscriptionStatus = "trialing") {
+  const now = new Date();
+  const normalizedPlanId = getPlanById(planId)?.id || DEFAULT_PLAN_ID;
+
+  return {
+    _id: new mongoose.Types.ObjectId(),
+    userId: new mongoose.Types.ObjectId(userId),
+    planId: normalizedPlanId,
+    status,
+    trialStart: now,
+    trialEnd: addBusinessDays(now, TRIAL_BUSINESS_DAYS),
+    currentPeriodStart: now,
+    currentPeriodEnd: addBusinessDays(now, TRIAL_BUSINESS_DAYS),
+    limits: getPlanLimits(normalizedPlanId),
+    usage: createEmptyUsage(),
+    lastSyncedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  } as ISubscription;
 }
 
 export function addBusinessDays(start: Date, businessDays: number) {
@@ -149,21 +171,28 @@ export async function ensureSubscriptionForUser(
   const selectedLimits = selectedPlan?.limits || getPlanLimits(DEFAULT_PLAN_ID);
 
   if (!subscription) {
-    subscription = new Subscription({
-      userId,
-      planId: selectedPlanId,
-      status: options?.status || "trialing",
-      trialStart: new Date(),
-      trialEnd: addBusinessDays(new Date(), TRIAL_BUSINESS_DAYS),
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: addBusinessDays(new Date(), TRIAL_BUSINESS_DAYS),
-      limits: selectedLimits,
-      usage: createEmptyUsage(),
-      lastSyncedAt: new Date(),
-    });
+    const virtualSubscription = buildVirtualSubscription(userId, selectedPlanId, options?.status || "trialing");
 
-    await subscription.save();
-    return subscription;
+    try {
+      subscription = new Subscription({
+        userId,
+        planId: selectedPlanId,
+        status: options?.status || "trialing",
+        trialStart: virtualSubscription.trialStart,
+        trialEnd: virtualSubscription.trialEnd,
+        currentPeriodStart: virtualSubscription.currentPeriodStart,
+        currentPeriodEnd: virtualSubscription.currentPeriodEnd,
+        limits: selectedLimits,
+        usage: createEmptyUsage(),
+        lastSyncedAt: virtualSubscription.lastSyncedAt,
+      });
+
+      await subscription.save();
+      return subscription;
+    } catch (error) {
+      console.warn("No se pudo persistir la suscripcion inicial, usando version virtual:", error instanceof Error ? error.message : error);
+      return virtualSubscription;
+    }
   }
 
   if (options?.resetTrial || (options?.planId && subscription.planId !== selectedPlanId)) {
@@ -176,13 +205,21 @@ export async function ensureSubscriptionForUser(
     subscription.limits = selectedLimits;
     subscription.usage = createEmptyUsage();
     subscription.lastSyncedAt = new Date();
-    await subscription.save();
+    try {
+      await subscription.save();
+    } catch (error) {
+      console.warn("No se pudo guardar la suscripcion actualizada:", error instanceof Error ? error.message : error);
+    }
     return subscription;
   }
 
   const changed = applyLifecycle(subscription);
   if (changed) {
-    await subscription.save();
+    try {
+      await subscription.save();
+    } catch (error) {
+      console.warn("No se pudo guardar la suscripcion sincronizada:", error instanceof Error ? error.message : error);
+    }
   }
 
   return subscription;
@@ -207,18 +244,17 @@ export async function getEffectiveSubscription(userId: string) {
     };
   }
 
-  const subscription = await ensureSubscriptionForUser(userId);
-  if (!subscription) {
-    return null;
-  }
-
-  const plan = getPlanById(subscription.planId) || getPlanById(DEFAULT_PLAN_ID);
+  const subscription = await Subscription.findOne({ userId });
+  const plan = subscription
+    ? getPlanById(subscription.planId) || getPlanById(DEFAULT_PLAN_ID)
+    : getPlanById(DEFAULT_PLAN_ID);
+  const virtualSubscription = subscription || buildVirtualSubscription(userId, plan?.id || DEFAULT_PLAN_ID);
 
   return {
     user,
-    subscription,
+    subscription: virtualSubscription,
     plan,
-    limits: subscription.limits || plan?.limits || getPlanLimits(DEFAULT_PLAN_ID),
+    limits: virtualSubscription.limits || plan?.limits || getPlanLimits(DEFAULT_PLAN_ID),
     isUnlimited: false,
   };
 }
@@ -250,7 +286,13 @@ export async function consumeAiQuery(userId: string, amount = 1) {
 
   subscription.usage.aiQueries = (subscription.usage.aiQueries || 0) + amount;
   subscription.lastSyncedAt = new Date();
-  await subscription.save();
+  if (typeof (subscription as { save?: () => Promise<unknown> }).save === "function") {
+    try {
+      await (subscription as { save: () => Promise<unknown> }).save();
+    } catch (error) {
+      console.warn("No se pudo guardar el consumo de IA:", error instanceof Error ? error.message : error);
+    }
+  }
 
   return effective;
 }
@@ -267,11 +309,18 @@ export async function assertPlanLimit(
   }
 
   if (effective.isUnlimited || !effective.subscription) {
+    const limit = effective.limits?.[resource] ?? getPlanLimits(DEFAULT_PLAN_ID)[resource];
+
+    if (currentCount + increment > limit) {
+      const label = RESOURCE_LABELS[resource];
+      throw new Error(`Tu plan actual permite hasta ${limit} ${label}.`);
+    }
+
     return effective;
   }
 
   const subscription = effective.subscription;
-  const limit = subscription.limits?.[resource] ?? getPlanLimits(subscription.planId)[resource];
+  const limit = subscription.limits?.[resource] ?? effective.limits?.[resource] ?? getPlanLimits(subscription.planId)[resource];
 
   if (currentCount + increment > limit) {
     const label = RESOURCE_LABELS[resource];
