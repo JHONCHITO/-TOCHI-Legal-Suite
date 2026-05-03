@@ -1,0 +1,10 @@
+{
+  "name": "@tochi/api-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo \"api-gateway scaffold\"",
+    "build": "echo \"api-gateway scaffold\"",
+    "start": "echo \"api-gateway scaffold\""
+  }
+}

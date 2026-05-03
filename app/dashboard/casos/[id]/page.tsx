@@ -2,31 +2,77 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import {
+  ArrowLeft,
+  Calendar,
+  Clock3,
+  Edit,
+  FileText,
+  Loader2,
+  Mail,
+  MessageSquare,
+  Phone,
+  Scale,
+  User,
+  Users,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Calendar, FileText, Gavel, MessageSquare, Users } from "lucide-react";
-import { getCaseById, getClientById, getClientDisplayName, formatCurrencyCop } from "@/lib/demo-data";
+import { useCase } from "@/lib/hooks/use-data";
+import {
+  caseStatusColors,
+  caseStatusLabels,
+  caseTypeLabels,
+  formatCurrencyCop,
+  formatDate,
+  formatDateTime,
+  getClientDisplayName,
+} from "@/lib/utils/format";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 export default function CasoDetallePage() {
   const params = useParams<{ id: string }>();
-  const detail = getCaseById(params.id);
+  const caseId = params?.id ?? null;
+  const { case: caseData, isLoading, isError, mutate } = useCase(caseId);
 
-  if (!detail) {
+  if (isLoading) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Caso no encontrado</h1>
-        <Button asChild>
-          <Link href="/dashboard/casos">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Volver a casos
-          </Link>
-        </Button>
+      <div className="flex h-[420px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  const client = getClientById(detail.clienteId);
+  if (isError || !caseData) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold">Caso no encontrado</h1>
+        <p className="text-muted-foreground">
+          El expediente no existe, fue eliminado o no tienes permisos para verlo.
+        </p>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link href="/dashboard/casos">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver a casos
+            </Link>
+          </Button>
+          <Button variant="outline" onClick={() => mutate()}>
+            Reintentar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const detail = caseData as Record<string, any>;
+  const client = isRecord(detail.clienteId) ? detail.clienteId : null;
+  const actuaciones = Array.isArray(detail.actuaciones) ? detail.actuaciones : [];
+  const documentos = Array.isArray(detail.documentos) ? detail.documentos : [];
 
   return (
     <div className="space-y-6">
@@ -37,14 +83,25 @@ export default function CasoDetallePage() {
               Casos
             </Link>
             <span>/</span>
-            <span>{detail.numeroInterno}</span>
+            <span>{detail.numeroInterno || detail.numeroRadicado || "Detalle"}</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight">{detail.titulo}</h1>
-          <p className="text-muted-foreground">{detail.numeroInterno}</p>
+          <p className="text-muted-foreground">
+            {detail.numeroInterno || detail.numeroRadicado || "Sin numero interno"}
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge>{detail.estado.replace("_", " ")}</Badge>
-          <Badge variant="outline">{detail.tipo}</Badge>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className={caseStatusColors[detail.estado] || "bg-muted text-muted-foreground"}>
+            {caseStatusLabels[detail.estado] || detail.estado}
+          </Badge>
+          <Badge variant="outline">{caseTypeLabels[detail.tipo] || detail.tipo}</Badge>
+          <Button asChild>
+            <Link href={`/dashboard/casos/${detail._id}/editar`}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -53,49 +110,118 @@ export default function CasoDetallePage() {
           <Card>
             <CardHeader>
               <CardTitle>Resumen del expediente</CardTitle>
+              <CardDescription>Datos principales guardados en MongoDB.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2">
               <div>
                 <p className="text-sm text-muted-foreground">Cliente</p>
-                <p className="font-medium">{client ? getClientDisplayName(client) : "Cliente"}</p>
+                <p className="font-medium">
+                  {client ? getClientDisplayName(client as { tipo: string }) : "Sin cliente"}
+                </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Despacho / entidad</p>
-                <p className="font-medium">{detail.juzgado}</p>
+                <p className="text-sm text-muted-foreground">Calidad del cliente</p>
+                <p className="font-medium">{detail.calidadCliente || "No registrada"}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Proxima actuacion</p>
-                <p className="font-medium">{detail.fechaProximaActuacion ?? "Sin fecha"}</p>
+                <p className="text-sm text-muted-foreground">Despacho</p>
+                <p className="font-medium">{detail.despacho || "Sin despacho"}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Cuantia</p>
+                <p className="text-sm text-muted-foreground">Ciudad</p>
+                <p className="font-medium">{detail.ciudad || "Sin ciudad"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Fecha de inicio</p>
+                <p className="font-medium">
+                  {detail.fechaInicio ? formatDate(detail.fechaInicio) : "Sin fecha"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Pr&oacute;xima actuaci&oacute;n</p>
+                <p className="font-medium">
+                  {detail.fechaProximaActuacion ? formatDate(detail.fechaProximaActuacion) : "Sin fecha"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Cuant&iacute;a</p>
                 <p className="font-medium">
                   {detail.cuantia ? formatCurrencyCop(detail.cuantia) : "No registrada"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Honorarios</p>
+                <p className="font-medium">
+                  {detail.honorarios ? formatCurrencyCop(detail.honorarios) : "No registrados"}
                 </p>
               </div>
             </CardContent>
           </Card>
 
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Descripci&oacute;n</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                  {detail.descripcion || "Sin descripci&oacute;n"}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Hechos y pretensiones</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium">Hechos</p>
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                    {detail.hechos || "Sin hechos registrados"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Pretensiones</p>
+                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                    {detail.pretensiones || "Sin pretensiones registradas"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardHeader>
-              <CardTitle>Estrategia juridica</CardTitle>
-              <CardDescription>Linea de accion inmediata del expediente.</CardDescription>
+              <CardTitle>Actuaciones</CardTitle>
+              <CardDescription>Seguimiento del expediente y trazabilidad del caso.</CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{detail.estrategia}</p>
+            <CardContent className="space-y-3">
+              {actuaciones.length === 0 ? (
+                <p className="text-sm text-muted-foreground">A&uacute;n no hay actuaciones registradas.</p>
+              ) : (
+                actuaciones.map((actuacion: Record<string, any>, index: number) => (
+                  <div key={`${actuacion.fecha || "act"}-${index}`} className="rounded-lg border p-4">
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      <Clock3 className="h-4 w-4" />
+                      {actuacion.fecha ? formatDateTime(actuacion.fecha) : "Sin fecha"}
+                      {actuacion.tipo ? <Badge variant="outline">{actuacion.tipo}</Badge> : null}
+                    </div>
+                    <p className="text-sm">{actuacion.descripcion || "Sin descripción"}</p>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Hitos del proceso</CardTitle>
+              <CardTitle>Notas internas</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {detail.hitos.map((item) => (
-                <div key={item} className="rounded-lg border p-3 text-sm">
-                  {item}
-                </div>
-              ))}
+            <CardContent>
+              <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                {detail.notas || "Sin notas internas"}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -103,7 +229,7 @@ export default function CasoDetallePage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Acciones rapidas</CardTitle>
+              <CardTitle className="text-lg">Acciones r&aacute;pidas</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Button className="w-full justify-start" asChild>
@@ -129,25 +255,11 @@ export default function CasoDetallePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Normas clave</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {detail.normasClave.map((item) => (
-                <div key={item} className="flex items-center gap-3 rounded-lg border p-3 text-sm">
-                  <Gavel className="h-4 w-4 text-primary" />
-                  {item}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle className="text-lg">Relacion operativa</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" />
+                <User className="h-4 w-4 text-primary" />
                 Cliente vinculado al CRM legal
               </div>
               <div className="flex items-center gap-2">
@@ -155,9 +267,52 @@ export default function CasoDetallePage() {
                 Agenda sincronizada con plazos
               </div>
               <div className="flex items-center gap-2">
-                <Gavel className="h-4 w-4 text-primary" />
-                Base juridica lista para apoyo documental
+                <Scale className="h-4 w-4 text-primary" />
+                Datos listos para soporte documental y jur&iacute;dico
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Documentos vinculados</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {documentos.length === 0 ? (
+                <p className="text-muted-foreground">No hay documentos asociados.</p>
+              ) : (
+                documentos.map((documento: Record<string, any>, index: number) => (
+                  <div key={`${documento._id || documento}-${index}`} className="rounded-lg border p-3">
+                    {documento.nombre || documento.titulo || "Documento"}
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Cliente vinculado</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {client ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    {getClientDisplayName(client as { tipo: string; nombre?: string; apellido?: string; razonSocial?: string })}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-primary" />
+                    {(client.email as string) || "Sin correo"}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-primary" />
+                    {(client.telefono as string) || "Sin telefono"}
+                  </div>
+                </>
+              ) : (
+                <p className="text-muted-foreground">No hay cliente poblado para este caso.</p>
+              )}
             </CardContent>
           </Card>
         </div>

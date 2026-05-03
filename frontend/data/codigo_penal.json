@@ -1,0 +1,92 @@
+{
+  "nombre": "Código Penal Colombiano",
+  "codigo": "penal",
+  "fuente": "base_inicial",
+  "articulos": [
+    {
+      "numero": "1",
+      "titulo": "Dignidad humana",
+      "contenido": "El derecho penal tendrá como fundamento el respeto a la dignidad humana."
+    },
+    {
+      "numero": "2",
+      "titulo": "Legalidad",
+      "contenido": "Nadie podrá ser juzgado sino conforme a las leyes preexistentes al acto que se le imputa."
+    },
+    {
+      "numero": "3",
+      "titulo": "Igualdad",
+      "contenido": "La ley penal se aplicará a todas las personas por igual."
+    },
+    {
+      "numero": "4",
+      "titulo": "Aplicación de la ley penal",
+      "contenido": "La ley penal se aplicará conforme a los principios constitucionales."
+    },
+    {
+      "numero": "5",
+      "titulo": "Territorialidad",
+      "contenido": "La ley penal colombiana se aplicará en el territorio nacional."
+    },
+    {
+      "numero": "6",
+      "titulo": "Extraterritorialidad",
+      "contenido": "En ciertos casos la ley penal se aplicará fuera del territorio."
+    },
+    {
+      "numero": "7",
+      "titulo": "Principio de favorabilidad",
+      "contenido": "La ley permisiva o favorable se aplicará de preferencia."
+    },
+    {
+      "numero": "9",
+      "titulo": "Conducta punible",
+      "contenido": "Para que la conducta sea punible se requiere tipicidad, antijuridicidad y culpabilidad."
+    },
+    {
+      "numero": "10",
+      "titulo": "Tipicidad",
+      "contenido": "La conducta debe estar descrita en la ley penal."
+    },
+    {
+      "numero": "11",
+      "titulo": "Antijuridicidad",
+      "contenido": "Debe afectar un bien jurídico protegido."
+    },
+    {
+      "numero": "12",
+      "titulo": "Culpabilidad",
+      "contenido": "Solo se puede sancionar cuando exista culpabilidad."
+    },
+    {
+      "numero": "13",
+      "titulo": "Dolo",
+      "contenido": "El dolo implica conocimiento y voluntad."
+    },
+    {
+      "numero": "14",
+      "titulo": "Culpa",
+      "contenido": "La culpa implica imprudencia, negligencia o impericia."
+    },
+    {
+      "numero": "15",
+      "titulo": "Error",
+      "contenido": "El error puede excluir la responsabilidad penal."
+    },
+    {
+      "numero": "103",
+      "titulo": "Homicidio",
+      "contenido": "El que matare a otro incurrirá en prisión."
+    },
+    {
+      "numero": "104",
+      "titulo": "Circunstancias agravantes",
+      "contenido": "La pena será mayor cuando concurran circunstancias agravantes."
+    },
+    {
+      "numero": "111",
+      "titulo": "Lesiones personales",
+      "contenido": "El que cause daño en el cuerpo o salud de otro incurrirá en sanción."
+    }
+  ]
+}

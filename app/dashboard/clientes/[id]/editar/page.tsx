@@ -92,7 +92,7 @@ export default function EditarClientePage() {
     try {
       await updateClient(id, formData)
       toast.success("Cliente actualizado correctamente")
-      router.push("/dashboard/clientes")
+      router.push(`/dashboard/clientes/${id}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Error al actualizar cliente")
     } finally {
@@ -113,7 +113,7 @@ export default function EditarClientePage() {
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <p className="text-lg font-medium">Cliente no encontrado</p>
         <Button asChild>
-          <Link href="/dashboard/clientes">Volver a clientes</Link>
+            <Link href={`/dashboard/clientes/${id}`}>Volver al cliente</Link>
         </Button>
       </div>
     )
@@ -132,9 +132,9 @@ export default function EditarClientePage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link href="/dashboard/clientes">
+            <Link href={`/dashboard/clientes/${id}`}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver a clientes
+              Volver al cliente
             </Link>
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>

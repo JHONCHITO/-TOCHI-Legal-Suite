@@ -2,11 +2,30 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
+import { ensureSubscriptionForUser } from "@/lib/subscription";
+import { getPlanById } from "@/lib/products";
+
+type RegisterableRole = "abogado" | "cliente";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { nombre, apellido, email, password, telefono, tarjetaProfesional, especialidades } = body;
+    const {
+      nombre,
+      apellido,
+      email,
+      password,
+      telefono,
+      tarjetaProfesional,
+      especialidades,
+      rol,
+      planId,
+    } = body;
+
+    const allowedRoles = new Set<RegisterableRole>(["abogado", "cliente"]);
+    const requestedRole: RegisterableRole = allowedRoles.has(String(rol) as RegisterableRole)
+      ? (String(rol) as RegisterableRole)
+      : "abogado";
 
     // Validaciones
     if (!nombre || !apellido || !email || !password) {
@@ -48,6 +67,7 @@ export async function POST(request: Request) {
 
     // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(password, 12);
+    const selectedPlanId = getPlanById(String(planId))?.id || "plan-esencial";
 
     // Crear el usuario
     const user = await User.create({
@@ -58,15 +78,21 @@ export async function POST(request: Request) {
       telefono: telefono?.trim() || "",
       tarjetaProfesional: tarjetaProfesional?.trim() || "",
       especialidades: especialidades || [],
-      rol: "abogado",
+      rol: requestedRole,
       activo: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
+    await ensureSubscriptionForUser(user._id.toString(), {
+      planId: selectedPlanId,
+      resetTrial: true,
+      status: "trialing",
+    });
+
     // No devolver la contraseña
     const userResponse = {
-      id: user._id,
+      id: user._id.toString(),
       nombre: user.nombre,
       apellido: user.apellido,
       email: user.email,

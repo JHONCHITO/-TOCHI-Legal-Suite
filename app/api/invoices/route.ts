@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongodb"
 import Invoice from "@/lib/models/Invoice"
 import User from "@/lib/models/User"
 import Client from "@/lib/models/Client"
+import { assertPlanLimit } from "@/lib/subscription"
 
 export async function GET(request: Request) {
   try {
@@ -69,23 +70,60 @@ export async function POST(request: Request) {
     const body = await request.json()
     await dbConnect()
 
-    if (!body.clienteId || !body.concepto || !body.total || !body.fechaVencimiento) {
+    if (!body.clienteId || !body.concepto || !body.fechaVencimiento) {
       return NextResponse.json(
         { error: "Faltan campos requeridos: clienteId, concepto, total, fechaVencimiento" },
         { status: 400 }
       )
     }
 
-    // Calcular subtotal si hay items
-    let subtotal = body.subtotal || 0
-    if (body.items && body.items.length > 0) {
-      subtotal = body.items.reduce((sum: number, item: { subtotal: number }) => sum + item.subtotal, 0)
+    const activeInvoices = await Invoice.countDocuments({
+      abogadoId: session.user.id,
+      estado: { $ne: "cancelada" },
+    })
+
+    try {
+      await assertPlanLimit(session.user.id, "invoices", activeInvoices)
+    } catch (limitError) {
+      return NextResponse.json(
+        { error: limitError instanceof Error ? limitError.message : "Limite de facturas alcanzado" },
+        { status: 403 }
+      )
     }
+
+    const items = Array.isArray(body.items)
+      ? body.items.map((item: Record<string, unknown>) => {
+          const cantidad = Number(item.cantidad ?? 1) || 1
+          const valorUnitario = Number(item.valorUnitario ?? 0) || 0
+          const subtotal = Number(item.subtotal ?? cantidad * valorUnitario) || 0
+
+          return {
+            descripcion: String(item.descripcion ?? ""),
+            cantidad,
+            valorUnitario,
+            subtotal,
+          }
+        })
+      : []
+
+    const subtotal = items.length
+      ? items.reduce((sum: number, item: { subtotal: number }) => sum + item.subtotal, 0)
+      : Number(body.subtotal ?? 0) || 0
+
+    const impuestos = Number(body.impuestos ?? body.iva ?? Math.round(subtotal * 0.19)) || 0
+    const descuento = Number(body.descuento ?? 0) || 0
+    const total = Number(body.total ?? subtotal + impuestos - descuento) || subtotal + impuestos - descuento
+    const generatedNumero = `FAC-${new Date().getFullYear()}-${String(await Invoice.countDocuments()).padStart(5, "0")}`
 
     const newInvoice = new Invoice({
       ...body,
+      numero: body.numero || generatedNumero,
+      items,
       abogadoId: session.user.id,
       subtotal,
+      impuestos,
+      descuento,
+      total,
       saldoPendiente: body.total,
       fechaEmision: body.fechaEmision || new Date(),
       fechaVencimiento: new Date(body.fechaVencimiento),
