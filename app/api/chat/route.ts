@@ -1,5 +1,6 @@
 import { CODIGOS_COLOMBIANOS } from "@/lib/types";
 import { getFallbackLegalUpdates } from "@/lib/legal-updates";
+import { buildLegalAssistantFallback } from "@/lib/services/legal-assistant-fallback";
 
 export const maxDuration = 60;
 
@@ -108,17 +109,19 @@ export async function POST(req: Request) {
       return Response.json({ error: "No se recibio una consulta valida." }, { status: 400 });
     }
 
+    const shouldSearchWeb = needsOfficialWebSearch(latestUserMessage.content);
     if (!process.env.OPENAI_API_KEY) {
-      return Response.json(
-        {
-          error:
-            "Falta configurar OPENAI_API_KEY en el entorno del servidor para activar el asistente.",
-        },
-        { status: 500 }
-      );
+      const fallback = await buildLegalAssistantFallback(latestUserMessage.content);
+      return Response.json({
+        message: fallback.message,
+        respuesta: fallback.message,
+        sources: fallback.references,
+        usedWebSearch: false,
+        model: fallback.model,
+        fallback: fallback.fallback,
+      });
     }
 
-    const shouldSearchWeb = needsOfficialWebSearch(latestUserMessage.content);
     const fallbackMonitor = getFallbackLegalUpdates("todas");
 
     const input = messages.map((message) => ({
@@ -167,19 +170,32 @@ Cuando uses informacion de actualidad, devuelve tambien referencias claras a las
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      return Response.json(
-        {
-          error: "No se pudo obtener respuesta de OpenAI.",
-          detail: errorText,
-        },
-        { status: 500 }
-      );
+      const fallback = await buildLegalAssistantFallback(latestUserMessage.content);
+      return Response.json({
+        message: fallback.message,
+        respuesta: fallback.message,
+        sources: fallback.references,
+        usedWebSearch: false,
+        model: fallback.model,
+        fallback: fallback.fallback,
+      });
     }
 
     const payload = await response.json();
     const message = extractResponseText(payload);
     const sources = extractSources(payload);
+
+    if (!message) {
+      const fallback = await buildLegalAssistantFallback(latestUserMessage.content);
+      return Response.json({
+        message: fallback.message,
+        respuesta: fallback.message,
+        sources: fallback.references,
+        usedWebSearch: false,
+        model: fallback.model,
+        fallback: fallback.fallback,
+      });
+    }
 
     return Response.json({
       message,

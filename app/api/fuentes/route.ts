@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     {
       fuente: "Corte Suprema",
       titulo: "Jurisprudencia Corte Suprema",
-      link: "https://jurisprudencia.ramajudicial.gov.co/WebRelatoria/csj/index.xhtml",
+      link: "https://jurisprudencia.ramajudicial.gov.co/WebRelatoria/csj/index.html",
     },
     {
       fuente: "Consejo de Estado",

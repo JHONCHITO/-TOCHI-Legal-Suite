@@ -3,12 +3,15 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { consumeAiQuery } from "@/lib/subscription";
 import { searchSemanticLegalContent } from "@/lib/services/legal-vector-search";
+import { buildLegalAssistantFallback } from "@/lib/services/legal-assistant-fallback";
 
 export const runtime = "nodejs";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  : null;
 
 export async function POST(req: Request) {
   try {
@@ -22,6 +25,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Pregunta vacia" }, { status: 400 });
     }
 
+    const ranked = await searchSemanticLegalContent(pregunta, 8);
+
+    if (!openai) {
+      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: ranked, limit: 6 });
+      return NextResponse.json({
+        respuesta: fallback.message,
+        fuentes: fallback.references,
+        fallback: fallback.fallback,
+        model: fallback.model,
+      });
+    }
+
+    if (!ranked.length) {
+      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: ranked, limit: 6 });
+      return NextResponse.json({
+        respuesta: fallback.message,
+        fuentes: fallback.references,
+        fallback: fallback.fallback,
+        model: fallback.model,
+      });
+    }
+
     try {
       await consumeAiQuery(session.user.id);
     } catch (limitError) {
@@ -29,14 +54,6 @@ export async function POST(req: Request) {
         { error: limitError instanceof Error ? limitError.message : "Limite de IA alcanzado" },
         { status: 403 }
       );
-    }
-    const ranked = await searchSemanticLegalContent(pregunta, 8);
-
-    if (!ranked.length) {
-      return NextResponse.json({
-        respuesta: "No encontre informacion suficiente en la base juridica vectorizada.",
-        fuentes: [],
-      });
     }
 
     const contexto = ranked
@@ -52,33 +69,44 @@ ${String(doc.contenido || doc.resumen || "").slice(0, 1200)}
       })
       .join("\n------\n");
 
-    const respuestaIA = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Eres un abogado experto en derecho colombiano. Responde con base en el contexto dado y cita el codigo y el articulo cuando sea posible.",
-        },
-        {
-          role: "user",
-          content: `Pregunta: ${pregunta}\n\nContexto:\n${contexto}`,
-        },
-      ],
-    });
+    try {
+      const respuestaIA = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Eres un abogado experto en derecho colombiano. Responde con base en el contexto dado y cita el codigo y el articulo cuando sea posible.",
+          },
+          {
+            role: "user",
+            content: `Pregunta: ${pregunta}\n\nContexto:\n${contexto}`,
+          },
+        ],
+      });
 
-    return NextResponse.json({
-      respuesta: respuestaIA.choices[0]?.message?.content || "Sin respuesta",
-      fuentes: ranked.map((doc: any) => ({
-        source: doc.source,
-        codigo: doc.codigo,
-        nombre: doc.nombre,
-        articulo: doc.articulo,
-        titulo: doc.titulo,
-        score: doc.score,
-      })),
-    });
+      return NextResponse.json({
+        respuesta: respuestaIA.choices[0]?.message?.content || "Sin respuesta",
+        fuentes: ranked.map((doc: any) => ({
+          source: doc.source,
+          codigo: doc.codigo,
+          nombre: doc.nombre,
+          articulo: doc.articulo,
+          titulo: doc.titulo,
+          score: doc.score,
+        })),
+      });
+    } catch (error) {
+      console.error("Error IA, usando fallback local:", error);
+      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: ranked, limit: 6 });
+      return NextResponse.json({
+        respuesta: fallback.message,
+        fuentes: fallback.references,
+        fallback: fallback.fallback,
+        model: fallback.model,
+      });
+    }
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Error IA" }, { status: 500 });

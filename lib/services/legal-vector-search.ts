@@ -4,7 +4,7 @@ import Norma from "@/lib/models/Norma";
 import Articulo from "@/lib/models/Articulo";
 import { toLegalSlug } from "@/lib/legal-library";
 
-type VectorHit = {
+export type VectorHit = {
   tipo: "vector";
   source: "norma" | "articulo";
   codigo: string;

@@ -633,7 +633,7 @@ export const FUENTES_LEGALES = {
   },
   RELATORIA_CSJ: {
     nombre: "Relatoria Corte Suprema de Justicia",
-    url: "https://jurisprudencia.ramajudicial.gov.co/WebRelatoria/csj/index.xhtml",
+    url: "https://jurisprudencia.ramajudicial.gov.co/WebRelatoria/csj/index.html",
     descripcion: "Casaciones y Tutelas",
   },
   RELATORIA_CE: {

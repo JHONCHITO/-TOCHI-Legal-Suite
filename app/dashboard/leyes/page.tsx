@@ -37,7 +37,7 @@ const jurisprudenciaOficial = [
   {
     titulo: "Corte Suprema",
     subtitulo: "Relatoria oficial de casaciones y tutelas",
-    href: "https://jurisprudencia.ramajudicial.gov.co/WebRelatoria/csj/index.xhtml",
+    href: "https://jurisprudencia.ramajudicial.gov.co/WebRelatoria/csj/index.html",
   },
   {
     titulo: "Consejo de Estado",
@@ -313,7 +313,7 @@ export default function LeyesPage() {
                     subtitle: "Sentencias C, T, SU",
                   },
                   {
-                    href: "https://jurisprudencia.ramajudicial.gov.co/WebRelatoria/csj/index.xhtml",
+                    href: "https://jurisprudencia.ramajudicial.gov.co/WebRelatoria/csj/index.html",
                     title: "Corte Suprema",
                     subtitle: "Casaciones y tutelas",
                   },
