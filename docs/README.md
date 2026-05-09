@@ -4,11 +4,12 @@ Esta es la documentacion central del proyecto. Resume como esta organizado TOCHI
 
 ## Lectura recomendada
 
-1. [Arquitectura](architecture.md)
-2. [Modulos funcionales](modules.md)
-3. [Referencia de APIs](api-reference.md)
-4. [Modelos de datos](data-models.md)
-5. [Despliegue y operaciones](deployment-ops.md)
+1. [Manual ejecutivo](executive-manual.md)
+2. [Arquitectura](architecture.md)
+3. [Modulos funcionales](modules.md)
+4. [Referencia de APIs](api-reference.md)
+5. [Modelos de datos](data-models.md)
+6. [Despliegue y operaciones](deployment-ops.md)
 
 ## Resumen del producto
 

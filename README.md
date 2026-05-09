@@ -4,6 +4,7 @@ Plataforma legal colombiana con IA, biblioteca juridica, expediente 360, portal 
 
 ## Documentacion
 
+- [Manual ejecutivo](docs/executive-manual.md)
 - [Documento principal](docs/README.md)
 - [Arquitectura](docs/architecture.md)
 - [Modulos funcionales](docs/modules.md)
