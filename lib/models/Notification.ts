@@ -14,6 +14,7 @@ export interface INotification extends Document {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   tipo: NotificationType;
+  prioridad?: "alta" | "media" | "baja";
   titulo: string;
   mensaje: string;
   enlace?: string;
@@ -47,6 +48,10 @@ const NotificationSchema = new Schema<INotification>(
       ],
       required: true,
     },
+    prioridad: {
+      type: String,
+      enum: ["alta", "media", "baja"],
+    },
     titulo: { type: String, required: true },
     mensaje: { type: String, required: true },
     enlace: String,
@@ -65,6 +70,7 @@ const NotificationSchema = new Schema<INotification>(
 
 // Index para busquedas por usuario
 NotificationSchema.index({ userId: 1, leida: 1, createdAt: -1 });
+NotificationSchema.index({ userId: 1, tipo: 1, casoId: 1, createdAt: -1 });
 
 const Notification: Model<INotification> =
   mongoose.models.Notification ||

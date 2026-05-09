@@ -1,36 +1,14 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/mongodb";
-import Norma from "@/lib/models/Norma";
-import Articulo from "@/lib/models/Articulo";
 import { consumeAiQuery } from "@/lib/subscription";
+import { searchSemanticLegalContent } from "@/lib/services/legal-vector-search";
 
 export const runtime = "nodejs";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
-
-function cosineSimilarity(a: number[], b: number[]) {
-  const length = Math.min(a.length, b.length);
-  if (!length) return 0;
-
-  let dot = 0;
-  let magA = 0;
-  let magB = 0;
-
-  for (let i = 0; i < length; i += 1) {
-    const valueA = a[i] || 0;
-    const valueB = b[i] || 0;
-    dot += valueA * valueB;
-    magA += valueA * valueA;
-    magB += valueB * valueB;
-  }
-
-  if (!magA || !magB) return 0;
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
-}
 
 export async function POST(req: Request) {
   try {
@@ -52,55 +30,7 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
-    await dbConnect();
-
-    const emb = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: pregunta,
-    });
-
-    const queryVector = emb.data[0].embedding;
-    const normas = await Norma.find({
-      embedding: { $exists: true },
-      contenido: { $exists: true, $ne: "" },
-    })
-      .select("codigo nombre articulo titulo contenido embedding")
-      .limit(200)
-      .lean();
-
-    const articulos = await Articulo.find({
-      embedding: { $exists: true },
-      contenido: { $exists: true, $ne: "" },
-    })
-      .select("codigoRef numeroArticulo tituloArticulo contenido embedding")
-      .limit(300)
-      .lean();
-
-    const rankedNormas = normas
-      .filter((norma: any) => Array.isArray(norma.embedding) && norma.embedding.length > 0)
-      .map((norma: any) => ({
-        source: "norma",
-        ...norma,
-        score: cosineSimilarity(queryVector, norma.embedding),
-      }))
-      .sort((a, b) => b.score - a.score);
-
-    const rankedArticulos = articulos
-      .filter((articulo: any) => Array.isArray(articulo.embedding) && articulo.embedding.length > 0)
-      .map((articulo: any) => ({
-        source: "articulo",
-        codigo: articulo.codigoRef,
-        nombre: articulo.codigoRef,
-        articulo: articulo.numeroArticulo,
-        titulo: articulo.tituloArticulo,
-        contenido: articulo.contenido,
-        score: cosineSimilarity(queryVector, articulo.embedding),
-      }))
-      .sort((a, b) => b.score - a.score);
-
-    const ranked = [...rankedNormas, ...rankedArticulos]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8);
+    const ranked = await searchSemanticLegalContent(pregunta, 8);
 
     if (!ranked.length) {
       return NextResponse.json({
@@ -112,12 +42,12 @@ export async function POST(req: Request) {
     const contexto = ranked
       .map((doc: any, index: number) => {
         return `Fuente ${index + 1} (${doc.source}):
-Norma: ${doc.nombre}
+Norma: ${doc.titulo}
 Codigo: ${doc.codigo}
 Articulo: ${doc.articulo}
 Titulo: ${doc.titulo || ""}
 
-${String(doc.contenido || "").slice(0, 1200)}
+${String(doc.contenido || doc.resumen || "").slice(0, 1200)}
 `;
       })
       .join("\n------\n");

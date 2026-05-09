@@ -287,6 +287,59 @@ C.C. No. [NÚMERO]
 T.P. No. [NÚMERO]
 `,
 
+  contestacion: (datos) => `
+SENOR
+JUEZ ${datos.juzgado || "[JUZGADO]"}
+${datos.ciudad?.toUpperCase() || "E. S. D."}
+
+REF: CONTESTACION DE DEMANDA
+DEMANDANTE: ${datos.demandante || "[NOMBRE DEL DEMANDANTE]"}
+DEMANDADO: ${datos.demandado || "[NOMBRE DEL DEMANDADO]"}
+
+${datos.demandado || "[NOMBRE DEL DEMANDADO]"}, identificado(a) como aparece al pie de mi firma, dentro del termino legal y por conducto de apoderado, me permito contestar la demanda de la referencia en los siguientes terminos:
+
+PRONUNCIAMIENTO FRENTE A LOS HECHOS
+
+${datos.hechos || `1. Se aceptan los hechos que sean expresamente ciertos.
+
+2. Se niegan los que no sean ciertos o no consten en documentos.
+
+3. [Desarrollar la contestacion concreta de cada hecho].`}
+
+PRONUNCIAMIENTO FRENTE A LAS PRETENSIONES
+
+${datos.pretensiones || `Me opongo a las pretensiones de la demanda por carecer de fundamento factico y juridico suficiente.
+
+Solicito se nieguen todas las pretensiones de la parte demandante.`}
+
+EXCEPCIONES Y DEFENSAS
+
+${datos.fundamentos || `1. Inexistencia de los presupuestos facticos invocados.
+2. Falta de sustento probatorio suficiente.
+3. Las demas excepciones que resulten probadas dentro del proceso.`}
+
+PRUEBAS
+
+Solicito tener y decretar las siguientes pruebas:
+
+1. Documentales: [Relacionar documentos]
+2. Testimoniales: [Relacionar testigos]
+3. Interrogatorio de parte: [Si aplica]
+
+NOTIFICACIONES
+
+DEMANDADO: [Direccion, correo y telefono]
+APODERADO: [Direccion, correo y telefono]
+
+Atentamente,
+
+
+_________________________
+${datos.demandado || "[NOMBRE]"}
+C.C. No. [NUMERO]
+T.P. No. [NUMERO]
+`,
+
   poder: (datos) => `
 PODER ESPECIAL
 

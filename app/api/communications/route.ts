@@ -26,9 +26,7 @@ export async function GET(request: NextRequest) {
 
     const query: Record<string, unknown> = {}
     
-    if (userRole === "superadmin" || userRole === "admin") {
-      if (clienteId) query.clienteId = clienteId
-    } else if (userRole === "cliente") {
+    if (userRole === "cliente") {
       const clientRecord = await Client.findOne({ email: session.user.email }).select("_id").lean()
       if (clientRecord) {
         query.$or = [
@@ -44,9 +42,9 @@ export async function GET(request: NextRequest) {
         { creadorId: session.user.id },
         { creadorId: { $exists: false } },
       ]
-      if (clienteId) query.clienteId = clienteId
     }
 
+    if (userRole !== "cliente" && clienteId) query.clienteId = clienteId
     if (casoId) query.casoId = casoId
     if (canal) query.canal = canal
     if (estado) query.estado = estado

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
+import Case from "@/lib/models/Case"
 import Document from "@/lib/models/Document"
 import User from "@/lib/models/User"
 import Client from "@/lib/models/Client"
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
     }
 
     if (casoId) query.casoId = casoId
-    if (clienteId) query.clienteId = clienteId
+    if (userRole !== "cliente" && clienteId) query.clienteId = clienteId
     if (tipo && tipo !== "todos") query.tipo = tipo
     if (estado && estado !== "todos") query.estado = estado
     if (search) {
@@ -76,14 +77,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const body = await request.json()
     await dbConnect()
+    const user = await User.findById(session.user.id).select("rol").lean()
+    const userRole = (user as any)?.rol || "abogado"
+
+    if (userRole === "cliente") {
+      return NextResponse.json({ error: "Los clientes deben usar el portal para cargar archivos" }, { status: 403 })
+    }
+
+    const body = await request.json()
 
     if (!body.nombre || !body.tipo) {
       return NextResponse.json(
         { error: "Faltan campos requeridos: nombre, tipo" },
         { status: 400 }
       )
+    }
+
+    const linkedCaseId = typeof body.casoId === "string" && body.casoId.trim() ? body.casoId : null
+    if (linkedCaseId) {
+      const caseExists = await Case.findById(linkedCaseId).select("_id").lean()
+      if (!caseExists) {
+        return NextResponse.json({ error: "Caso no encontrado" }, { status: 404 })
+      }
     }
 
     const activeDocuments = await Document.countDocuments({
@@ -107,6 +123,12 @@ export async function POST(request: Request) {
     })
 
     await newDocument.save()
+
+    if (linkedCaseId) {
+      await Case.findByIdAndUpdate(linkedCaseId, {
+        $addToSet: { documentos: newDocument._id },
+      })
+    }
 
     const populatedDocument = await Document.findById(newDocument._id)
       .populate("clienteId", "nombre apellido razonSocial tipo")

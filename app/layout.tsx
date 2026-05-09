@@ -1,14 +1,13 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const geist = Geist({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: 'TOCHI Legal Suite - Plataforma para Abogados',
-  description: 'Plataforma integral para abogados colombianos: gestion de casos, clientes, citas, documentos y consulta de codigos legales con IA',
+  title: 'TOCHI Legal Suite | Centro Operativo Legal',
+  description: 'Plataforma integral para abogados colombianos con gestion de casos, clientes, citas, documentos, facturacion y base juridica con IA',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -35,8 +34,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es" className="bg-background">
-      <body className="font-sans antialiased min-h-screen">
+    <html lang="es" className={geist.className}>
+      <body className="min-h-screen antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

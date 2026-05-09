@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
+import Case from "@/lib/models/Case"
 import Document from "@/lib/models/Document"
 import User from "@/lib/models/User"
 import Client from "@/lib/models/Client"
@@ -22,6 +23,27 @@ async function getDocumentAccessFilter(session: SessionLike) {
   }
 
   return { creadorId: session?.user?.id }
+}
+
+async function syncDocumentCaseLinks(
+  documentId: string,
+  previousCaseId: unknown,
+  nextCaseId: unknown
+) {
+  const previousCase = previousCaseId ? String(previousCaseId) : null
+  const targetCase = nextCaseId ? String(nextCaseId) : null
+
+  if (previousCase && previousCase !== targetCase) {
+    await Case.findByIdAndUpdate(previousCase, {
+      $pull: { documentos: documentId },
+    })
+  }
+
+  if (targetCase && previousCase !== targetCase) {
+    await Case.findByIdAndUpdate(targetCase, {
+      $addToSet: { documentos: documentId },
+    })
+  }
 }
 
 export async function GET(
@@ -71,10 +93,25 @@ export async function PUT(
     }
 
     const { id } = await params
-    const body = await request.json()
     await dbConnect()
+    const user = await User.findById(session.user.id).select("rol").lean()
+    if ((user as { rol?: string } | null)?.rol === "cliente") {
+      return NextResponse.json({ error: "Los clientes no pueden editar documentos desde la ruta general" }, { status: 403 })
+    }
+    const body = await request.json()
     const accessFilter = await getDocumentAccessFilter(session)
     if (!accessFilter) {
+      return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 })
+    }
+
+    const existingDocument = await Document.findOne({
+      _id: id,
+      ...accessFilter,
+    })
+      .select("casoId")
+      .lean()
+
+    if (!existingDocument) {
       return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 })
     }
 
@@ -98,6 +135,13 @@ export async function PUT(
       return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 })
     }
 
+    const hasCaseField = Object.prototype.hasOwnProperty.call(body, "casoId")
+    const nextCaseId = hasCaseField
+      ? (typeof body.casoId === "string" && body.casoId.trim() ? body.casoId : null)
+      : (existingDocument as { casoId?: unknown }).casoId
+
+    await syncDocumentCaseLinks(id, (existingDocument as { casoId?: unknown }).casoId, nextCaseId)
+
     return NextResponse.json(updatedDocument)
   } catch (error) {
     console.error("Error updating document:", error)
@@ -117,6 +161,10 @@ export async function DELETE(
 
     const { id } = await params
     await dbConnect()
+    const user = await User.findById(session.user.id).select("rol").lean()
+    if ((user as { rol?: string } | null)?.rol === "cliente") {
+      return NextResponse.json({ error: "Los clientes no pueden eliminar documentos desde la ruta general" }, { status: 403 })
+    }
     const accessFilter = await getDocumentAccessFilter(session)
     if (!accessFilter) {
       return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 })
@@ -129,6 +177,12 @@ export async function DELETE(
 
     if (!deletedDocument) {
       return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 })
+    }
+
+    if (deletedDocument.casoId) {
+      await Case.findByIdAndUpdate(deletedDocument.casoId, {
+        $pull: { documentos: deletedDocument._id },
+      })
     }
 
     return NextResponse.json({ message: "Documento eliminado correctamente" })

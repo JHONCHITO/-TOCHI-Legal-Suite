@@ -14,73 +14,86 @@ async function main() {
     console.log("✅ Mongo conectado");
 
     const db = mongoose.connection.db;
-    const collection = db.collection("normas");
+    const normasCollection = db.collection("normas");
+    const articulosCollection = db.collection("articulos");
 
-    // 🔥 SOLO documentos sin embedding
-    const documentos = await collection.find({
-      $or: [
-        { embedding: { $exists: false } },
-        { embedding: { $size: 0 } }
-      ],
-      codigo: { $exists: true, $nin: [null, ""] },
-      articulo: { $exists: true, $ne: "" }
-    })
-    .limit(BATCH_SIZE)
-    .toArray();
+    async function procesarColeccion(collection, nombre) {
+      const documentos = await collection.find({
+        $and: [
+          {
+            $or: [
+              { embedding: { $exists: false } },
+              { embedding: { $size: 0 } }
+            ]
+          },
+          {
+            $or: [
+              { codigo: { $exists: true, $nin: [null, ""] } },
+              { codigoRef: { $exists: true, $nin: [null, ""] } }
+            ]
+          }
+        ]
+      })
+      .limit(BATCH_SIZE)
+      .toArray();
 
-    console.log("📄 Documentos sin embedding:", documentos.length);
+      console.log(`📄 ${nombre} sin embedding:`, documentos.length);
 
-    if (documentos.length === 0) {
-      console.log("🎉 Todo ya está vectorizado");
-      return;
-    }
+      let procesados = 0;
+      let errores = 0;
 
-    let procesados = 0;
-    let errores = 0;
+      for (const doc of documentos) {
+        try {
+          const texto = [
+            doc.contenido || "",
+            doc.titulo || "",
+            doc.tituloArticulo || "",
+            doc.epigrafe || "",
+            doc.numeroArticulo || "",
+          ]
+            .filter(Boolean)
+            .join("\n")
+            .trim();
 
-    for (const doc of documentos) {
-      try {
-        const texto = (doc.contenido || doc.titulo || "").trim();
+          if (!texto || texto.length < 30) {
+            console.log("⚠️ Saltado:", doc._id);
+            continue;
+          }
 
-        // 🔥 FILTRO IMPORTANTE
-        if (!texto || texto.length < 30) {
-          console.log("⚠️ Saltado:", doc._id);
-          continue;
+          const textoRecortado = texto.slice(0, 8000);
+
+          const response = await openai.embeddings.create({
+            model: "text-embedding-3-small",
+            input: textoRecortado,
+          });
+
+          const embedding = response.data[0].embedding;
+
+          await collection.updateOne(
+            { _id: doc._id },
+            { $set: { embedding } }
+          );
+
+          console.log("✅ Embedding:", doc._id);
+          procesados++;
+        } catch (error) {
+          console.log("❌ Error en:", doc._id);
+
+          await collection.updateOne(
+            { _id: doc._id },
+            { $set: { embedding_error: true } }
+          );
+
+          errores++;
         }
-
-        // 🔥 evitar textos demasiado largos (OpenAI límite)
-        const textoRecortado = texto.slice(0, 8000);
-
-        const response = await openai.embeddings.create({
-          model: "text-embedding-3-small",
-          input: textoRecortado,
-        });
-
-        const embedding = response.data[0].embedding;
-
-        await collection.updateOne(
-          { _id: doc._id },
-          { $set: { embedding } }
-        );
-
-        console.log("✅ Embedding:", doc._id);
-        procesados++;
-
-      } catch (error) {
-        console.log("❌ Error en:", doc._id);
-
-        // 🔥 opcional: marcar error para no repetir
-        await collection.updateOne(
-          { _id: doc._id },
-          { $set: { embedding_error: true } }
-        );
-
-        errores++;
       }
+
+      console.log(`📊 ${nombre} procesados:`, procesados);
+      console.log(`⚠️ ${nombre} errores:`, errores);
     }
 
-    console.log("📊 Procesados:", procesados);
-    console.log("⚠️ Errores:", errores);
+    await procesarColeccion(normasCollection, "Normas");
+    await procesarColeccion(articulosCollection, "Articulos");
 
     await mongoose.connection.close();
     console.log("🚀 Embeddings generados");

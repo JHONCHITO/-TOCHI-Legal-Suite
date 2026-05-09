@@ -1,5 +1,6 @@
+import Case from "@/lib/models/Case";
 import Appointment from "@/lib/models/Appointment";
-import Notification from "@/lib/models/Notification";
+import Notification, { type NotificationType } from "@/lib/models/Notification";
 import User from "@/lib/models/User";
 import {
   LEGAL_AREAS,
@@ -12,6 +13,8 @@ const ALERT_ROLES = ["superadmin", "admin", "abogado", "asistente"] as const;
 const APPOINTMENT_REMINDER_WINDOW_HOURS = 24;
 const APPOINTMENT_DUPLICATE_WINDOW_HOURS = 12;
 const LEGAL_DUPLICATE_WINDOW_HOURS = 24;
+const CASE_DEADLINE_WINDOW_HOURS = 72;
+const CASE_DEADLINE_DUPLICATE_WINDOW_HOURS = 18;
 
 type LeanAppointment = {
   _id: unknown;
@@ -73,16 +76,25 @@ async function getAlertRecipients() {
     .lean<Recipient[]>();
 }
 
-async function createNotificationForUsers(params: {
+export async function createNotificationForUsers(params: {
   userIds: unknown[];
-  tipo: "cita_proxima" | "actualizacion_ley";
+  tipo: NotificationType;
   titulo: string;
   mensaje: string;
   enlace?: string;
+  prioridad?: "alta" | "media" | "baja";
+  casoId?: unknown;
   citaId?: unknown;
+  documentoId?: unknown;
 }) {
   const createdUserIds: string[] = [];
-  const cutoff = hoursAgo(new Date(), params.tipo === "cita_proxima" ? APPOINTMENT_DUPLICATE_WINDOW_HOURS : LEGAL_DUPLICATE_WINDOW_HOURS);
+  const duplicateHours =
+    params.tipo === "cita_proxima"
+      ? APPOINTMENT_DUPLICATE_WINDOW_HOURS
+      : params.tipo === "vencimiento"
+        ? CASE_DEADLINE_DUPLICATE_WINDOW_HOURS
+        : LEGAL_DUPLICATE_WINDOW_HOURS;
+  const cutoff = hoursAgo(new Date(), duplicateHours);
 
   for (const userId of params.userIds) {
     const normalizedUserId = String(userId);
@@ -97,6 +109,14 @@ async function createNotificationForUsers(params: {
       duplicateQuery.citaId = String(params.citaId);
     }
 
+    if (params.casoId) {
+      duplicateQuery.casoId = String(params.casoId);
+    }
+
+    if (params.documentoId) {
+      duplicateQuery.documentoId = String(params.documentoId);
+    }
+
     const alreadyExists = await Notification.findOne(duplicateQuery).select("_id").lean();
     if (alreadyExists) {
       continue;
@@ -105,10 +125,13 @@ async function createNotificationForUsers(params: {
     await Notification.create({
       userId: normalizedUserId,
       tipo: params.tipo,
+      prioridad: params.prioridad,
       titulo: params.titulo,
       mensaje: params.mensaje,
       enlace: params.enlace,
       citaId: params.citaId ? String(params.citaId) : undefined,
+      casoId: params.casoId ? String(params.casoId) : undefined,
+      documentoId: params.documentoId ? String(params.documentoId) : undefined,
     });
 
     createdUserIds.push(String(userId));
@@ -178,6 +201,119 @@ export async function syncAppointmentReminders(now = new Date()) {
   return { created, checked: appointments.length };
 }
 
+function formatCaseClient(caseRecord: LeanCase) {
+  const client = caseRecord.clienteId;
+  if (!client) return "sin cliente asociado";
+
+  if (client.tipo === "persona_juridica") {
+    return client.razonSocial || "cliente juridico";
+  }
+
+  const name = [client.nombre, client.apellido].filter(Boolean).join(" ").trim();
+  return name || client.email || "cliente";
+}
+
+function formatCaseDueLabel(diffHours: number) {
+  if (diffHours < -24) {
+    return "vencido";
+  }
+
+  if (diffHours < 0) {
+    return "vencido hoy";
+  }
+
+  if (diffHours <= 4) {
+    return "vence en menos de 4 horas";
+  }
+
+  if (diffHours <= 24) {
+    return "vence hoy";
+  }
+
+  return "vence pronto";
+}
+
+type LeanCase = {
+  _id: unknown;
+  titulo: string;
+  numeroInterno?: string;
+  numeroRadicado?: string;
+  estado: string;
+  fechaProximaActuacion?: string | Date;
+  ciudad?: string;
+  despacho?: string;
+  clienteId?: {
+    nombre?: string;
+    apellido?: string;
+    razonSocial?: string;
+    tipo?: string;
+    email?: string;
+  } | null;
+  abogadoPrincipal?: unknown;
+  abogadosAsociados?: unknown[];
+};
+
+async function syncCaseDeadlineAlerts(now = new Date()) {
+  const cutoffFuture = hoursFromNow(now, CASE_DEADLINE_WINDOW_HOURS);
+  const cutoffPast = hoursAgo(now, CASE_DEADLINE_WINDOW_HOURS);
+
+  const cases = (await Case.find({
+    estado: { $nin: ["cerrado", "archivado"] },
+    fechaProximaActuacion: { $gte: cutoffPast, $lte: cutoffFuture },
+  })
+    .populate("clienteId", "nombre apellido razonSocial tipo email")
+    .lean()) as LeanCase[];
+
+  let created = 0;
+
+  for (const caseRecord of cases) {
+    if (!caseRecord.abogadoPrincipal) {
+      continue;
+    }
+
+    const dueDate = new Date(caseRecord.fechaProximaActuacion || now);
+    const diffHours = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const priority = diffHours <= 24 ? "alta" : diffHours <= 72 ? "media" : "baja";
+    const dueLabel = formatCaseDueLabel(diffHours);
+    const recipients = Array.from(
+      new Set(
+        [caseRecord.abogadoPrincipal, ...(caseRecord.abogadosAsociados || [])]
+          .filter(Boolean)
+          .map((value) => String(value))
+      )
+    );
+
+    if (!recipients.length) {
+      continue;
+    }
+
+    const titulo = `Vencimiento ${dueLabel}: ${caseRecord.titulo}`;
+    const mensaje = [
+      `Expediente ${caseRecord.numeroInterno || caseRecord.numeroRadicado || String(caseRecord._id)}.`,
+      `Cliente: ${formatCaseClient(caseRecord)}.`,
+      `Fecha objetivo: ${formatDateTime(dueDate)}.`,
+      caseRecord.despacho ? `Despacho: ${caseRecord.despacho}.` : "",
+      caseRecord.ciudad ? `Ciudad: ${caseRecord.ciudad}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const createdUsers = await createNotificationForUsers({
+      userIds: recipients,
+      tipo: "vencimiento",
+      prioridad: priority,
+      titulo,
+      mensaje,
+      enlace: `/dashboard/casos/${String(caseRecord._id)}`,
+      casoId: caseRecord._id,
+    });
+
+    created += createdUsers.length;
+  }
+
+  return { created, checked: cases.length };
+}
+
 async function fetchLegalDigest(origin: string, area: LegalAreaKey) {
   const response = await fetch(`${origin}/api/legal-updates?area=${area}`, {
     cache: "no-store",
@@ -237,10 +373,12 @@ export async function syncLegalUpdates(origin: string, now = new Date()) {
 
 export async function syncAllAutomations(origin: string, now = new Date()) {
   const appointments = await syncAppointmentReminders(now);
+  const deadlines = await syncCaseDeadlineAlerts(now);
   const legal = await syncLegalUpdates(origin, now);
 
   return {
     appointments,
+    deadlines,
     legal,
     ranAt: now.toISOString(),
   };

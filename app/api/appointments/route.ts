@@ -23,6 +23,8 @@ export async function GET(request: Request) {
     const fecha = searchParams.get("fecha")
     const tipo = searchParams.get("tipo")
     const estado = searchParams.get("estado")
+    const clienteId = searchParams.get("clienteId")
+    const casoId = searchParams.get("casoId")
 
     // Filtrar según el rol del usuario
     let query: Record<string, unknown> = {}
@@ -55,6 +57,12 @@ export async function GET(request: Request) {
     }
     if (estado && estado !== "todos") {
       query.estado = estado
+    }
+    if (userRole !== "cliente" && clienteId) {
+      query.clienteId = clienteId
+    }
+    if (casoId) {
+      query.casoId = casoId
     }
 
     const appointments = await Appointment.find(query)

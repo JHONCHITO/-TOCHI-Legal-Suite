@@ -4,6 +4,7 @@ import connectDB from "@/lib/mongodb";
 import Articulo from "@/lib/models/Articulo";
 import Ley from "@/lib/models/Ley";
 import Norma from "@/lib/models/Norma";
+import { searchSemanticLegalContent } from "@/lib/services/legal-vector-search";
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -65,6 +66,20 @@ export async function GET(req: Request) {
 
   try {
     await connectDB();
+
+    const semanticResults = await searchSemanticLegalContent(q, 8);
+    semanticResults.forEach((item) => {
+      addResult({
+        tipo: item.tipo,
+        source: item.source,
+        codigo: item.codigo,
+        articulo: item.articulo,
+        titulo: item.titulo,
+        resumen: item.resumen,
+        enlace: item.enlace,
+        score: item.score,
+      });
+    });
 
     const leyesDB = await Ley.find({
       $or: [

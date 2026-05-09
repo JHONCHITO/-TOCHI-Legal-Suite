@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       query = { abogadoId: session.user.id }
     }
 
-    if (clienteId) query.clienteId = clienteId
+    if (userRole !== "cliente" && clienteId) query.clienteId = clienteId
     if (casoId) query.casoId = casoId
     if (estado && estado !== "todos") query.estado = estado
 
