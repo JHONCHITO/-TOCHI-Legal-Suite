@@ -5,6 +5,7 @@ import Appointment from "@/lib/models/Appointment"
 import User from "@/lib/models/User"
 import Client from "@/lib/models/Client"
 import { assertPlanLimit } from "@/lib/subscription"
+import { createNotificationForUsers } from "@/lib/services/automation"
 
 export async function GET(request: Request) {
   try {
@@ -130,6 +131,32 @@ export async function POST(request: Request) {
     })
 
     await newAppointment.save()
+
+    const clientRecord = body.clienteId
+      ? await Client.findById(body.clienteId).select("userId nombre apellido razonSocial tipo").lean()
+      : null
+
+    const recipients = new Set<string>()
+    recipients.add(String(session.user.id))
+
+    if (clientRecord?.userId) {
+      recipients.add(String(clientRecord.userId))
+    }
+
+    const clientName =
+      clientRecord?.tipo === "persona_juridica"
+        ? clientRecord.razonSocial || "cliente juridico"
+        : [clientRecord?.nombre, clientRecord?.apellido].filter(Boolean).join(" ").trim() || "cliente"
+
+    await createNotificationForUsers({
+      userIds: [...recipients],
+      tipo: "cita_proxima",
+      prioridad: "media",
+      titulo: `Nueva cita: ${newAppointment.titulo}`,
+      mensaje: `Quedo programada para ${new Date(newAppointment.fechaInicio).toLocaleString("es-CO")} con ${clientName}.`,
+      enlace: "/dashboard/citas",
+      citaId: newAppointment._id,
+    })
 
     const populatedAppointment = await Appointment.findById(newAppointment._id)
       .populate("clienteId", "nombre apellido razonSocial tipo email telefono")

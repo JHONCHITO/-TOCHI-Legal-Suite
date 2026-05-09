@@ -5,6 +5,7 @@ import dbConnect from "@/lib/mongodb";
 import Norma from "@/lib/models/Norma";
 import Articulo from "@/lib/models/Articulo";
 import { consumeAiQuery } from "@/lib/subscription";
+import { findExactLegalArticle } from "@/lib/services/legal-catalog";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,30 @@ export async function POST(req: Request) {
     const { pregunta } = await req.json();
     if (!pregunta || !String(pregunta).trim()) {
       return NextResponse.json({ error: "Pregunta vacia" }, { status: 400 });
+    }
+
+    const exactArticle = await findExactLegalArticle(pregunta);
+    if (exactArticle) {
+      return NextResponse.json({
+        respuesta: [
+          `${exactArticle.nombre} - Articulo ${exactArticle.articulo}`,
+          exactArticle.titulo ? `Titulo: ${exactArticle.titulo}` : null,
+          "",
+          exactArticle.contenido,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        fuentes: [
+          {
+            source: exactArticle.source,
+            codigo: exactArticle.codigo,
+            nombre: exactArticle.nombre,
+            articulo: exactArticle.articulo,
+            titulo: exactArticle.titulo,
+            url: exactArticle.url,
+          },
+        ],
+      });
     }
 
     try {

@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { consumeAiQuery } from "@/lib/subscription";
 import { searchSemanticLegalContent } from "@/lib/services/legal-vector-search";
 import { buildLegalAssistantFallback } from "@/lib/services/legal-assistant-fallback";
+import { findExactLegalArticle } from "@/lib/services/legal-catalog";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,43 @@ export async function POST(req: Request) {
     const { pregunta } = await req.json();
     if (!pregunta || !String(pregunta).trim()) {
       return NextResponse.json({ error: "Pregunta vacia" }, { status: 400 });
+    }
+
+    const exactArticle = await findExactLegalArticle(pregunta);
+    if (exactArticle) {
+      const respuesta = [
+        `${exactArticle.nombre} - Articulo ${exactArticle.articulo}`,
+        exactArticle.titulo ? `Titulo: ${exactArticle.titulo}` : null,
+        "",
+        exactArticle.contenido,
+        "",
+        "La consulta se resolvio con el texto completo cargado en TOCHI.",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      return NextResponse.json({
+        respuesta,
+        fuentes: [
+          {
+            source: exactArticle.source,
+            codigo: exactArticle.codigo,
+            nombre: exactArticle.nombre,
+            articulo: exactArticle.articulo,
+            titulo: exactArticle.titulo,
+            url: exactArticle.url,
+          },
+          ...exactArticle.resources.map((resource) => ({
+            source: "oficial",
+            codigo: exactArticle.codigo,
+            nombre: exactArticle.nombre,
+            titulo: resource.label,
+            url: resource.url,
+          })),
+        ],
+        fallback: false,
+        model: `exact-${exactArticle.source}`,
+      });
     }
 
     const ranked = await searchSemanticLegalContent(pregunta, 8);

@@ -5,6 +5,7 @@ import Case from "@/lib/models/Case"
 import Client from "@/lib/models/Client"
 import User from "@/lib/models/User"
 import { assertPlanLimit } from "@/lib/subscription"
+import { createNotificationForUsers } from "@/lib/services/automation"
 
 export async function GET(request: Request) {
   try {
@@ -121,6 +122,40 @@ export async function POST(request: Request) {
     // Actualizar el cliente con el nuevo caso
     await Client.findByIdAndUpdate(body.clienteId, {
       $push: { casos: newCase._id }
+    })
+
+    const clientRecord = await Client.findById(body.clienteId)
+      .select("userId nombre apellido razonSocial tipo")
+      .lean()
+
+    const recipients = new Set<string>()
+    recipients.add(String(session.user.id))
+
+    if (Array.isArray(body.abogadosAsociados)) {
+      for (const lawyerId of body.abogadosAsociados) {
+        if (lawyerId) {
+          recipients.add(String(lawyerId))
+        }
+      }
+    }
+
+    if (clientRecord?.userId) {
+      recipients.add(String(clientRecord.userId))
+    }
+
+    const clientName =
+      clientRecord?.tipo === "persona_juridica"
+        ? clientRecord.razonSocial || "cliente juridico"
+        : [clientRecord?.nombre, clientRecord?.apellido].filter(Boolean).join(" ").trim() || "cliente"
+
+    await createNotificationForUsers({
+      userIds: [...recipients],
+      tipo: "caso_actualizado",
+      prioridad: "media",
+      titulo: `Nuevo caso: ${newCase.titulo}`,
+      mensaje: `Se creo el expediente ${newCase.numeroInterno} para ${clientName}. Revisa el resumen y la primera actuacion registrada.`,
+      enlace: `/dashboard/casos/${newCase._id}`,
+      casoId: newCase._id,
     })
 
     const populatedCase = await Case.findById(newCase._id)

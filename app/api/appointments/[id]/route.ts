@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongodb"
 import Appointment from "@/lib/models/Appointment"
 import User from "@/lib/models/User"
 import Client from "@/lib/models/Client"
+import { createNotificationForUsers } from "@/lib/services/automation"
 
 type SessionLike = { user?: { id?: string; email?: string } } | null
 
@@ -45,7 +46,7 @@ export async function GET(
       _id: id,
       ...accessFilter,
     })
-      .populate("clienteId", "nombre apellido razonSocial tipo email telefono")
+      .populate("clienteId", "nombre apellido razonSocial tipo email telefono userId")
       .populate("casoId", "titulo numeroInterno")
       .lean()
 
@@ -93,12 +94,35 @@ export async function PUT(
       { $set: body },
       { new: true, runValidators: true }
     )
-      .populate("clienteId", "nombre apellido razonSocial tipo email telefono")
+      .populate("clienteId", "nombre apellido razonSocial tipo email telefono userId")
       .populate("casoId", "titulo numeroInterno")
       .lean()
 
     if (!updatedAppointment) {
       return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 })
+    }
+
+    const recipients = new Set<string>()
+    if ((updatedAppointment as any).abogadoId) {
+      recipients.add(String((updatedAppointment as any).abogadoId))
+    }
+    if ((updatedAppointment as any).clienteId?.userId) {
+      recipients.add(String((updatedAppointment as any).clienteId.userId))
+    }
+
+    if (recipients.size > 0) {
+      const notificationType = body.estado === "cancelada" ? "cita_cancelada" : "cita_proxima";
+      await createNotificationForUsers({
+        userIds: [...recipients],
+        tipo: notificationType,
+        prioridad: notificationType === "cita_cancelada" ? "alta" : "media",
+        titulo: `Cita actualizada: ${(updatedAppointment as any).titulo || "Agenda"}`,
+        mensaje: body.estado === "cancelada"
+          ? `La cita ${(updatedAppointment as any).titulo || id} fue cancelada.`
+          : `La cita ${(updatedAppointment as any).titulo || id} fue actualizada para ${new Date((updatedAppointment as any).fechaInicio).toLocaleString("es-CO")}.`,
+        enlace: "/dashboard/citas",
+        citaId: id,
+      })
     }
 
     return NextResponse.json(updatedAppointment)
@@ -132,6 +156,29 @@ export async function DELETE(
 
     if (!deletedAppointment) {
       return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 })
+    }
+
+    const recipients = new Set<string>()
+    if (deletedAppointment.abogadoId) {
+      recipients.add(String(deletedAppointment.abogadoId))
+    }
+    if (deletedAppointment.clienteId) {
+      const clientRecord = await Client.findById(deletedAppointment.clienteId).select("userId").lean()
+      if (clientRecord?.userId) {
+        recipients.add(String(clientRecord.userId))
+      }
+    }
+
+    if (recipients.size > 0) {
+      await createNotificationForUsers({
+        userIds: [...recipients],
+        tipo: "cita_cancelada",
+        prioridad: "alta",
+        titulo: `Cita cancelada: ${deletedAppointment.titulo || "Agenda"}`,
+        mensaje: `La cita ${deletedAppointment.titulo || id} fue eliminada del calendario.`,
+        enlace: "/dashboard/citas",
+        citaId: id,
+      })
     }
 
     return NextResponse.json({ message: "Cita eliminada correctamente" })

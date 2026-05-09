@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Book, Scale, Star, ExternalLink, Loader2, BookOpen, FileText } from "lucide-react"
+import { toast } from "sonner"
+import { LegalCodeDetailView } from "@/components/legal/legal-code-detail-view"
 
 interface LegalCode {
   _id: string
@@ -16,6 +18,7 @@ interface LegalCode {
   category: string
   tags: string[]
   year: number
+  source?: "db" | "local"
   articles: Array<{
     number: string
     title: string
@@ -29,6 +32,27 @@ export default function BibliotecaLegalPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("Todos")
   const [selectedCode, setSelectedCode] = useState<LegalCode | null>(null)
+  const [selectedDetail, setSelectedDetail] = useState<null | {
+    _id: string
+    code: string
+    name: string
+    description: string
+    category: string
+    tags: string[]
+    year: number
+    source?: "db" | "local"
+    articles: Array<{
+      number: string
+      title: string
+      content: string
+      libro?: string
+      capitulo?: string
+      seccion?: string
+    }>
+    resources?: Array<{ label: string; url: string }>
+  }>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
   const [favorites, setFavorites] = useState<string[]>([])
 
   useEffect(() => {
@@ -38,6 +62,49 @@ export default function BibliotecaLegalPage() {
       setFavorites(JSON.parse(savedFavorites))
     }
   }, [])
+
+  useEffect(() => {
+    if (!selectedCode) {
+      setSelectedDetail(null)
+      setDetailError(null)
+      setDetailLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    const fetchDetail = async () => {
+      setDetailLoading(true)
+      setDetailError(null)
+
+      try {
+        const res = await fetch(`/api/legal-codes/${encodeURIComponent(selectedCode.code)}`)
+        const payload = await res.json().catch(() => ({}))
+
+        if (!res.ok) {
+          throw new Error(payload?.error || "No se pudo cargar el visor completo")
+        }
+
+        if (!cancelled) {
+          setSelectedDetail(payload)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDetailError(error instanceof Error ? error.message : "No se pudo cargar el visor completo")
+        }
+      } finally {
+        if (!cancelled) {
+          setDetailLoading(false)
+        }
+      }
+    }
+
+    void fetchDetail()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedCode])
 
   const fetchCodes = async () => {
     try {
@@ -80,11 +147,15 @@ export default function BibliotecaLegalPage() {
     setLoading(true)
     try {
       const res = await fetch("/api/legal-codes/seed-all", { method: "POST" })
-      if (res.ok) {
-        await fetchCodes()
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(payload?.error || "No se pudieron sincronizar los codigos")
       }
+      await fetchCodes()
+      toast.success(payload?.message || "Codigos legales sincronizados")
     } catch (error) {
       console.error("Error seeding codes:", error)
+      toast.error(error instanceof Error ? error.message : "No se pudieron sincronizar los codigos")
     } finally {
       setLoading(false)
     }
@@ -100,62 +171,19 @@ export default function BibliotecaLegalPage() {
 
   if (selectedCode) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => setSelectedCode(null)}>
-            ← Volver a la biblioteca
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => toggleFavorite(selectedCode._id)}
-          >
-            <Star className={`h-4 w-4 mr-2 ${favorites.includes(selectedCode._id) ? "fill-yellow-400 text-yellow-400" : ""}`} />
-            {favorites.includes(selectedCode._id) ? "Quitar de favoritos" : "Agregar a favoritos"}
-          </Button>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-primary/10 p-3">
-                <Scale className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <Badge className="mb-1">{selectedCode.code}</Badge>
-                <CardTitle>{selectedCode.name}</CardTitle>
-                <CardDescription>{selectedCode.description}</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2 mb-6">
-              {selectedCode.tags.map(tag => (
-                <Badge key={tag} variant="secondary">{tag}</Badge>
-              ))}
-              <Badge variant="outline">Año {selectedCode.year}</Badge>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Articulos ({selectedCode.articles.length})</h3>
-              {selectedCode.articles.map((article, index) => (
-                <Card key={index} className="bg-muted/30">
-                  <CardContent className="pt-4">
-                    <div className="flex items-start gap-3">
-                      <Badge variant="outline" className="mt-1">Art. {article.number}</Badge>
-                      <div>
-                        <p className="font-medium">{article.title}</p>
-                        <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">
-                          {article.content}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <LegalCodeDetailView
+        code={selectedCode}
+        detail={selectedDetail}
+        loading={detailLoading}
+        error={detailError}
+        onBack={() => {
+          setSelectedCode(null)
+          setSelectedDetail(null)
+          setDetailError(null)
+        }}
+        onToggleFavorite={toggleFavorite}
+        favorite={favorites.includes(selectedCode._id)}
+      />
     )
   }
 
@@ -168,12 +196,14 @@ export default function BibliotecaLegalPage() {
             Accede a codigos, leyes y jurisprudencia colombiana actualizada
           </p>
         </div>
-        {codes.length === 0 && (
-          <Button onClick={seedCodes}>
+        <Button onClick={seedCodes} disabled={loading}>
+          {loading ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
             <BookOpen className="h-4 w-4 mr-2" />
-            Cargar Codigos Legales
-          </Button>
-        )}
+          )}
+          {codes.length === 0 ? "Cargar Codigos Legales" : "Sincronizar Codigos"}
+        </Button>
       </div>
 
       <Card>
@@ -270,6 +300,11 @@ export default function BibliotecaLegalPage() {
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">{code.code}</Badge>
                         <Badge variant="secondary">{code.articles.length} extractos</Badge>
+                        {code.source ? (
+                          <Badge variant={code.source === "db" ? "default" : "outline"}>
+                            {code.source === "db" ? "BD sincronizada" : "Fallback local"}
+                          </Badge>
+                        ) : null}
                       </div>
                     </div>
                     <h3 className="font-semibold mb-1">{code.name}</h3>

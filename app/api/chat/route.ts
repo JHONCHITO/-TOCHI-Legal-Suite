@@ -1,6 +1,7 @@
 import { CODIGOS_COLOMBIANOS } from "@/lib/types";
 import { getFallbackLegalUpdates } from "@/lib/legal-updates";
 import { buildLegalAssistantFallback } from "@/lib/services/legal-assistant-fallback";
+import { findExactLegalArticle } from "@/lib/services/legal-catalog";
 
 export const maxDuration = 60;
 
@@ -107,6 +108,33 @@ export async function POST(req: Request) {
 
     if (!latestUserMessage?.content?.trim()) {
       return Response.json({ error: "No se recibio una consulta valida." }, { status: 400 });
+    }
+
+    const exactArticle = await findExactLegalArticle(latestUserMessage.content);
+    if (exactArticle) {
+      const message = [
+        `${exactArticle.nombre} - Articulo ${exactArticle.articulo}`,
+        exactArticle.titulo ? `Titulo: ${exactArticle.titulo}` : null,
+        "",
+        exactArticle.contenido,
+        "",
+        "Esta respuesta muestra el texto completo que la base cargada tiene disponible para este articulo.",
+        "Si necesitas una version oficial ampliada, revisa las fuentes enlazadas.",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      return Response.json({
+        message,
+        respuesta: message,
+        sources: [
+          { title: `${exactArticle.nombre} - Art. ${exactArticle.articulo}`, url: exactArticle.url },
+          ...exactArticle.resources,
+        ],
+        usedWebSearch: false,
+        model: `exact-${exactArticle.source}`,
+        fallback: false,
+      });
     }
 
     const shouldSearchWeb = needsOfficialWebSearch(latestUserMessage.content);

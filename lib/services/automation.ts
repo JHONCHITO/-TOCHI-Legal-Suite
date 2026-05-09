@@ -2,6 +2,7 @@ import Case from "@/lib/models/Case";
 import Appointment from "@/lib/models/Appointment";
 import Notification, { type NotificationType } from "@/lib/models/Notification";
 import User from "@/lib/models/User";
+import { emitNotificationEvent } from "@/lib/services/notification-stream";
 import {
   LEGAL_AREAS,
   getAreaDefinition,
@@ -122,7 +123,7 @@ export async function createNotificationForUsers(params: {
       continue;
     }
 
-    await Notification.create({
+    const notification = await Notification.create({
       userId: normalizedUserId,
       tipo: params.tipo,
       prioridad: params.prioridad,
@@ -135,6 +136,15 @@ export async function createNotificationForUsers(params: {
     });
 
     createdUserIds.push(String(userId));
+    emitNotificationEvent(normalizedUserId, {
+      kind: "created",
+      notificationId: notification._id.toString(),
+      title: notification.titulo,
+      message: notification.mensaje,
+      url: notification.enlace || "/dashboard/notificaciones",
+      priority: notification.prioridad,
+      type: notification.tipo,
+    });
   }
 
   return createdUserIds;

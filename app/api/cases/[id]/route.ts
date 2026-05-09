@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongodb"
 import Case from "@/lib/models/Case"
 import Client from "@/lib/models/Client"
 import User from "@/lib/models/User"
+import { createNotificationForUsers } from "@/lib/services/automation"
 
 async function getCaseAccessFilter(session: { user?: { id?: string; email?: string } }) {
   if (!session.user?.id) {
@@ -51,7 +52,7 @@ export async function GET(
       _id: id,
       ...accessFilter,
     })
-      .populate("clienteId", "nombre apellido razonSocial tipo email telefono direccion ciudad")
+      .populate("clienteId", "nombre apellido razonSocial tipo email telefono direccion ciudad userId")
       .populate("abogadosAsociados", "nombre apellido email")
       .populate("documentos")
       .lean()
@@ -91,11 +92,36 @@ export async function PUT(
       { $set: body },
       { new: true, runValidators: true }
     )
-      .populate("clienteId", "nombre apellido razonSocial tipo email telefono")
+      .populate("clienteId", "nombre apellido razonSocial tipo email telefono userId")
       .lean()
 
     if (!updatedCase) {
       return NextResponse.json({ error: "Caso no encontrado" }, { status: 404 })
+    }
+
+    const recipients = new Set<string>()
+    if ((updatedCase as any).abogadoPrincipal) {
+      recipients.add(String((updatedCase as any).abogadoPrincipal))
+    }
+    for (const lawyerId of (updatedCase as any).abogadosAsociados || []) {
+      if (lawyerId) {
+        recipients.add(String(lawyerId))
+      }
+    }
+    if ((updatedCase as any).clienteId?.userId) {
+      recipients.add(String((updatedCase as any).clienteId.userId))
+    }
+
+    if (recipients.size > 0) {
+      await createNotificationForUsers({
+        userIds: [...recipients],
+        tipo: "caso_actualizado",
+        prioridad: "media",
+        titulo: `Caso actualizado: ${(updatedCase as any).titulo || "Expediente"}`,
+        mensaje: `El expediente ${(updatedCase as any).numeroInterno || (updatedCase as any).numeroRadicado || id} fue actualizado.`,
+        enlace: `/dashboard/casos/${id}`,
+        casoId: id,
+      })
     }
 
     return NextResponse.json(updatedCase)
@@ -173,11 +199,38 @@ export async function PATCH(
         },
         { new: true }
       )
-        .populate("clienteId", "nombre apellido razonSocial tipo")
+        .populate("clienteId", "nombre apellido razonSocial tipo userId")
         .lean()
 
       if (!updatedCase) {
         return NextResponse.json({ error: "Caso no encontrado" }, { status: 404 })
+      }
+
+      const recipients = new Set<string>()
+      if ((updatedCase as any).abogadoPrincipal) {
+        recipients.add(String((updatedCase as any).abogadoPrincipal))
+      }
+      for (const lawyerId of (updatedCase as any).abogadosAsociados || []) {
+        if (lawyerId) {
+          recipients.add(String(lawyerId))
+        }
+      }
+      if ((updatedCase as any).clienteId?.userId) {
+        recipients.add(String((updatedCase as any).clienteId.userId))
+      }
+
+      if (recipients.size > 0) {
+        await createNotificationForUsers({
+          userIds: [...recipients],
+          tipo: "caso_actualizado",
+          prioridad: "alta",
+          titulo: `Nueva actuacion: ${(updatedCase as any).titulo || "Expediente"}`,
+          mensaje: body.actuacion?.descripcion
+            ? String(body.actuacion.descripcion)
+            : `Se registro una nueva actuacion en ${(updatedCase as any).numeroInterno || id}.`,
+          enlace: `/dashboard/casos/${id}`,
+          casoId: id,
+        })
       }
 
       return NextResponse.json(updatedCase)

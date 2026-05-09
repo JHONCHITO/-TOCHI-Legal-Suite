@@ -4,6 +4,7 @@ import connectDB from "@/lib/mongodb";
 import Articulo from "@/lib/models/Articulo";
 import Ley from "@/lib/models/Ley";
 import Norma from "@/lib/models/Norma";
+import { findExactLegalArticle } from "@/lib/services/legal-catalog";
 import { searchSemanticLegalContent } from "@/lib/services/legal-vector-search";
 
 function escapeRegExp(value: string) {
@@ -41,6 +42,18 @@ export async function GET(req: Request) {
     seen.add(key);
     resultados.push(item);
   };
+
+  const exactArticle = await findExactLegalArticle(q);
+  if (exactArticle) {
+    addResult({
+      tipo: "exacto",
+      codigo: exactArticle.codigo,
+      articulo: exactArticle.articulo,
+      titulo: exactArticle.titulo,
+      resumen: snippet(exactArticle.contenido, 240),
+      enlace: exactArticle.url,
+    });
+  }
 
   Object.values(LEGAL_CODE_LIBRARY).forEach((codigo: any) => {
     codigo.articulos.forEach((art: any) => {

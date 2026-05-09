@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react"
 import useSWR from "swr"
 
 const fetcher = async (url: string) => {
@@ -7,6 +8,25 @@ const fetcher = async (url: string) => {
     throw new Error(error.error || "Error al obtener datos")
   }
   return res.json()
+}
+
+type BrowserNotificationPermission = "default" | "denied" | "granted" | "unsupported"
+
+type NotificationStreamPayload = {
+  kind?: "connected" | "created" | "updated" | "sync"
+  userId?: string
+  timestamp?: string
+  notificationId?: string
+  unreadCount?: number
+  title?: string
+  message?: string
+  url?: string
+  priority?: "alta" | "media" | "baja"
+  type?: string
+}
+
+type BrowserNotificationOptions = NotificationOptions & {
+  renotify?: boolean
 }
 
 // Dashboard
@@ -159,19 +179,202 @@ export function useCommunications(filters?: { clienteId?: string; casoId?: strin
 }
 
 // Notificaciones
-export function useNotifications() {
+export function useNotifications(options?: { desktopNotifications?: boolean }) {
+  const desktopNotifications = options?.desktopNotifications ?? false
   const { data, error, isLoading, mutate } = useSWR("/api/notifications", fetcher, {
-    refreshInterval: 30000,
+    refreshInterval: 15000,
     revalidateOnFocus: true,
     revalidateOnReconnect: true,
     refreshWhenHidden: false,
   })
+  const [streamStatus, setStreamStatus] = useState<"connecting" | "connected" | "disconnected">("connecting")
+  const [browserPermission, setBrowserPermission] = useState<BrowserNotificationPermission>("unsupported")
+  const serviceWorkerRegistrationPromiseRef = useRef<Promise<ServiceWorkerRegistration | null> | null>(null)
+
+  const ensureServiceWorkerRegistration = async () => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return null
+    }
+
+    if (!serviceWorkerRegistrationPromiseRef.current) {
+      serviceWorkerRegistrationPromiseRef.current = navigator.serviceWorker
+        .register("/notification-sw.js", { scope: "/" })
+        .then((registration) => registration)
+        .catch((swError) => {
+          console.error("No se pudo registrar el service worker de notificaciones:", swError)
+          serviceWorkerRegistrationPromiseRef.current = null
+          return null
+        })
+    }
+
+    return serviceWorkerRegistrationPromiseRef.current
+  }
+
+  const showBrowserNotification = async (payload: NotificationStreamPayload) => {
+    if (typeof window === "undefined" || typeof Notification === "undefined") {
+      return
+    }
+
+    if (browserPermission !== "granted" || !desktopNotifications) {
+      return
+    }
+
+    const title = payload.title || "Nueva notificacion legal"
+    const body = payload.message || "Tienes una nueva alerta en TOCHI Legal Suite."
+    const targetUrl = payload.url || "/dashboard/notificaciones"
+    const tag = payload.notificationId || payload.type || payload.kind || "tochi-legal-notification"
+
+    const notificationOptions: BrowserNotificationOptions = {
+      body,
+      tag,
+      data: {
+        url: targetUrl,
+        notificationId: payload.notificationId,
+        type: payload.type,
+      },
+      icon: "/icon-light-32x32.png",
+      badge: "/icon-light-32x32.png",
+      requireInteraction: payload.priority === "alta",
+      renotify: payload.priority === "alta",
+      silent: false,
+    }
+
+    try {
+      const registration = await ensureServiceWorkerRegistration()
+      if (registration && "showNotification" in registration) {
+        await registration.showNotification(title, notificationOptions)
+        return
+      }
+    } catch (notificationError) {
+      console.error("No se pudo mostrar la notificacion del navegador:", notificationError)
+    }
+
+    try {
+      const notification = new Notification(title, notificationOptions)
+      notification.onclick = () => {
+        window.focus()
+        window.open(targetUrl, "_blank", "noopener,noreferrer")
+        notification.close()
+      }
+    } catch (fallbackError) {
+      console.error("No se pudo mostrar la notificacion fallback:", fallbackError)
+    }
+  }
+
+  const requestBrowserNotifications = async () => {
+    if (typeof window === "undefined" || typeof Notification === "undefined") {
+      setBrowserPermission("unsupported")
+      return false
+    }
+
+    if (Notification.permission === "granted") {
+      setBrowserPermission("granted")
+      await ensureServiceWorkerRegistration()
+      return true
+    }
+
+    if (Notification.permission === "denied") {
+      setBrowserPermission("denied")
+      return false
+    }
+
+    try {
+      const permission = await Notification.requestPermission()
+      setBrowserPermission(permission)
+      if (permission === "granted") {
+        await ensureServiceWorkerRegistration()
+        return true
+      }
+    } catch (permissionError) {
+      console.error("No se pudo solicitar permiso de notificaciones:", permissionError)
+    }
+
+    return false
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.EventSource) {
+      setStreamStatus("disconnected")
+      return
+    }
+
+    if (typeof Notification !== "undefined") {
+      setBrowserPermission(Notification.permission === "default" || Notification.permission === "denied" || Notification.permission === "granted"
+        ? Notification.permission
+        : "unsupported")
+    } else {
+      setBrowserPermission("unsupported")
+    }
+
+    let closed = false
+    const stream = new EventSource("/api/notifications/stream")
+
+    const refreshNow = () => {
+      if (!closed) {
+        void mutate()
+      }
+    }
+
+    const handleNotificationEvent = (event: MessageEvent) => {
+      refreshNow()
+
+      if (!desktopNotifications || browserPermission !== "granted") {
+        return
+      }
+
+      const payload = (() => {
+        try {
+          return JSON.parse(String(event.data)) as NotificationStreamPayload
+        } catch {
+          return null
+        }
+      })()
+
+      if (!payload || payload.kind !== "created") {
+        return
+      }
+
+      void showBrowserNotification(payload)
+    }
+
+    stream.onopen = () => {
+      if (!closed) {
+        setStreamStatus("connected")
+        refreshNow()
+      }
+    }
+
+    stream.addEventListener("connected", refreshNow as EventListener)
+    stream.addEventListener("notification", handleNotificationEvent as EventListener)
+    stream.onerror = () => {
+      if (!closed) {
+        setStreamStatus("disconnected")
+      }
+    }
+
+    return () => {
+      closed = true
+      stream.close()
+    }
+  }, [browserPermission, desktopNotifications, mutate])
+
+  useEffect(() => {
+    if (!desktopNotifications || browserPermission !== "granted") {
+      return
+    }
+
+    void ensureServiceWorkerRegistration()
+  }, [browserPermission, desktopNotifications])
+
   return {
     notifications: data?.notifications || [],
     unreadCount: data?.unreadCount || 0,
     isLoading,
     isError: error,
     mutate,
+    streamStatus,
+    browserPermission,
+    requestBrowserNotifications,
   }
 }
 

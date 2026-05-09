@@ -1,16 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
+import useSWR from "swr";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bell, Calendar, CheckCircle, Clock, FileText, Info, Mail, Settings, Smartphone, Scale } from "lucide-react";
+import { Bell, Calendar, CheckCircle, Clock, FileText, Info, Mail, RefreshCw, Settings, Smartphone, Scale } from "lucide-react";
 import { markNotificationsRead, useNotifications } from "@/lib/hooks/use-data";
+import { toast } from "sonner";
+
+type UserPreferences = {
+  recordatoriosJudiciales?: boolean;
+  cambiosNormativos?: boolean;
+  resumenDiario?: boolean;
+  carteraVencida?: boolean;
+  email?: boolean;
+  push?: boolean;
+};
+
+type UserProfile = {
+  notificationPreferences?: UserPreferences;
+};
+
+const DEFAULT_PREFERENCES: Required<UserPreferences> = {
+  recordatoriosJudiciales: true,
+  cambiosNormativos: true,
+  resumenDiario: true,
+  carteraVencida: true,
+  email: true,
+  push: false,
+};
+
+async function fetcher(url: string) {
+  const response = await fetch(url);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || "No se pudo cargar el perfil");
+  }
+  return payload as UserProfile;
+}
 
 const tipoIconos: Record<string, React.ReactNode> = {
   cita_proxima: <Calendar className="h-5 w-5 text-blue-500" />,
@@ -45,7 +78,14 @@ type NotificationItem = {
 
 export default function NotificacionesPage() {
   const [filtroTipo, setFiltroTipo] = useState<string>("todas");
-  const { notifications, unreadCount, isLoading, isError, mutate } = useNotifications();
+  const [syncing, setSyncing] = useState(false);
+  const { data: profile, mutate: mutateProfile } = useSWR<UserProfile>("/api/users/me", fetcher);
+  const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState(false);
+  const [activatingBrowserNotifications, setActivatingBrowserNotifications] = useState(false);
+  const { notifications, unreadCount, isLoading, isError, mutate, streamStatus, browserPermission, requestBrowserNotifications } =
+    useNotifications({ desktopNotifications: browserNotificationsEnabled });
+  const { data: session } = useSession();
+  const canSync = ["superadmin", "admin", "abogado", "asistente"].includes(session?.user?.role || "");
 
   const normalizedNotifications = useMemo(
     () => (notifications as NotificationItem[]).map((item) => ({ ...item, id: item.id || item._id })),
@@ -53,6 +93,52 @@ export default function NotificacionesPage() {
   );
 
   const noLeidas = unreadCount || normalizedNotifications.filter((item) => !item.leida).length;
+
+  useEffect(() => {
+    setBrowserNotificationsEnabled(Boolean(profile?.notificationPreferences?.push));
+  }, [profile?.notificationPreferences?.push]);
+
+  const handleEnableBrowserNotifications = async () => {
+    setActivatingBrowserNotifications(true);
+    try {
+      const granted = await requestBrowserNotifications();
+      if (!granted) {
+        throw new Error(
+          browserPermission === "denied"
+            ? "El navegador bloqueo las notificaciones. Debes habilitarlas desde la configuracion del navegador."
+            : "No se pudo activar el permiso de notificaciones."
+        );
+      }
+
+      setBrowserNotificationsEnabled(true);
+
+      const response = await fetch("/api/users/me", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          notificationPreferences: {
+            ...DEFAULT_PREFERENCES,
+            ...(profile?.notificationPreferences || {}),
+            push: true,
+          },
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudo guardar la preferencia push");
+      }
+
+      await mutateProfile();
+      toast.success("Notificaciones del navegador activadas");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo activar el navegador");
+    } finally {
+      setActivatingBrowserNotifications(false);
+    }
+  };
 
   const marcarComoLeida = async (id?: string) => {
     if (!id) return;
@@ -64,6 +150,35 @@ export default function NotificacionesPage() {
     await markNotificationsRead();
     await mutate();
   };
+
+  const sincronizarAhora = async (options?: { silent?: boolean }) => {
+    setSyncing(true);
+    try {
+      const response = await fetch("/api/notifications/sync", { method: "POST" });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudo sincronizar");
+      }
+
+      await mutate();
+      if (!options?.silent) {
+        toast.success("Notificaciones sincronizadas");
+      }
+    } catch (error) {
+      if (!options?.silent) {
+        toast.error(error instanceof Error ? error.message : "No se pudo sincronizar");
+      }
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (canSync) {
+      void sincronizarAhora({ silent: true });
+    }
+  }, [canSync]);
 
   const filtered = useMemo(() => {
     if (filtroTipo === "todas") {
@@ -82,15 +197,94 @@ export default function NotificacionesPage() {
             {noLeidas > 0 ? <Badge className="bg-red-500 text-white">{noLeidas}</Badge> : null}
           </h1>
           <p className="text-muted-foreground">
-            Alertas de plazos, movimientos, agenda y seguimiento normativo.
+            Alertas de plazos, movimientos, agenda y seguimiento normativo en tiempo real.
           </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Badge
+              variant={streamStatus === "connected" ? "default" : "outline"}
+              className={streamStatus === "connected" ? "bg-emerald-600 text-white" : ""}
+            >
+              {streamStatus === "connected"
+                ? "Tiempo real activo"
+                : streamStatus === "connecting"
+                  ? "Conectando al flujo"
+                  : "Modo respaldo"}
+            </Badge>
+            <Badge variant="outline">Actualizacion cada 15s</Badge>
+          </div>
           {isLoading ? <p className="mt-2 text-sm text-muted-foreground">Cargando notificaciones...</p> : null}
         </div>
-        <Button variant="outline" onClick={marcarTodasComoLeidas} disabled={noLeidas === 0 || isLoading}>
-          <CheckCircle className="mr-2 h-4 w-4" />
-          Marcar todas como leidas
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {canSync ? (
+            <Button variant="outline" onClick={() => sincronizarAhora()} disabled={syncing || isLoading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              Sincronizar ahora
+            </Button>
+          ) : null}
+          <Button variant="outline" onClick={marcarTodasComoLeidas} disabled={noLeidas === 0 || isLoading}>
+            <CheckCircle className="mr-2 h-4 w-4" />
+            Marcar todas como leidas
+          </Button>
+        </div>
       </div>
+
+      <Card className="border-primary/15 bg-primary/5">
+        <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Entrega en tiempo real</h2>
+            </div>
+            <p className="max-w-3xl text-sm text-muted-foreground">
+              TOCHI escucha los eventos por SSE, los convierte en avisos del navegador cuando tienes permiso
+              activo y respeta la preferencia push guardada en tu perfil.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={streamStatus === "connected" ? "default" : "outline"}
+                className={streamStatus === "connected" ? "bg-emerald-600 text-white" : ""}
+              >
+                {streamStatus === "connected"
+                  ? "SSE conectado"
+                  : streamStatus === "connecting"
+                    ? "SSE conectando"
+                    : "SSE en respaldo"}
+              </Badge>
+              <Badge variant={browserNotificationsEnabled ? "default" : "outline"}>
+                {browserNotificationsEnabled ? "Push del perfil activo" : "Push del perfil inactivo"}
+              </Badge>
+              <Badge
+                variant={browserPermission === "granted" ? "default" : browserPermission === "denied" ? "destructive" : "outline"}
+                className={browserPermission === "granted" ? "bg-primary text-primary-foreground" : ""}
+              >
+                {browserPermission === "granted"
+                  ? "Permiso del navegador concedido"
+                  : browserPermission === "denied"
+                    ? "Permiso del navegador bloqueado"
+                    : browserPermission === "unsupported"
+                      ? "Navegador sin soporte"
+                      : "Permiso del navegador pendiente"}
+              </Badge>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => void handleEnableBrowserNotifications()}
+              disabled={activatingBrowserNotifications || browserPermission === "unsupported"}
+            >
+              <Smartphone className="mr-2 h-4 w-4" />
+              {browserPermission === "granted" && browserNotificationsEnabled
+                ? "Notificaciones activadas"
+                : activatingBrowserNotifications
+                  ? "Activando..."
+                  : "Activar notificaciones del navegador"}
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/configuracion">Abrir configuracion</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {isError ? (
         <Card>
@@ -180,34 +374,36 @@ export default function NotificacionesPage() {
           <Card>
             <CardHeader>
               <CardTitle>Configuracion de notificaciones</CardTitle>
-              <CardDescription>Controla correos, push y alertas operativas.</CardDescription>
+              <CardDescription>La configuracion real se guarda en tu perfil de usuario y se sincroniza con esta vista.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="flex items-center gap-2 font-medium">
-                  <Mail className="h-4 w-4" />
-                  Notificaciones por correo
-                </h3>
-                {["Recordatorios de audiencias", "Vencimiento de terminos", "Cambios en codigos prioritarios"].map((item) => (
-                  <div key={item} className="flex items-center justify-between rounded-lg border p-3">
-                    <span className="text-sm">{item}</span>
-                    <Switch defaultChecked />
-                  </div>
-                ))}
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-lg border p-4">
+                  <Mail className="mb-3 h-4 w-4 text-primary" />
+                  <p className="font-medium">Correo y recordatorios</p>
+                  <p className="text-sm text-muted-foreground">
+                    Se activan desde tu perfil para avisos judiciales, novedad normativa y resumen diario.
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <Smartphone className="mb-3 h-4 w-4 text-primary" />
+                  <p className="font-medium">Push y actividad</p>
+                  <p className="text-sm text-muted-foreground">
+                    Las alertas llegan por SSE y se revalidan cada 15 segundos como respaldo.
+                  </p>
+                </div>
+                <div className="rounded-lg border p-4">
+                  <Settings className="mb-3 h-4 w-4 text-primary" />
+                  <p className="font-medium">Ajustes por rol</p>
+                  <p className="text-sm text-muted-foreground">
+                    Cada rol ve distintas opciones y permisos de acuerdo con su nivel de acceso.
+                  </p>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                <h3 className="flex items-center gap-2 font-medium">
-                  <Smartphone className="h-4 w-4" />
-                  Notificaciones push
-                </h3>
-                {["Citas urgentes", "Mensajes de clientes"].map((item, index) => (
-                  <div key={item} className="flex items-center justify-between rounded-lg border p-3">
-                    <span className="text-sm">{item}</span>
-                    <Switch defaultChecked={index === 0} />
-                  </div>
-                ))}
-              </div>
+              <Button asChild>
+                <Link href="/dashboard/configuracion">Abrir configuracion real</Link>
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

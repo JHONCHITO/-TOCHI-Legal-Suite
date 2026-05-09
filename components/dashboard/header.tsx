@@ -20,7 +20,7 @@ import { useNotifications } from "@/lib/hooks/use-data";
 export function Header() {
   const { data: session } = useSession();
   const user = session?.user;
-  const { unreadCount } = useNotifications();
+  const { unreadCount, streamStatus } = useNotifications();
 
   // Demo user fallback
   const displayName = user?.name || "Abogado Demo";
@@ -56,8 +56,8 @@ export function Header() {
           </div>
 
           <div className="hidden lg:flex items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-accent" />
-            <span>Actualizado hace unos segundos</span>
+            <span className={`h-2 w-2 rounded-full ${streamStatus === "connected" ? "bg-emerald-500" : "bg-accent"}`} />
+            <span>{streamStatus === "connected" ? "Tiempo real activo" : "Actualizado hace unos segundos"}</span>
           </div>
         </div>
 
