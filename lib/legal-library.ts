@@ -1,4 +1,9 @@
 import { CODIGOS_COLOMBIANOS, type CodigoLegalData } from "@/lib/types";
+import {
+  codigoCivil as codigoCivilCompleto,
+  codigoPenal as codigoPenalCompleto,
+  codigoSustantivoTrabajo as codigoLaboralCompleto,
+} from "@/lib/data/codigos";
 import penalCodeData from "@/data/codigo_penal.json";
 
 export interface LegalArticleSummary {
@@ -51,6 +56,48 @@ function buildArticleFromJson(article: any): LegalArticleSummary {
   };
 }
 
+function buildArticleFromStructured(article: any): LegalArticleSummary {
+  const numero = String(article?.numero || article?.number || article?.numeroArticulo || article?.articulo || "").trim();
+  const contenido = String(article?.contenido || article?.resumen || "").trim();
+  const titulo = String(article?.titulo || article?.epigrafe || article?.tituloArticulo || `Articulo ${numero}`).trim();
+  const capitulo = String(article?.capitulo || article?.seccion || article?.titulo_seccion || article?.tituloSeccion || "").trim();
+
+  return {
+    numero,
+    epigrafe: titulo,
+    resumen: contenido ? `${contenido.slice(0, 140).trim()}...` : "Resumen no disponible.",
+    contenido: contenido || undefined,
+    titulo,
+    libro: article?.libro ? String(article.libro).trim() : undefined,
+    capitulo: capitulo || undefined,
+    vigente: article?.vigente !== false,
+    palabrasClave: [
+      numero,
+      titulo,
+      article?.libro,
+      capitulo,
+      article?.codigo,
+    ]
+      .filter(Boolean)
+      .map((item) => String(item).toLowerCase()),
+  };
+}
+
+function buildStructuredContent(
+  codigo: string,
+  descripcion: string,
+  articulos: any[],
+  temasClave: string[] = []
+): LegalCodeContent {
+  return {
+    codigo,
+    descripcion,
+    nivelContenido: "resumen_local",
+    temasClave,
+    articulos: articulos.map(buildArticleFromStructured),
+  };
+}
+
 const JSON_LEGAL_LIBRARY: Record<string, LegalCodeContent> = {
   codigo_penal: {
     codigo: "CODIGO_PENAL",
@@ -69,6 +116,48 @@ export function getLegalCodeContent(codigo: string): LegalCodeContent {
 
   const base = LEGAL_CODE_LIBRARY[slug];
   const jsonContent = JSON_LEGAL_LIBRARY[slug];
+  const structuredLibrary: Record<string, LegalCodeContent> = {
+    codigo_penal: buildStructuredContent(
+      "CODIGO_PENAL",
+      "Código Penal Colombiano",
+      (codigoPenalCompleto as any)?.articulos || [],
+      ["delitos", "legalidad penal", "procedimiento penal"]
+    ),
+    penal: buildStructuredContent(
+      "CODIGO_PENAL",
+      "Código Penal Colombiano",
+      (codigoPenalCompleto as any)?.articulos || [],
+      ["delitos", "legalidad penal", "procedimiento penal"]
+    ),
+    codigo_civil: buildStructuredContent(
+      "CODIGO_CIVIL",
+      "Código Civil Colombiano",
+      (codigoCivilCompleto as any)?.articulos || [],
+      ["obligaciones", "contratos", "capacidad", "causa licita"]
+    ),
+    civil: buildStructuredContent(
+      "CODIGO_CIVIL",
+      "Código Civil Colombiano",
+      (codigoCivilCompleto as any)?.articulos || [],
+      ["obligaciones", "contratos", "capacidad", "causa licita"]
+    ),
+    codigo_sustantivo_trabajo: buildStructuredContent(
+      "CODIGO_SUSTANTIVO_TRABAJO",
+      "Codigo Sustantivo del Trabajo",
+      (codigoLaboralCompleto as any)?.articulos || [],
+      ["contrato de trabajo", "justa causa", "indemnizacion"]
+    ),
+    laboral: buildStructuredContent(
+      "CODIGO_SUSTANTIVO_TRABAJO",
+      "Codigo Sustantivo del Trabajo",
+      (codigoLaboralCompleto as any)?.articulos || [],
+      ["contrato de trabajo", "justa causa", "indemnizacion"]
+    ),
+  };
+
+  if (structuredLibrary[slug]) {
+    return structuredLibrary[slug];
+  }
 
   if (slug === "codigo_penal" || slug === "penal") {
     return jsonContent ?? base ?? {

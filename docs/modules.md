@@ -105,6 +105,7 @@ Planes:
 
 - `/dashboard/actualizaciones`: novedades legales.
 - `app/api/legal-updates`: resumen de cambios normativos y jurisprudenciales.
+- `app/api/cron/legal-refresh`: sincronizacion automatica diaria del catalogo legal y embeddings.
 
 ## Flujo recomendado de uso
 

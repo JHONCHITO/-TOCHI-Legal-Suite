@@ -8,6 +8,9 @@ export interface INorma extends Document {
   titulo: string;
   contenido: string;
   embedding?: number[];
+  embeddingHash?: string;
+  embeddingSourceHash?: string;
+  embeddingUpdatedAt?: Date;
 }
 
 // 🔥 esquema
@@ -22,7 +25,18 @@ const NormaSchema: Schema<INorma> = new Schema({
   embedding: {
     type: [Number],
     default: undefined, // ⚠️ importante (NO [])
-  }
+  },
+  embeddingHash: {
+    type: String,
+    default: "",
+  },
+  embeddingSourceHash: {
+    type: String,
+    default: "",
+  },
+  embeddingUpdatedAt: {
+    type: Date,
+  },
 });
 
 // 🔥 evitar duplicación en hot reload (Next.js / dev)

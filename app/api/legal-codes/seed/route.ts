@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { syncLegalCodeCatalog } from "@/lib/services/legal-catalog";
+import { refreshLegalCorpus } from "@/lib/services/legal-refresh";
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const INTERNAL_ROLES = new Set(["superadmin", "admin", "abogado", "asistente"]);
 
@@ -13,13 +14,16 @@ export async function POST() {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    const result = await syncLegalCodeCatalog();
+    const result = await refreshLegalCorpus();
 
     return NextResponse.json({
       success: true,
-      message: `Se sincronizaron ${result.codesUpserted} codigos legales y ${result.articlesUpserted} articulos`,
-      count: result.codesUpserted,
-      articulos: result.articlesUpserted,
+      message: `Se sincronizaron ${result.catalog.codesUpserted} codigos legales, ${result.catalog.articlesUpserted} articulos, ${result.legacyLey.leyesUpserted} leyes, ${result.legacyLey.leyArticlesUpserted} articulos de ley y ${result.embeddings.total} embeddings`,
+      count: result.catalog.codesUpserted,
+      articulos: result.catalog.articlesUpserted,
+      leyes: result.legacyLey.leyesUpserted,
+      leyArticulos: result.legacyLey.leyArticlesUpserted,
+      embeddings: result.embeddings.total,
     });
   } catch (error) {
     console.error("Error al sincronizar codigos:", error);

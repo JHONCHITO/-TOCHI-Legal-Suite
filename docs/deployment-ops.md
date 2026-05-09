@@ -22,6 +22,7 @@ Esta guia explica como levantar TOCHI, que variables necesita y como mantener el
 | `OPENAI_API_KEY` | IA, embeddings y borradores |
 | `RESEND_API_KEY` | Correos de recuperacion y notificaciones por email |
 | `MAIL_FROM` | Remitente para email transaccional |
+| `CRON_SECRET` | Protege los endpoints de automatizacion programada |
 | `STRIPE_SECRET_KEY` | Checkout y suscripciones |
 | `DISABLE_PLAN_LIMITS` | Desactiva limites en desarrollo |
 | `DEFAULT_ADMIN_EMAIL` | Bootstrap del superadmin |
@@ -83,6 +84,23 @@ La aplicacion usa esos embeddings para:
 - matching de articulos,
 - respaldo de respuestas legales,
 - ranking de relevancia.
+
+## Refresco automatico legal
+
+TOCHI incluye un cron programado para mantener el catalogo legal y la vectorizacion alineados con el contenido fuente.
+
+- Ruta: `app/api/cron/legal-refresh/route.ts`
+- Cron de despliegue: `vercel.json`
+- Frecuencia por defecto: diaria
+
+El cron:
+
+- sincroniza el catalogo legal,
+- actualiza el repertorio de leyes heredadas,
+- reindexa embeddings solo cuando el contenido cambia,
+- deja listo el asistente IA y la busqueda semantica con la misma fuente de verdad.
+
+Si desplegas fuera de Vercel, puedes llamar manualmente esa ruta con `CRON_SECRET` en el header o como query string.
 
 ## Scrapers y extraccion
 

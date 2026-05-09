@@ -1,12 +1,14 @@
 import OpenAI from "openai";
 import dbConnect from "@/lib/mongodb";
 import Norma from "@/lib/models/Norma";
+import Article from "@/lib/models/Article";
 import Articulo from "@/lib/models/Articulo";
+import Ley from "@/lib/models/Ley";
 import { toLegalSlug } from "@/lib/legal-library";
 
 export type VectorHit = {
   tipo: "vector";
-  source: "norma" | "articulo";
+  source: "norma" | "articulo" | "article" | "ley";
   codigo: string;
   articulo?: string;
   titulo: string;
@@ -83,6 +85,26 @@ function formatSnippet(value: unknown, length = 220) {
   return text.length > length ? `${text.slice(0, length)}...` : text;
 }
 
+function isCurrentEmbedding(
+  embedding: unknown,
+  embeddingHash?: string,
+  embeddingSourceHash?: string
+) {
+  if (!Array.isArray(embedding) || embedding.length === 0) {
+    return false;
+  }
+
+  if (embeddingSourceHash && !embeddingHash) {
+    return false;
+  }
+
+  if (embeddingSourceHash && embeddingHash) {
+    return embeddingHash === embeddingSourceHash;
+  }
+
+  return true;
+}
+
 export async function searchSemanticLegalContent(query: string, limit = 8): Promise<VectorHit[]> {
   const normalized = normalizeQuery(query);
   if (!normalized || normalized.length < 3) {
@@ -96,25 +118,40 @@ export async function searchSemanticLegalContent(query: string, limit = 8): Prom
 
   await dbConnect();
 
-  const [normas, articulos] = await Promise.all([
+  const [normas, articulos, articles, leyes] = await Promise.all([
     Norma.find({
       embedding: { $exists: true },
       contenido: { $exists: true, $ne: "" },
     })
-      .select("codigo nombre articulo titulo contenido embedding")
+      .select("codigo nombre articulo titulo contenido embedding embeddingHash embeddingSourceHash")
       .limit(250)
       .lean(),
     Articulo.find({
       embedding: { $exists: true },
       contenido: { $exists: true, $ne: "" },
     })
-      .select("codigoRef numeroArticulo tituloArticulo contenido embedding")
+      .select("codigoRef numeroArticulo tituloArticulo contenido embedding embeddingHash embeddingSourceHash")
       .limit(350)
+      .lean(),
+    Article.find({
+      embedding: { $exists: true },
+      contenido: { $exists: true, $ne: "" },
+    })
+      .select("codigoRef numero epigrafe titulo contenido libro capitulo seccion embedding embeddingHash embeddingSourceHash")
+      .limit(350)
+      .lean(),
+    Ley.find({
+      articulos: { $exists: true, $ne: [] },
+    })
+      .select("codigo nombre descripcion articulos")
+      .limit(150)
       .lean(),
   ]);
 
   const rankedNormas = normas
-    .filter((norma: any) => Array.isArray(norma.embedding) && norma.embedding.length > 0)
+    .filter((norma: any) =>
+      isCurrentEmbedding(norma.embedding, norma.embeddingHash, norma.embeddingSourceHash)
+    )
     .map((norma: any) => ({
       tipo: "vector" as const,
       source: "norma" as const,
@@ -128,7 +165,9 @@ export async function searchSemanticLegalContent(query: string, limit = 8): Prom
     }));
 
   const rankedArticulos = articulos
-    .filter((articulo: any) => Array.isArray(articulo.embedding) && articulo.embedding.length > 0)
+    .filter((articulo: any) =>
+      isCurrentEmbedding(articulo.embedding, articulo.embeddingHash, articulo.embeddingSourceHash)
+    )
     .map((articulo: any) => ({
       tipo: "vector" as const,
       source: "articulo" as const,
@@ -141,7 +180,41 @@ export async function searchSemanticLegalContent(query: string, limit = 8): Prom
       score: cosineSimilarity(queryVector, articulo.embedding),
     }));
 
-  return [...rankedNormas, ...rankedArticulos]
+  const rankedArticles = articles
+    .filter((article: any) =>
+      isCurrentEmbedding(article.embedding, article.embeddingHash, article.embeddingSourceHash)
+    )
+    .map((article: any) => ({
+      tipo: "vector" as const,
+      source: "article" as const,
+      codigo: article.codigoRef,
+      articulo: article.numero,
+      titulo: article.epigrafe || article.titulo || "Articulo",
+      resumen: formatSnippet(article.contenido),
+      contenido: formatSnippet(article.contenido, 1200),
+      enlace: `/dashboard/leyes/${toLegalSlug(article.codigoRef)}`,
+      score: cosineSimilarity(queryVector, article.embedding),
+    }));
+
+  const rankedLeyes = leyes.flatMap((ley: any) =>
+    (ley.articulos || [])
+      .filter((articulo: any) =>
+        isCurrentEmbedding(articulo.embedding, articulo.embeddingHash, articulo.embeddingSourceHash)
+      )
+      .map((articulo: any) => ({
+        tipo: "vector" as const,
+        source: "ley" as const,
+        codigo: ley.codigo,
+        articulo: articulo.numero,
+        titulo: articulo.titulo || ley.nombre || "Ley",
+        resumen: formatSnippet(articulo.contenido),
+        contenido: formatSnippet(articulo.contenido, 1200),
+        enlace: `/dashboard/leyes/${toLegalSlug(ley.codigo)}`,
+        score: cosineSimilarity(queryVector, articulo.embedding),
+      }))
+  );
+
+  return [...rankedNormas, ...rankedArticulos, ...rankedArticles, ...rankedLeyes]
     .filter((item) => item.score > 0.18)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);

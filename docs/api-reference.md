@@ -59,6 +59,7 @@ Las rutas API viven en `app/api/` y se conectan a modelos de MongoDB, IA, notifi
 - `POST /api/intake/analyze`: analisis de intake con IA.
 - `GET /api/dashboard`: resumen ejecutivo.
 - `GET /api/cron`: ejecucion o gatillo de tareas automaticas.
+- `GET /api/cron/legal-refresh`: refresco legal automatico de catalogo y embeddings.
 - `GET /api/health`: healthcheck.
 - `GET/POST /api/chat`: chat legal.
 - `GET/POST /api/chats`: historial o gestion de chats.

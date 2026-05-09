@@ -202,7 +202,7 @@ export default function BibliotecaLegalPage() {
           ) : (
             <BookOpen className="h-4 w-4 mr-2" />
           )}
-          {codes.length === 0 ? "Cargar Codigos Legales" : "Sincronizar Codigos"}
+          {codes.length === 0 ? "Cargar Catalogo Legal" : "Sincronizar y reindexar"}
         </Button>
       </div>
 
@@ -278,7 +278,7 @@ export default function BibliotecaLegalPage() {
                 <p className="text-lg font-medium">No se encontraron codigos</p>
                 <p className="text-muted-foreground">
                   {codes.length === 0 
-                    ? "Haz clic en 'Cargar Codigos Legales' para comenzar"
+                    ? "Haz clic en 'Cargar Catalogo Legal' para comenzar"
                     : "Intenta con otros terminos de busqueda"
                   }
                 </p>

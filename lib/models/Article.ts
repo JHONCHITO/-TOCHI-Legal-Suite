@@ -17,6 +17,7 @@ export interface INotaUsuario {
 export interface IArticle extends Document {
   _id: mongoose.Types.ObjectId;
   codigoId: mongoose.Types.ObjectId;
+  codigoRef: string;
   numero: string;
   numeroCompleto: string;
   libro?: string;
@@ -26,6 +27,10 @@ export interface IArticle extends Document {
   epigrafe?: string;
   contenido: string;
   contenidoHTML?: string;
+  embedding?: number[];
+  embeddingHash?: string;
+  embeddingSourceHash?: string;
+  embeddingUpdatedAt?: Date;
   incisos?: Array<{ numero: string; contenido: string }>;
   paragrafos?: Array<{ numero: string; contenido: string }>;
   vigente: boolean;
@@ -53,6 +58,7 @@ export interface IArticle extends Document {
 const ArticleSchema = new Schema<IArticle>(
   {
     codigoId: { type: Schema.Types.ObjectId, ref: "LegalCode", required: true },
+    codigoRef: { type: String, default: "", index: true },
     numero: { type: String, required: true },
     numeroCompleto: { type: String, required: true },
     libro: String,
@@ -62,6 +68,21 @@ const ArticleSchema = new Schema<IArticle>(
     epigrafe: String,
     contenido: { type: String, required: true },
     contenidoHTML: String,
+    embedding: {
+      type: [Number],
+      default: undefined,
+    },
+    embeddingHash: {
+      type: String,
+      default: "",
+    },
+    embeddingSourceHash: {
+      type: String,
+      default: "",
+    },
+    embeddingUpdatedAt: {
+      type: Date,
+    },
     incisos: [
       {
         numero: String,
@@ -118,6 +139,7 @@ const ArticleSchema = new Schema<IArticle>(
 
 // Indices para busqueda rapida
 ArticleSchema.index({ codigoId: 1, numero: 1 });
+ArticleSchema.index({ codigoRef: 1, numero: 1 });
 ArticleSchema.index({ contenido: "text", epigrafe: "text", palabrasClave: "text" });
 
 const Article: Model<IArticle> =

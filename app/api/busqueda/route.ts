@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { LEGAL_CODE_LIBRARY, toLegalSlug } from "@/lib/legal-library";
 import connectDB from "@/lib/mongodb";
+import Article from "@/lib/models/Article";
 import Articulo from "@/lib/models/Articulo";
 import Ley from "@/lib/models/Ley";
 import Norma from "@/lib/models/Norma";
@@ -176,7 +177,7 @@ export async function GET(req: Request) {
         { titulo: regex },
         { capitulo: regex },
       ],
-    })
+      })
       .limit(60)
       .lean();
 
@@ -188,6 +189,32 @@ export async function GET(req: Request) {
         titulo: articulo.tituloArticulo || articulo.titulo || "",
         resumen: snippet(articulo.contenido, 180),
         enlace: `/dashboard/leyes/${toLegalSlug(articulo.codigoRef)}`,
+      });
+    });
+
+    const articlesDB = await Article.find({
+      $or: [
+        { codigoRef: regex },
+        { numero: regex },
+        { epigrafe: regex },
+        { titulo: regex },
+        { contenido: regex },
+        { libro: regex },
+        { capitulo: regex },
+        { seccion: regex },
+      ],
+    })
+      .limit(60)
+      .lean();
+
+    articlesDB.forEach((article: any) => {
+      addResult({
+        tipo: "article",
+        codigo: article.codigoRef,
+        articulo: article.numero,
+        titulo: article.epigrafe || article.titulo || "",
+        resumen: snippet(article.contenido, 180),
+        enlace: `/dashboard/leyes/${toLegalSlug(article.codigoRef)}`,
       });
     });
   } catch (error) {

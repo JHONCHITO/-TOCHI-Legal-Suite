@@ -15,6 +15,9 @@ export interface IArticulo extends Document {
   notas?: string;
   vigente: boolean;
   embedding?: number[];
+  embeddingHash?: string;
+  embeddingSourceHash?: string;
+  embeddingUpdatedAt?: Date;
   fechaModificacion?: Date;
   normaModificatoria?: string;
   createdAt: Date;
@@ -38,6 +41,17 @@ const ArticuloSchema = new Schema<IArticulo>(
     embedding: {
       type: [Number],
       default: undefined,
+    },
+    embeddingHash: {
+      type: String,
+      default: "",
+    },
+    embeddingSourceHash: {
+      type: String,
+      default: "",
+    },
+    embeddingUpdatedAt: {
+      type: Date,
     },
     fechaModificacion: Date,
     normaModificatoria: String,

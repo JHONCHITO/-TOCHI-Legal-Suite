@@ -2,8 +2,10 @@ import dbConnect from "@/lib/mongodb";
 import LegalCode from "@/lib/models/LegalCode";
 import Article from "@/lib/models/Article";
 import Articulo from "@/lib/models/Articulo";
+import Ley from "@/lib/models/Ley";
 import Norma from "@/lib/models/Norma";
 import { CODIGOS_COLOMBIANOS, type CodigoLegalData } from "@/lib/types";
+import { buildEmbeddingSourceHash } from "./legal-fingerprint";
 import {
   constitucionPolitica,
   codigoCivil,
@@ -82,6 +84,15 @@ export interface SyncResult {
   articlesUpserted: number;
 }
 
+export interface LeySyncResult {
+  leyesUpserted: number;
+  leyArticlesUpserted: number;
+}
+
+interface SyncOptions {
+  markEmbeddingSourceHash?: boolean;
+}
+
 type ArticleInput = {
   numero?: string;
   number?: string;
@@ -90,6 +101,8 @@ type ArticleInput = {
   titulo?: string;
   epigrafe?: string;
   tituloArticulo?: string;
+  titulo_seccion?: string;
+  tituloSeccion?: string;
   contenido?: string;
   resumen?: string;
   libro?: string;
@@ -190,6 +203,8 @@ function buildArticleItem(article: {
   titulo?: string;
   epigrafe?: string;
   tituloArticulo?: string;
+  titulo_seccion?: string;
+  tituloSeccion?: string;
   contenido?: string;
   resumen?: string;
   libro?: string;
@@ -197,14 +212,31 @@ function buildArticleItem(article: {
   seccion?: string;
 }): LegalCodeArticleItem {
   const number = toLabel(article.numero || article.number || article.numeroArticulo || article.articulo);
+  const section = article.seccion || article.titulo_seccion || article.tituloSeccion;
   return {
     number,
     title: toLabel(article.epigrafe || article.tituloArticulo || article.titulo || `Articulo ${number}`),
     content: toLabel(article.contenido || article.resumen || "Contenido no disponible."),
     libro: article.libro ? toLabel(article.libro) : undefined,
     capitulo: article.capitulo ? toLabel(article.capitulo) : undefined,
-    seccion: article.seccion ? toLabel(article.seccion) : undefined,
+    seccion: section ? toLabel(section) : undefined,
   };
+}
+
+function buildArticleSourceHash(codeData: CodigoLegalData, article: LegalCodeArticleItem) {
+  return buildEmbeddingSourceHash(
+    [
+      codeData.codigo,
+      codeData.nombre,
+      article.number,
+      article.title,
+      article.content,
+      article.libro,
+      article.capitulo,
+      article.seccion,
+    ],
+    1500
+  );
 }
 
 function toArticleInput(value: unknown): ArticleInput {
@@ -223,6 +255,8 @@ function toArticleInput(value: unknown): ArticleInput {
     titulo: pick("titulo"),
     epigrafe: pick("epigrafe"),
     tituloArticulo: pick("tituloArticulo"),
+    titulo_seccion: pick("titulo_seccion"),
+    tituloSeccion: pick("tituloSeccion"),
     contenido: pick("contenido"),
     resumen: pick("resumen"),
     libro: pick("libro"),
@@ -406,13 +440,18 @@ async function getDbArticlesForCode(codeData: CodigoLegalData) {
   const legalCode = await LegalCode.findOne({ codigo: codeData.codigo }).select("_id codigo").lean();
   const legalCodeId = legalCode?._id;
 
-  const [articleDocs, articuloDocs, normaDocs] = await Promise.all([
+  const [articleDocs, articuloDocs, normaDocs, leyDocs] = await Promise.all([
     legalCodeId
-      ? Article.find({ codigoId: legalCodeId })
-          .select("numero epigrafe titulo contenido libro capitulo seccion")
+      ? Article.find({
+          $or: [{ codigoId: legalCodeId }, { codigoRef: codeData.codigo }],
+        })
+          .select("codigoRef numero epigrafe titulo contenido libro capitulo seccion")
           .sort({ numero: 1 })
           .lean()
-      : Promise.resolve([]),
+      : Article.find({ codigoRef: codeData.codigo })
+          .select("codigoRef numero epigrafe titulo contenido libro capitulo seccion")
+          .sort({ numero: 1 })
+          .lean(),
     Articulo.find({ codigoRef: codeData.codigo })
       .select("numeroArticulo tituloArticulo contenido libro capitulo seccion")
       .sort({ numeroArticulo: 1 })
@@ -420,6 +459,9 @@ async function getDbArticlesForCode(codeData: CodigoLegalData) {
     Norma.find({ codigo: codeData.codigo })
       .select("articulo titulo contenido")
       .sort({ articulo: 1 })
+      .lean(),
+    Ley.find({ codigo: codeData.codigo })
+      .select("codigo nombre descripcion articulos")
       .lean(),
   ]);
 
@@ -449,6 +491,15 @@ async function getDbArticlesForCode(codeData: CodigoLegalData) {
     const built = buildArticleItem(toArticleInput(article));
     if (built.number) {
       merged.set(built.number, built);
+    }
+  }
+
+  for (const ley of leyDocs as Array<{ codigo?: string; nombre?: string; descripcion?: string; articulos?: ArticleInput[] }>) {
+    for (const article of ley.articulos || []) {
+      const built = buildArticleItem(toArticleInput(article));
+      if (built.number) {
+        merged.set(built.number, built);
+      }
     }
   }
 
@@ -558,17 +609,25 @@ export async function findExactLegalArticle(question: string): Promise<ExactLega
   const legalCode = await LegalCode.findOne({ codigo: codeData.codigo }).select("_id").lean();
   const codeId = legalCode?._id;
 
-  const [articleDoc, articuloDoc, normaDoc] = await Promise.all([
+  const [articleDoc, articuloDoc, normaDoc, leyDoc] = await Promise.all([
     codeId
-      ? Article.findOne({ codigoId: codeId, numero: articleNumber })
-          .select("numero epigrafe titulo contenido libro capitulo seccion")
+      ? Article.findOne({
+          $or: [{ codigoId: codeId }, { codigoRef: codeData.codigo }],
+          numero: articleNumber,
+        })
+          .select("codigoRef numero epigrafe titulo contenido libro capitulo seccion")
           .lean()
-      : Promise.resolve(null),
+      : Article.findOne({ codigoRef: codeData.codigo, numero: articleNumber })
+          .select("codigoRef numero epigrafe titulo contenido libro capitulo seccion")
+          .lean(),
     Articulo.findOne({ codigoRef: codeData.codigo, numeroArticulo: articleNumber })
       .select("numeroArticulo tituloArticulo contenido libro capitulo seccion")
       .lean(),
     Norma.findOne({ codigo: codeData.codigo, articulo: articleNumber })
       .select("articulo titulo contenido")
+      .lean(),
+    Ley.findOne({ codigo: codeData.codigo, "articulos.numero": articleNumber })
+      .select("codigo nombre descripcion articulos")
       .lean(),
   ]);
 
@@ -578,11 +637,16 @@ export async function findExactLegalArticle(question: string): Promise<ExactLega
     normaDoc ||
     null;
 
-  if (!fallbackArticle) {
+  const leyFallback = leyDoc as { codigo?: string; nombre?: string; descripcion?: string; articulos?: ArticleInput[] } | null;
+  const leyArticle =
+    leyFallback?.articulos?.find((item) => normalizeText(String(item.numero || item.number || item.numeroArticulo || item.articulo || "")) === normalizeText(articleNumber)) ||
+    null;
+
+  if (!fallbackArticle && !leyArticle) {
     return null;
   }
 
-  const built = buildArticleItem(toArticleInput(fallbackArticle));
+  const built = buildArticleItem(toArticleInput(fallbackArticle || leyArticle));
 
   return {
     codigo: codeData.codigo,
@@ -610,7 +674,7 @@ function buildKeywords(codeData: CodigoLegalData, content: StructuredLegalCodeCo
   );
 }
 
-export async function syncLegalCodeCatalog(): Promise<SyncResult> {
+export async function syncLegalCodeCatalog(options: SyncOptions = {}): Promise<SyncResult> {
   await dbConnect();
 
   let codesUpserted = 0;
@@ -661,12 +725,16 @@ export async function syncLegalCodeCatalog(): Promise<SyncResult> {
       }
 
       const contenido = article.content.trim();
+      const embeddingSourceHash = options.markEmbeddingSourceHash
+        ? buildArticleSourceHash(codeData, article)
+        : undefined;
 
       await Article.updateOne(
-        { codigoId: legalCodeDoc._id, numero },
+        { codigoId: legalCodeDoc._id, codigoRef: codeData.codigo, numero },
         {
           $set: {
             codigoId: legalCodeDoc._id,
+            codigoRef: codeData.codigo,
             numero,
             numeroCompleto: numero,
             libro: article.libro || "",
@@ -676,6 +744,7 @@ export async function syncLegalCodeCatalog(): Promise<SyncResult> {
             epigrafe: article.title,
             contenido,
             contenidoHTML: contenido,
+            ...(embeddingSourceHash ? { embeddingSourceHash } : {}),
             vigente: true,
             palabrasClave: Array.from(
               new Set(
@@ -714,6 +783,7 @@ export async function syncLegalCodeCatalog(): Promise<SyncResult> {
             numeroArticulo: numero,
             tituloArticulo: article.title,
             contenido,
+            ...(embeddingSourceHash ? { embeddingSourceHash } : {}),
             vigente: true,
           },
           $setOnInsert: {
@@ -732,6 +802,7 @@ export async function syncLegalCodeCatalog(): Promise<SyncResult> {
             articulo: numero,
             titulo: article.title,
             contenido,
+            ...(embeddingSourceHash ? { embeddingSourceHash } : {}),
           },
           $setOnInsert: {
             createdAt: new Date(),
@@ -745,4 +816,70 @@ export async function syncLegalCodeCatalog(): Promise<SyncResult> {
   }
 
   return { codesUpserted, articlesUpserted };
+}
+
+export async function syncLegacyLeyCatalog(options: SyncOptions = {}): Promise<LeySyncResult> {
+  await dbConnect();
+
+  let leyesUpserted = 0;
+  let leyArticlesUpserted = 0;
+
+  for (const codeData of CODIGOS_COLOMBIANOS) {
+    const structuredContent = buildStructuredLegalCodeContent(codeData.codigo);
+    const articles = structuredContent?.articulos.length
+      ? structuredContent.articulos
+      : getMergedArticlesForCode(codeData);
+
+    const leyArticles = articles.map((article) => ({
+      numero: article.number,
+      titulo: article.title,
+      libro: article.libro || "",
+      capitulo: article.capitulo || "",
+      seccion: article.seccion || "",
+      contenido: article.content,
+      ...(options.markEmbeddingSourceHash
+        ? { embeddingSourceHash: buildArticleSourceHash(codeData, article) }
+        : {}),
+      palabrasClave: Array.from(
+        new Set(
+          [
+            article.number,
+            article.title,
+            codeData.codigo,
+            codeData.nombre,
+            codeData.nombreCorto,
+            codeData.numeroNorma,
+            ...codeData.areasDelDerecho,
+          ]
+            .join(" ")
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((item) => normalizeText(item))
+        )
+      ),
+    }));
+
+    await Ley.updateOne(
+      { codigo: codeData.codigo },
+      {
+        $set: {
+          nombre: codeData.nombre,
+          codigo: codeData.codigo,
+          descripcion: structuredContent?.descripcion || codeData.numeroNorma || codeData.nombre,
+          fuente: "catalogo_legal",
+          actualizado: new Date(),
+          articulos: leyArticles,
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+
+    leyesUpserted += 1;
+    leyArticlesUpserted += leyArticles.length;
+  }
+
+  return { leyesUpserted, leyArticlesUpserted };
 }

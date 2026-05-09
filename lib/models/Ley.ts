@@ -1,5 +1,19 @@
 import mongoose, { Schema, models, model } from "mongoose";
 
+export interface ILeyArticulo {
+  numero: string;
+  titulo: string;
+  libro?: string;
+  capitulo?: string;
+  seccion?: string;
+  contenido: string;
+  palabrasClave?: string[];
+  embedding?: number[];
+  embeddingHash?: string;
+  embeddingSourceHash?: string;
+  embeddingUpdatedAt?: Date;
+}
+
 // 🔹 Subdocumento: Artículos
 const ArticuloSchema = new Schema(
   {
@@ -9,6 +23,18 @@ const ArticuloSchema = new Schema(
       index: true,
     },
     titulo: {
+      type: String,
+      default: "",
+    },
+    libro: {
+      type: String,
+      default: "",
+    },
+    capitulo: {
+      type: String,
+      default: "",
+    },
+    seccion: {
       type: String,
       default: "",
     },
@@ -22,6 +48,21 @@ const ArticuloSchema = new Schema(
         index: true,
       },
     ],
+    embedding: {
+      type: [Number],
+      default: undefined,
+    },
+    embeddingHash: {
+      type: String,
+      default: "",
+    },
+    embeddingSourceHash: {
+      type: String,
+      default: "",
+    },
+    embeddingUpdatedAt: {
+      type: Date,
+    },
   },
   { _id: false }
 );

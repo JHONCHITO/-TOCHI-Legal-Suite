@@ -11,7 +11,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "diag:fix": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/diagnostico-fix.ps1"
+    "diag:fix": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/diagnostico-fix.ps1",
+    "legal:sync": "ts-node -r tsconfig-paths/register scripts/sync_legal_database.ts",
+    "legal:embeddings": "ts-node -r tsconfig-paths/register scripts/generar_embeddings.ts",
+    "legal:refresh": "ts-node -r tsconfig-paths/register scripts/sync_legal_database.ts && ts-node -r tsconfig-paths/register scripts/generar_embeddings.ts"
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.35",

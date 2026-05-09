@@ -157,7 +157,7 @@ export default function PreciosPage() {
           <div className="border rounded-lg p-6">
             <h3 className="font-semibold mb-2">¿Como se actualizan los codigos legales?</h3>
             <p className="text-muted-foreground">
-              Nuestro sistema sincroniza automaticamente con SUIN-Juriscol y la Secretaria del Senado cada semana, 
+              Nuestro sistema sincroniza automaticamente con SUIN-Juriscol y la Secretaria del Senado con refresco diario, 
               notificandote cuando hay cambios relevantes para tu practica.
             </p>
           </div>

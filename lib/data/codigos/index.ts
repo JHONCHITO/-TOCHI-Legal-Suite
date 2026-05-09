@@ -1,12 +1,41 @@
 // INDICE DE TODOS LOS CODIGOS LEGALES COLOMBIANOS
 // Importa todos los codigos y exportalos
 
-export { constitucionPolitica } from "./constitucion-politica"
-export { codigoCivil } from "./codigo-civil"
+import { constitucionPolitica as constitucionPoliticaCompleta } from "./constitucion";
+import { codigoCivil as codigoCivilResumen } from "./codigo-civil";
+import { codigoCivilParte1 } from "./codigo-civil-1";
+import { codigoCivilParte2 } from "./codigo-civil-2";
+import { codigoLaboral as codigoSustantivoTrabajoCompleto } from "./codigo-laboral";
+
+function mergeArticles(...sources: Array<{ articulos?: Array<{ numero: string; [key: string]: unknown }> }>) {
+  const merged = new Map<string, { numero: string; [key: string]: unknown }>();
+
+  for (const source of sources) {
+    for (const article of source.articulos || []) {
+      const current = merged.get(article.numero);
+      const currentLength = String((current as any)?.contenido || "").length;
+      const nextLength = String((article as any).contenido || "").length;
+
+      if (!current || nextLength >= currentLength) {
+        merged.set(article.numero, article);
+      }
+    }
+  }
+
+  return [...merged.values()].sort((a, b) => a.numero.localeCompare(b.numero, "es", { numeric: true }));
+}
+
+export const constitucionPolitica = constitucionPoliticaCompleta;
+export const codigoCivil = {
+  ...codigoCivilResumen,
+  ...codigoCivilParte1,
+  ...codigoCivilParte2,
+  articulos: mergeArticles(codigoCivilResumen, codigoCivilParte1, codigoCivilParte2),
+};
+export const codigoSustantivoTrabajo = codigoSustantivoTrabajoCompleto;
 export { codigoPenal } from "./codigo-penal"
 export { codigoProcedimientoPenal } from "./codigo-procedimiento-penal"
 export { codigoComercio } from "./codigo-comercio"
-export { codigoSustantivoTrabajo } from "./codigo-sustantivo-trabajo"
 export { codigoProcesalTrabajo } from "./codigo-procesal-trabajo"
 export { codigoGeneralProceso } from "./codigo-general-proceso"
 export { cpaca } from "./cpaca"
