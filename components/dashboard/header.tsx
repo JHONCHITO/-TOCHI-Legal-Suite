@@ -22,12 +22,11 @@ export function Header() {
   const user = session?.user;
   const { unreadCount, streamStatus } = useNotifications();
 
-  // Demo user fallback
-  const displayName = user?.name || "Abogado Demo";
+  const displayName = user?.name || user?.email?.split("@")[0] || "Usuario";
   const displayRole =
     (user as { rol?: string; role?: string } | undefined)?.rol ||
     user?.role ||
-    "abogado";
+    "Usuario";
 
   const initials = displayName
     .split(" ")

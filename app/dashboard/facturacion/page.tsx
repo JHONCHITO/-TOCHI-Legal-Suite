@@ -112,14 +112,6 @@ export default function FacturacionPage() {
     setNuevaFactura({ ...nuevaFactura, items: newItems, ...totales })
   }
 
-  const generateInvoiceNumber = () => {
-    const date = new Date()
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, "0")
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0")
-    return `FAC-${year}${month}-${random}`
-  }
-
   const handleCrearFactura = async () => {
     if (!nuevaFactura.clienteId || nuevaFactura.items.length === 0) {
       toast({
@@ -141,7 +133,7 @@ export default function FacturacionPage() {
       const totales = calcularTotales(items)
       const facturaData = {
         ...nuevaFactura,
-        numero: nuevaFactura.numero || generateInvoiceNumber(),
+        numero: nuevaFactura.numero.trim(),
         fecha: new Date().toISOString(),
         items,
         subtotal: totales.subtotal,

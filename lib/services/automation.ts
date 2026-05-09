@@ -78,7 +78,7 @@ async function getAlertRecipients() {
 }
 
 export async function createNotificationForUsers(params: {
-  userIds: unknown[];
+  userIds: unknown[]; 
   tipo: NotificationType;
   titulo: string;
   mensaje: string;
@@ -98,53 +98,62 @@ export async function createNotificationForUsers(params: {
   const cutoff = hoursAgo(new Date(), duplicateHours);
 
   for (const userId of params.userIds) {
-    const normalizedUserId = String(userId);
-    const duplicateQuery: Record<string, unknown> = {
-      userId: normalizedUserId,
-      tipo: params.tipo,
-      titulo: params.titulo,
-      createdAt: { $gte: cutoff },
-    };
+    try {
+      const normalizedUserId = String(userId);
+      const duplicateQuery: Record<string, unknown> = {
+        userId: normalizedUserId,
+        tipo: params.tipo,
+        titulo: params.titulo,
+        createdAt: { $gte: cutoff },
+      };
 
-    if (params.citaId) {
-      duplicateQuery.citaId = String(params.citaId);
+      if (params.citaId) {
+        duplicateQuery.citaId = String(params.citaId);
+      }
+
+      if (params.casoId) {
+        duplicateQuery.casoId = String(params.casoId);
+      }
+
+      if (params.documentoId) {
+        duplicateQuery.documentoId = String(params.documentoId);
+      }
+
+      const alreadyExists = await Notification.findOne(duplicateQuery).select("_id").lean();
+      if (alreadyExists) {
+        continue;
+      }
+
+      const notification = await Notification.create({
+        userId: normalizedUserId,
+        tipo: params.tipo,
+        prioridad: params.prioridad,
+        titulo: params.titulo,
+        mensaje: params.mensaje,
+        enlace: params.enlace,
+        citaId: params.citaId ? String(params.citaId) : undefined,
+        casoId: params.casoId ? String(params.casoId) : undefined,
+        documentoId: params.documentoId ? String(params.documentoId) : undefined,
+      });
+
+      createdUserIds.push(String(userId));
+
+      try {
+        emitNotificationEvent(normalizedUserId, {
+          kind: "created",
+          notificationId: notification._id.toString(),
+          title: notification.titulo,
+          message: notification.mensaje,
+          url: notification.enlace || "/dashboard/notificaciones",
+          priority: notification.prioridad,
+          type: notification.tipo,
+        });
+      } catch (streamError) {
+        console.error("No se pudo emitir el evento de notificacion:", streamError);
+      }
+    } catch (error) {
+      console.error("No se pudo crear una notificacion para el usuario:", error);
     }
-
-    if (params.casoId) {
-      duplicateQuery.casoId = String(params.casoId);
-    }
-
-    if (params.documentoId) {
-      duplicateQuery.documentoId = String(params.documentoId);
-    }
-
-    const alreadyExists = await Notification.findOne(duplicateQuery).select("_id").lean();
-    if (alreadyExists) {
-      continue;
-    }
-
-    const notification = await Notification.create({
-      userId: normalizedUserId,
-      tipo: params.tipo,
-      prioridad: params.prioridad,
-      titulo: params.titulo,
-      mensaje: params.mensaje,
-      enlace: params.enlace,
-      citaId: params.citaId ? String(params.citaId) : undefined,
-      casoId: params.casoId ? String(params.casoId) : undefined,
-      documentoId: params.documentoId ? String(params.documentoId) : undefined,
-    });
-
-    createdUserIds.push(String(userId));
-    emitNotificationEvent(normalizedUserId, {
-      kind: "created",
-      notificationId: notification._id.toString(),
-      title: notification.titulo,
-      message: notification.mensaje,
-      url: notification.enlace || "/dashboard/notificaciones",
-      priority: notification.prioridad,
-      type: notification.tipo,
-    });
   }
 
   return createdUserIds;

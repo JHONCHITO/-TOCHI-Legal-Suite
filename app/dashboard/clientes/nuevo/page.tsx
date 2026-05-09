@@ -67,8 +67,8 @@ export default function NuevoClientePage() {
 
     setIsSubmitting(true);
     try {
-      await createClient(formData);
-      toast.success("Cliente creado correctamente");
+      const result = await createClient(formData);
+      toast.success(result?.message || (result?.updated ? "Cliente actualizado correctamente" : "Cliente guardado correctamente"));
       router.push("/dashboard/clientes");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Error al crear cliente");

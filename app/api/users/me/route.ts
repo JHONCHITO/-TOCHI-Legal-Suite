@@ -66,6 +66,7 @@ export async function PUT(request: Request) {
       "tarjetaProfesional",
       "especialidades",
       "notificationPreferences",
+      "securityPreferences",
     ]
     const updateData: Record<string, unknown> = {}
     

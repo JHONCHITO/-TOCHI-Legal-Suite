@@ -3,7 +3,15 @@ import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Client from "@/lib/models/Client"
 import User from "@/lib/models/User"
-import { assertPlanLimit } from "@/lib/subscription"
+import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
+
+function canWriteClient(existingClient: { abogadoAsignado?: unknown }, userRole: string, userId: string) {
+  if (userRole === "superadmin" || userRole === "admin") {
+    return true
+  }
+
+  return String(existingClient.abogadoAsignado || "") === String(userId)
+}
 
 export async function GET(request: Request) {
   try {
@@ -76,8 +84,12 @@ export async function POST(request: Request) {
     const body = await request.json()
     await dbConnect()
 
+    const user = await User.findById(session.user.id).select("rol").lean()
+    const userRole = (user as any)?.rol || "abogado"
+    const normalizedEmail = String(body.email || "").toLowerCase().trim()
+
     // Validar campos requeridos
-    if (!body.tipo || !body.email || !body.telefono || !body.direccion || !body.ciudad || !body.departamento) {
+    if (!body.tipo || !normalizedEmail || !body.telefono || !body.direccion || !body.ciudad || !body.departamento) {
       return NextResponse.json(
         { error: "Faltan campos requeridos" },
         { status: 400 }
@@ -98,39 +110,93 @@ export async function POST(request: Request) {
       )
     }
 
+    const existingClient = await Client.findOne({ email: normalizedEmail })
+
+    if (existingClient) {
+      if (canWriteClient(existingClient, userRole, session.user.id)) {
+        const updatedClient = await Client.findByIdAndUpdate(
+          existingClient._id,
+          {
+            $set: {
+              ...body,
+              email: normalizedEmail,
+            },
+          },
+          { new: true, runValidators: true }
+        )
+          .populate("casos", "titulo estado numeroInterno")
+          .lean()
+
+        if (!updatedClient) {
+          return NextResponse.json(
+            { error: "No se pudo actualizar el cliente existente" },
+            { status: 500 }
+          )
+        }
+
+        return NextResponse.json(
+          {
+            ...updatedClient,
+            message: "Cliente existente actualizado correctamente",
+            updated: true,
+            reused: false,
+          },
+          { status: 200 }
+        )
+      }
+
+      const reusableClient = await Client.findById(existingClient._id)
+        .populate("casos", "titulo estado numeroInterno")
+        .lean()
+
+      return NextResponse.json(
+        {
+          ...reusableClient,
+          message: "Cliente ya existia y se reutilizo en el expediente",
+          updated: true,
+          reused: true,
+        },
+        { status: 200 }
+      )
+    }
+
     const activeClients = await Client.countDocuments({
       abogadoAsignado: session.user.id,
       activo: true,
     })
 
-    try {
-      await assertPlanLimit(session.user.id, "clients", activeClients)
-    } catch (limitError) {
-      return NextResponse.json(
-        { error: limitError instanceof Error ? limitError.message : "Limite de clientes alcanzado" },
-        { status: 403 }
-      )
-    }
-
-    // Verificar email unico
-    const existingClient = await Client.findOne({ email: body.email.toLowerCase() })
-    if (existingClient) {
-      return NextResponse.json(
-        { error: "Ya existe un cliente con este correo electronico" },
-        { status: 400 }
-      )
+    if (shouldEnforcePlanLimits()) {
+      try {
+        await assertPlanLimit(session.user.id, "clients", activeClients)
+      } catch (limitError) {
+        return NextResponse.json(
+          { error: limitError instanceof Error ? limitError.message : "Limite de clientes alcanzado" },
+          { status: 403 }
+        )
+      }
     }
 
     const newClient = new Client({
       ...body,
-      email: body.email.toLowerCase(),
+      email: normalizedEmail,
       abogadoAsignado: session.user.id,
       casos: [],
     })
 
     await newClient.save()
 
-    return NextResponse.json(newClient, { status: 201 })
+    const populatedClient = await Client.findById(newClient._id)
+      .populate("casos", "titulo estado numeroInterno")
+      .lean()
+
+    return NextResponse.json(
+      {
+        ...populatedClient,
+        message: "Cliente creado correctamente",
+        updated: false,
+      },
+      { status: 201 }
+    )
   } catch (error) {
     console.error("Error creating client:", error)
     return NextResponse.json({ error: "Error al crear cliente" }, { status: 500 })

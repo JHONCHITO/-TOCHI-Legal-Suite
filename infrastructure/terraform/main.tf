@@ -31,6 +31,8 @@ resource "kubernetes_config_map_v1" "app" {
     NEXT_TELEMETRY_DISABLED = "1"
     NEXT_PUBLIC_APP_NAME    = var.app_name
     NEXT_PUBLIC_APP_URL     = var.public_app_url
+    AUTH_URL                = var.nextauth_url
+    NEXTAUTH_URL            = var.nextauth_url
   }
 }
 
@@ -43,9 +45,9 @@ resource "kubernetes_secret_v1" "app" {
   type = "Opaque"
 
   data = {
-    MONGODB_URI   = base64encode(var.mongodb_uri)
-    NEXTAUTH_URL   = base64encode(var.nextauth_url)
-    NEXTAUTH_SECRET = base64encode(var.nextauth_secret)
+    MONGODB_URI     = base64encode(var.mongodb_uri)
+    AUTH_SECRET     = base64encode(var.auth_secret)
+    NEXTAUTH_SECRET = base64encode(var.auth_secret)
     OPENAI_API_KEY = base64encode(var.openai_api_key)
   }
 }

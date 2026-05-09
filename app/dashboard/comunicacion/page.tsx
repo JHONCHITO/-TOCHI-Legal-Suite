@@ -46,7 +46,7 @@ const canalLabels: Record<string, string> = {
   reunion: "Reunion",
   sms: "SMS",
   otro: "Otro",
-  Nota: "Nota",
+  nota: "Nota",
 };
 
 function getCommunicationDate(value: unknown) {
@@ -58,8 +58,10 @@ function getCommunicationDate(value: unknown) {
 export default function ComunicacionPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isQuickSubmitting, setIsQuickSubmitting] = useState(false);
   const [quickMessage, setQuickMessage] = useState("");
-  const [quickNotes, setQuickNotes] = useState<CommunicationRecord[]>([]);
+  const [quickClientId, setQuickClientId] = useState("");
+  const [quickCaseId, setQuickCaseId] = useState("");
   const [communications, setCommunications] = useState<CommunicationRecord[]>([]);
   const [isLoadingCommunications, setIsLoadingCommunications] = useState(true);
   const { clients } = useClients();
@@ -106,36 +108,56 @@ export default function ComunicacionPage() {
     };
   }, []);
 
-  const allCommunications = useMemo(
-    () => [...quickNotes, ...communications],
-    [quickNotes, communications]
-  );
-
-  const handleQuickRegister = () => {
-    if (!quickMessage.trim()) {
+  const handleQuickRegister = async () => {
+    if (!quickMessage.trim() || !quickClientId) {
       toast({
         title: "Error",
-        description: "Escribe un mensaje para registrar",
+        description: "Escribe un mensaje y selecciona un cliente",
         variant: "destructive",
       });
       return;
     }
 
-    const newComm: CommunicationRecord = {
-      id: `comm-${Date.now()}`,
-      canal: "Nota",
-      clienteId: "",
-      mensaje: quickMessage,
-      estado: "Registrado",
-      fecha: getCommunicationDate(new Date()),
-    };
+    setIsQuickSubmitting(true);
+    try {
+      const response = await fetch("/api/communications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          canal: "nota",
+          tipo: "salida",
+          clienteId: quickClientId,
+          casoId: quickCaseId || undefined,
+          mensaje: quickMessage,
+          estado: "completado",
+          prioridad: "baja",
+          asunto: "Nota rápida",
+          fecha: new Date().toISOString(),
+        }),
+      });
 
-    setQuickNotes((current) => [newComm, ...current]);
-    setQuickMessage("");
-    toast({
-      title: "Nota registrada",
-      description: "La nota de seguimiento se ha guardado solo en la vista actual.",
-    });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || "No se pudo registrar la nota");
+      }
+
+      const saved = (await response.json()) as CommunicationRecord;
+      setCommunications((current) => [saved, ...current]);
+      setQuickMessage("");
+      setQuickCaseId("");
+      toast({
+        title: "Nota registrada",
+        description: "La nota de seguimiento se guardo en MongoDB.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo registrar la nota",
+        variant: "destructive",
+      });
+    } finally {
+      setIsQuickSubmitting(false);
+    }
   };
 
   const handleRegistrar = async () => {
@@ -217,11 +239,12 @@ export default function ComunicacionPage() {
   };
 
   const stats = useMemo(() => {
-    const mensajes = allCommunications.filter((item) => item.canal !== "Nota").length;
-    const correos = allCommunications.filter((item) => item.canal === "correo" || item.canal === "Correo").length;
-    const llamadas = allCommunications.filter((item) => item.canal === "llamada" || item.canal === "Llamada").length;
-    return { mensajes, correos, llamadas };
-  }, [allCommunications]);
+    const mensajes = communications.length;
+    const correos = communications.filter((item) => item.canal === "correo").length;
+    const llamadas = communications.filter((item) => item.canal === "llamada").length;
+    const notas = communications.filter((item) => item.canal === "nota").length;
+    return { mensajes, correos, llamadas, notas };
+  }, [communications]);
 
   return (
     <div className="space-y-6">
@@ -238,7 +261,8 @@ export default function ComunicacionPage() {
             <MessageSquare className="h-5 w-5 text-primary" />
             <div>
               <p className="text-xs text-muted-foreground">Mensajes activos</p>
-              <p className="text-2xl font-bold">{stats.mensajes + quickNotes.length}</p>
+              <p className="text-2xl font-bold">{stats.mensajes}</p>
+              <p className="text-xs text-muted-foreground">{stats.notas} notas rapidas</p>
             </div>
           </CardContent>
         </Card>
@@ -268,135 +292,175 @@ export default function ComunicacionPage() {
           <CardDescription>Conserva historial de contacto y proximos compromisos.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_260px_220px_auto]">
             <Input
               placeholder="Escribe una nota rapida de seguimiento..."
               value={quickMessage}
               onChange={(e) => setQuickMessage(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleQuickRegister()}
             />
-            <Button onClick={handleQuickRegister}>
-              <Send className="mr-2 h-4 w-4" />
-              Registrar
+            <Select value={quickClientId} onValueChange={setQuickClientId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients?.map((client: { _id: string; tipo: string; nombre?: string; apellido?: string; razonSocial?: string }) => (
+                  <SelectItem key={client._id} value={client._id}>
+                    {client.tipo === "persona_natural"
+                      ? `${client.nombre || ""} ${client.apellido || ""}`.trim()
+                      : client.razonSocial}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={quickCaseId}
+              onValueChange={(value) => setQuickCaseId(value === "__none__" ? "" : value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Caso opcional" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Sin caso</SelectItem>
+                {cases?.map((caso: { _id: string; numeroInterno?: string; titulo?: string }) => (
+                  <SelectItem key={caso._id} value={caso._id}>
+                    {caso.numeroInterno} - {caso.titulo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleQuickRegister} disabled={isQuickSubmitting}>
+              {isQuickSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Registrar
+                </>
+              )}
             </Button>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nuevo registro
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Registrar Comunicacion</DialogTitle>
-                  <DialogDescription>
-                    Registra una comunicacion con un cliente
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Canal *</Label>
-                      <Select
-                        value={nuevaComunicacion.canal}
-                        onValueChange={(v) => setNuevaComunicacion({ ...nuevaComunicacion, canal: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                          <SelectItem value="correo">Correo</SelectItem>
-                          <SelectItem value="llamada">Llamada</SelectItem>
-                          <SelectItem value="sms">SMS</SelectItem>
-                          <SelectItem value="otro">Otro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Estado</Label>
-                      <Select
-                        value={nuevaComunicacion.estado}
-                        onValueChange={(v) => setNuevaComunicacion({ ...nuevaComunicacion, estado: v })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pendiente">Pendiente</SelectItem>
-                          <SelectItem value="respondido">Respondido</SelectItem>
-                          <SelectItem value="sin_respuesta">Sin respuesta</SelectItem>
-                          <SelectItem value="completado">Completado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
+          </div>
+
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo registro
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Registrar Comunicacion</DialogTitle>
+                <DialogDescription>
+                  Registra una comunicacion con un cliente
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Cliente *</Label>
+                    <Label>Canal *</Label>
                     <Select
-                      value={nuevaComunicacion.clienteId}
-                      onValueChange={(v) => setNuevaComunicacion({ ...nuevaComunicacion, clienteId: v })}
+                      value={nuevaComunicacion.canal}
+                      onValueChange={(v) => setNuevaComunicacion({ ...nuevaComunicacion, canal: v })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar cliente" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {clients?.map((client: { _id: string; tipo: string; nombre?: string; apellido?: string; razonSocial?: string }) => (
-                          <SelectItem key={client._id} value={client._id}>
-                            {client.tipo === "persona_natural"
-                              ? `${client.nombre || ""} ${client.apellido || ""}`.trim()
-                              : client.razonSocial}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="correo">Correo</SelectItem>
+                        <SelectItem value="llamada">Llamada</SelectItem>
+                        <SelectItem value="sms">SMS</SelectItem>
+                        <SelectItem value="otro">Otro</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Caso relacionado</Label>
+                    <Label>Estado</Label>
                     <Select
-                      value={nuevaComunicacion.casoId}
-                      onValueChange={(v) => setNuevaComunicacion({ ...nuevaComunicacion, casoId: v })}
+                      value={nuevaComunicacion.estado}
+                      onValueChange={(v) => setNuevaComunicacion({ ...nuevaComunicacion, estado: v })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar caso (opcional)" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {cases?.map((caso: { _id: string; numeroInterno?: string; titulo?: string }) => (
-                          <SelectItem key={caso._id} value={caso._id}>
-                            {caso.numeroInterno} - {caso.titulo}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="pendiente">Pendiente</SelectItem>
+                        <SelectItem value="respondido">Respondido</SelectItem>
+                        <SelectItem value="sin_respuesta">Sin respuesta</SelectItem>
+                        <SelectItem value="completado">Completado</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Mensaje *</Label>
-                    <Textarea
-                      placeholder="Detalle de la comunicacion..."
-                      value={nuevaComunicacion.mensaje}
-                      onChange={(e) => setNuevaComunicacion({ ...nuevaComunicacion, mensaje: e.target.value })}
-                      rows={4}
-                    />
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleRegistrar} disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Guardando...
-                      </>
-                    ) : (
-                      "Registrar"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+                <div className="space-y-2">
+                  <Label>Cliente *</Label>
+                  <Select
+                    value={nuevaComunicacion.clienteId}
+                    onValueChange={(v) => setNuevaComunicacion({ ...nuevaComunicacion, clienteId: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients?.map((client: { _id: string; tipo: string; nombre?: string; apellido?: string; razonSocial?: string }) => (
+                        <SelectItem key={client._id} value={client._id}>
+                          {client.tipo === "persona_natural"
+                            ? `${client.nombre || ""} ${client.apellido || ""}`.trim()
+                            : client.razonSocial}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Caso relacionado</Label>
+                  <Select
+                    value={nuevaComunicacion.casoId}
+                    onValueChange={(v) => setNuevaComunicacion({ ...nuevaComunicacion, casoId: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar caso (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cases?.map((caso: { _id: string; numeroInterno?: string; titulo?: string }) => (
+                        <SelectItem key={caso._id} value={caso._id}>
+                          {caso.numeroInterno} - {caso.titulo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Mensaje *</Label>
+                  <Textarea
+                    placeholder="Detalle de la comunicacion..."
+                    value={nuevaComunicacion.mensaje}
+                    onChange={(e) => setNuevaComunicacion({ ...nuevaComunicacion, mensaje: e.target.value })}
+                    rows={4}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleRegistrar} disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Guardando...
+                    </>
+                  ) : (
+                    "Registrar"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <div className="space-y-3">
             {isLoadingCommunications ? (
@@ -408,7 +472,7 @@ export default function ComunicacionPage() {
                 No hay comunicaciones registradas todavia.
               </div>
             ) : (
-              allCommunications.map((conversation) => (
+              communications.map((conversation) => (
                 <div key={conversation._id || conversation.id} className="rounded-lg border p-4">
                   <div className="mb-2 flex items-center justify-between">
                     <div className="flex items-center gap-2">

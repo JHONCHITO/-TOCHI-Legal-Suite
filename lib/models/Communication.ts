@@ -4,7 +4,7 @@ export interface ICommunication extends Document {
   creadorId?: Types.ObjectId
   clienteId: Types.ObjectId
   casoId?: Types.ObjectId
-  canal: "whatsapp" | "correo" | "llamada" | "reunion" | "sms" | "otro"
+  canal: "whatsapp" | "correo" | "llamada" | "reunion" | "sms" | "otro" | "nota"
   tipo: "entrada" | "salida"
   asunto?: string
   mensaje: string
@@ -25,7 +25,7 @@ const CommunicationSchema = new Schema(
     casoId: { type: Schema.Types.ObjectId, ref: "Case" },
     canal: {
       type: String,
-      enum: ["whatsapp", "correo", "llamada", "reunion", "sms", "otro"],
+      enum: ["whatsapp", "correo", "llamada", "reunion", "sms", "otro", "nota"],
       required: true,
     },
     tipo: {

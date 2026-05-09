@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
+import { Resend } from "resend";
 
 export async function POST(request: Request) {
   try {
@@ -31,33 +33,45 @@ export async function POST(request: Request) {
       });
     }
 
-    // En producción, aquí enviarías un email real con un token
-    // Por ahora, solo simulamos el proceso
-    
-    // Generar token de recuperación (en producción, guardar en DB)
-    const resetToken = Math.random().toString(36).substring(2, 15);
-    
-    // TODO: Implementar envío de email real con servicio como:
-    // - Resend
-    // - SendGrid
-    // - AWS SES
-    
-    console.log(`[v0] Reset token for ${email}: ${resetToken}`);
-    
-    // Actualizar usuario con token de reset (expira en 1 hora)
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    const resetPasswordUrlBase =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXTAUTH_URL ||
+      "http://localhost:3000";
+    const resetPasswordUrl = `${resetPasswordUrlBase.replace(/\/$/, "")}/reset-password?token=${resetToken}&email=${encodeURIComponent(email.toLowerCase().trim())}`;
+
     await User.findByIdAndUpdate(user._id, {
-      resetPasswordToken: resetToken,
+      resetPasswordToken: hashedToken,
       resetPasswordExpires: new Date(Date.now() + 3600000), // 1 hora
     });
+
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (resendApiKey) {
+      const resend = new Resend(resendApiKey);
+      await resend.emails.send({
+        from: process.env.MAIL_FROM || "TOCHI Legal Suite <no-reply@tochi.legal>",
+        to: email.toLowerCase().trim(),
+        subject: "Restablece tu contrasena en TOCHI Legal Suite",
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+            <h2>Restablecer contrasena</h2>
+            <p>Recibimos una solicitud para restablecer tu contrasena en TOCHI Legal Suite.</p>
+            <p><a href="${resetPasswordUrl}">Haz clic aqui para crear una nueva contrasena</a></p>
+            <p>Este enlace expira en 1 hora.</p>
+            <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+          </div>
+        `,
+      });
+    }
 
     return NextResponse.json({
       message: "Si existe una cuenta con este correo, recibirás instrucciones para restablecer tu contraseña",
       success: true,
-      // En desarrollo, mostramos el token para testing
-      ...(process.env.NODE_ENV === "development" && { devToken: resetToken }),
+      ...(process.env.NODE_ENV === "development" && { devToken: resetToken, resetPasswordUrl }),
     });
   } catch (error) {
-    console.error("[v0] Error en forgot-password:", error);
+    console.error("Error en forgot-password:", error);
     return NextResponse.json(
       { error: "Error al procesar la solicitud" },
       { status: 500 }

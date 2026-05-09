@@ -16,4 +16,7 @@ Base operativa para desplegar TOCHI Legal Suite.
 
 ## Notas
 
-- Los directorios `hooks/hooks`, `components/components` y `lib/lib` en la raiz son espejos heredados de estructura; se conservan para compatibilidad, pero la logica real vive en `hooks/`, `components/` y `lib/`.
+- La configuracion real del entorno debe salir de variables claras y unicas: `MONGODB_URI`, `AUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_APP_URL` y `OPENAI_API_KEY`.
+- `AUTH_SECRET` y `NEXTAUTH_URL` tambien se sincronizan con los alias historicos `NEXTAUTH_SECRET` y `AUTH_URL` para mantener compatibilidad.
+- Para desarrollo local, `DISABLE_PLAN_LIMITS=true` evita que las cuotas bloqueen pruebas de clientes, citas y comunicaciones.
+- Usa `.env.example` como base local y maneja secretos reales en tu gestor de secretos o en Kubernetes/Terraform, nunca dentro del repositorio.

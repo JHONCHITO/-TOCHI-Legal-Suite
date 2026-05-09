@@ -53,7 +53,7 @@ variable "ingress_class_name" {
 
 variable "public_app_url" {
   type        = string
-  description = "URL publica de la aplicacion."
+  description = "URL publica de la aplicacion, mapeada a NEXT_PUBLIC_APP_URL."
   default     = "https://tochi.example.com"
 }
 
@@ -65,12 +65,12 @@ variable "mongodb_uri" {
 
 variable "nextauth_url" {
   type        = string
-  description = "URL publica usada por NextAuth."
+  description = "URL publica usada por NextAuth, mapeada a NEXTAUTH_URL y AUTH_URL."
 }
 
-variable "nextauth_secret" {
+variable "auth_secret" {
   type        = string
-  description = "Secreto de NextAuth."
+  description = "Secreto de autenticacion, mapeado a AUTH_SECRET y NEXTAUTH_SECRET."
   sensitive   = true
 }
 

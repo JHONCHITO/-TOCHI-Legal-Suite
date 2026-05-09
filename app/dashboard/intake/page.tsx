@@ -26,6 +26,23 @@ import { createAppointment, createCase, createClient } from "@/lib/hooks/use-dat
 import { appointmentTypeLabels, caseStatusLabels, caseTypeLabels } from "@/lib/utils/format";
 import { toast } from "sonner";
 
+type IntakeInsights = {
+  tituloCasoSugerido: string;
+  tipoCasoSugerido: string;
+  estadoSugerido: string;
+  calidadClienteSugerida: string;
+  resumen: string;
+  hechosSugeridos: string;
+  pretensionesSugeridas: string;
+  palabrasClave: string[];
+  proximaAccionSugerida: string;
+  citaSugerida: {
+    titulo: string;
+    tipo: string;
+    descripcion: string;
+  };
+};
+
 async function fetcher(url: string) {
   const response = await fetch(url);
   const payload = await response.json().catch(() => ({}));
@@ -74,7 +91,9 @@ export default function IntakePage() {
   const router = useRouter();
   const { data: userData, isLoading: userLoading } = useSWR("/api/users/me", fetcher);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [creationStep, setCreationStep] = useState<"cliente" | "caso" | "cita" | "listo">("cliente");
+  const [intakeInsights, setIntakeInsights] = useState<IntakeInsights | null>(null);
 
   const [formData, setFormData] = useState({
     cliente: {
@@ -133,6 +152,87 @@ export default function IntakePage() {
 
   const casePreviewTitle = formData.caso.titulo || "Expediente sin titulo";
   const appointmentPreviewTitle = formData.cita.titulo || "Primera cita";
+
+  const isDefaultCaseType = (value: string) => value === "civil";
+  const isDefaultCaseStatus = (value: string) => value === "consulta";
+  const isDefaultClientQuality = (value: string) => value === "demandante";
+  const isDefaultAppointmentType = (value: string) => value === "consulta";
+
+  const applyInsightsData = (insights: IntakeInsights) => {
+    setFormData((current) => ({
+      ...current,
+      caso: {
+        ...current.caso,
+        titulo: current.caso.titulo || insights.tituloCasoSugerido,
+        tipo: !current.caso.tipo || isDefaultCaseType(current.caso.tipo)
+          ? insights.tipoCasoSugerido
+          : current.caso.tipo,
+        estado: !current.caso.estado || isDefaultCaseStatus(current.caso.estado)
+          ? insights.estadoSugerido
+          : current.caso.estado,
+        calidadCliente: !current.caso.calidadCliente || isDefaultClientQuality(current.caso.calidadCliente)
+          ? insights.calidadClienteSugerida
+          : current.caso.calidadCliente,
+        descripcion: current.caso.descripcion || insights.resumen,
+        hechos: current.caso.hechos || insights.hechosSugeridos,
+        pretensiones: current.caso.pretensiones || insights.pretensionesSugeridas,
+      },
+      cita: {
+        ...current.cita,
+        titulo: current.cita.titulo || insights.citaSugerida.titulo,
+        tipo: !current.cita.tipo || isDefaultAppointmentType(current.cita.tipo)
+          ? insights.citaSugerida.tipo
+          : current.cita.tipo,
+        descripcion: current.cita.descripcion || insights.citaSugerida.descripcion,
+      },
+    }));
+  };
+
+  const applyInsights = () => {
+    if (!intakeInsights) {
+      return;
+    }
+
+    applyInsightsData(intakeInsights);
+    toast.success("Sugerencias aplicadas al formulario");
+  };
+
+  const handleAnalyzeWithAI = async () => {
+    if (!formData.cliente.email || !formData.caso.descripcion) {
+      toast.error("Completa al menos el correo del cliente y la descripcion del caso para analizar");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const response = await fetch("/api/intake/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cliente: formData.cliente,
+          caso: formData.caso,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudo analizar el intake");
+      }
+
+      const nextInsights = payload?.suggestions as IntakeInsights | undefined;
+      if (!nextInsights) {
+        throw new Error("La IA no devolvio sugerencias utilizables");
+      }
+
+      setIntakeInsights(nextInsights);
+      applyInsightsData(nextInsights);
+      toast.success(payload?.fallback ? "Sugerencias generadas con respaldo local" : "IA analizo el intake");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo analizar el intake");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (
@@ -525,10 +625,60 @@ export default function IntakePage() {
             </CardContent>
           </Card>
 
+          {intakeInsights ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Sugerencia IA</CardTitle>
+                <CardDescription>La IA analizo la entrada y propuso una ruta inicial.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Titulo sugerido</p>
+                  <p className="mt-1 font-medium text-foreground">{intakeInsights.tituloCasoSugerido}</p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Tipo y calidad</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {caseTypeLabels[intakeInsights.tipoCasoSugerido as keyof typeof caseTypeLabels] || intakeInsights.tipoCasoSugerido} /{" "}
+                    {intakeInsights.calidadClienteSugerida}
+                  </p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Proxima accion</p>
+                  <p className="mt-1 text-foreground">{intakeInsights.proximaAccionSugerida}</p>
+                </div>
+                <div className="rounded-2xl border p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Palabras clave</p>
+                  <p className="mt-1 text-foreground">{intakeInsights.palabrasClave.join(", ")}</p>
+                </div>
+                <Button type="button" variant="outline" className="w-full" onClick={applyInsights}>
+                  Aplicar sugerencias al formulario
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card>
             <CardHeader>
-              <CardTitle>Expediente inicial</CardTitle>
-              <CardDescription>Abre el caso y define la linea base del asunto.</CardDescription>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Expediente inicial</CardTitle>
+                  <CardDescription>Abre el caso y define la linea base del asunto.</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" type="button" onClick={handleAnalyzeWithAI} disabled={isAnalyzing}>
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analizando...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Analizar con IA
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">

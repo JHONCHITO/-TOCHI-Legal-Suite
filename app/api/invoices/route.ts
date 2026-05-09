@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       impuestos,
       descuento,
       total,
-      saldoPendiente: body.total,
+      saldoPendiente: total,
       fechaEmision: body.fechaEmision || new Date(),
       fechaVencimiento: new Date(body.fechaVencimiento),
       pagos: [],

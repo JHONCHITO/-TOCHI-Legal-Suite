@@ -125,24 +125,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">O</span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => router.push("/dashboard")}
-            >
-              Entrar en Modo Demo
-            </Button>
-
             <div className="mt-6 text-center text-sm text-muted-foreground">
               No tienes cuenta?{" "}
               <Link href="/register" className="text-primary hover:underline">
@@ -155,7 +137,7 @@ export default function LoginPage() {
         {/* Info */}
         <div className="mt-4 p-4 rounded-lg bg-accent/10 border border-accent/20">
           <p className="text-sm text-muted-foreground text-center">
-            <strong className="text-accent">Modo Demo:</strong> Explora todas las funciones sin necesidad de crear cuenta
+            Accede con tus credenciales para usar TOCHI Legal Suite con datos persistentes y flujo real.
           </p>
         </div>
       </div>

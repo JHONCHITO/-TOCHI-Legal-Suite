@@ -8,3 +8,5 @@ data:
   NEXT_TELEMETRY_DISABLED: "1"
   NEXT_PUBLIC_APP_NAME: "TOCHI Legal Suite"
   NEXT_PUBLIC_APP_URL: "https://tochi.example.com"
+  AUTH_URL: "https://tochi.example.com"
+  NEXTAUTH_URL: "https://tochi.example.com"
