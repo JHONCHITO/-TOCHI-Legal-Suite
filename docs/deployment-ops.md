@@ -23,6 +23,12 @@ Esta guia explica como levantar TOCHI, que variables necesita y como mantener el
 | `RESEND_API_KEY` | Correos de recuperacion y notificaciones por email |
 | `MAIL_FROM` | Remitente para email transaccional |
 | `CRON_SECRET` | Protege los endpoints de automatizacion programada |
+| `WHATSAPP_CLOUD_API_TOKEN` | Token de Meta para enviar mensajes por Cloud API |
+| `WHATSAPP_ACCESS_TOKEN` | Alias opcional del token de Meta |
+| `WHATSAPP_PHONE_NUMBER_ID` | ID del numero de WhatsApp Business |
+| `WHATSAPP_GRAPH_VERSION` | Version de Graph API usada para WhatsApp |
+| `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Token de verificacion del webhook de Meta |
+| `WHATSAPP_DEFAULT_COUNTRY_CODE` | Prefijo por defecto para normalizar telefonos |
 | `STRIPE_SECRET_KEY` | Checkout y suscripciones |
 | `DISABLE_PLAN_LIMITS` | Desactiva limites en desarrollo |
 | `DEFAULT_ADMIN_EMAIL` | Bootstrap del superadmin |
@@ -181,6 +187,14 @@ La base declarativa esta en `infrastructure/terraform/`:
 
 - La biblioteca legal mezcla contenido local, fuentes oficiales y apoyo vectorial.
 - El visor de articulos debe contrastarse con fuentes oficiales cuando se requiera exactitud juridica extrema.
+
+### WhatsApp
+
+- TOCHI primero intenta leer la integracion desde MongoDB en `WhatsAppIntegration` o en colecciones comunes de configuracion.
+- Si no encuentra una configuracion guardada, usa como respaldo las variables `WHATSAPP_CLOUD_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` y `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
+- Si no hay configuracion oficial, TOCHI abre WhatsApp Web con el mensaje listo para enviar como respaldo inmediato.
+- Los estados de entrega y las respuestas automáticas llegan por webhook en `app/api/whatsapp/webhook/route.ts` cuando el token de verificacion coincide.
+- Desde `app/dashboard/configuracion` puedes revisar la integracion y, si tu rol lo permite, actualizarla sin tocar archivos de entorno.
 
 ### Billing
 

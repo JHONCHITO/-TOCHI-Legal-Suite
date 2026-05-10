@@ -378,6 +378,34 @@ export function useNotifications(options?: { desktopNotifications?: boolean }) {
   }
 }
 
+export function useWhatsAppStatus() {
+  const { data, error, isLoading, mutate } = useSWR("/api/whatsapp/status", fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  })
+
+  return {
+    whatsappStatus: data,
+    isLoading,
+    isError: error,
+    mutate,
+  }
+}
+
+export function useWhatsAppIntegration() {
+  const { data, error, isLoading, mutate } = useSWR("/api/integrations/whatsapp", fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  })
+
+  return {
+    integration: data,
+    isLoading,
+    isError: error,
+    mutate,
+  }
+}
+
 // Funciones de mutacion
 export async function createCase(data: Record<string, unknown>) {
   const res = await fetch("/api/cases", {
@@ -558,5 +586,35 @@ export async function markNotificationsRead(id?: string) {
     const error = await res.json()
     throw new Error(error.error || "Error al marcar notificaciones")
   }
+  return res.json()
+}
+
+export async function sendWhatsAppCommunication(data: Record<string, unknown>) {
+  const res = await fetch("/api/whatsapp/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.error || "Error al enviar WhatsApp")
+  }
+
+  return res.json()
+}
+
+export async function saveWhatsAppIntegration(data: Record<string, unknown>) {
+  const res = await fetch("/api/integrations/whatsapp", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.error || "Error al guardar integracion WhatsApp")
+  }
+
   return res.json()
 }

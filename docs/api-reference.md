@@ -65,6 +65,15 @@ Las rutas API viven en `app/api/` y se conectan a modelos de MongoDB, IA, notifi
 - `GET/POST /api/chats`: historial o gestion de chats.
 - `GET/POST /api/cargar`: carga auxiliar de contenido.
 
+## WhatsApp
+
+- `GET /api/whatsapp/status`: estado de la integracion WhatsApp.
+- `POST /api/whatsapp/send`: envio por la API oficial de Meta o enlace de respaldo.
+- `GET /api/whatsapp/webhook`: verificacion del webhook de Meta.
+- `POST /api/whatsapp/webhook`: recepcion de estados de entrega y lectura.
+- `GET /api/integrations/whatsapp`: lectura de la configuracion global guardada en MongoDB.
+- `PUT /api/integrations/whatsapp`: actualizacion de la configuracion global de WhatsApp.
+
 ## Administracion
 
 - `GET/POST /api/admin/users`: gestion de usuarios.

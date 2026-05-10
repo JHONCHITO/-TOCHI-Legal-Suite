@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Mail, MessageSquare, Phone, Send, Plus } from "lucide-react";
-import { useCases, useClients } from "@/lib/hooks/use-data";
+import { sendWhatsAppCommunication, useCases, useClients, useWhatsAppStatus } from "@/lib/hooks/use-data";
 import { useToast } from "@/hooks/use-toast";
 import { getClientDisplayName } from "@/lib/utils/format";
 
@@ -37,6 +37,9 @@ type CommunicationRecord = {
   mensaje: string;
   estado: string;
   fecha?: string;
+  whatsappStatus?: string;
+  whatsappFallbackUrl?: string;
+  whatsappMessageId?: string;
 };
 
 const canalLabels: Record<string, string> = {
@@ -66,6 +69,7 @@ export default function ComunicacionPage() {
   const [isLoadingCommunications, setIsLoadingCommunications] = useState(true);
   const { clients } = useClients();
   const { cases } = useCases();
+  const { whatsappStatus } = useWhatsAppStatus();
   const { toast } = useToast();
 
   const [nuevaComunicacion, setNuevaComunicacion] = useState({
@@ -172,29 +176,58 @@ export default function ComunicacionPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/communications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...nuevaComunicacion,
-          tipo: "salida",
-          prioridad: "media",
-          fecha: new Date().toISOString(),
-        }),
-      });
+      const selectedCase = cases?.find((caso: { _id: string; numeroInterno?: string; titulo?: string }) => caso._id === nuevaComunicacion.casoId);
+      const caseLabel = selectedCase ? `${selectedCase.numeroInterno || ""} ${selectedCase.titulo || ""}`.trim() : undefined;
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || "No se pudo registrar la comunicacion");
+      if (nuevaComunicacion.canal === "whatsapp") {
+        const result = await sendWhatsAppCommunication({
+          clienteId: nuevaComunicacion.clienteId,
+          casoId: nuevaComunicacion.casoId || undefined,
+          mensaje: nuevaComunicacion.mensaje,
+          asunto: "WhatsApp",
+          prioridad: "media",
+          caseLabel,
+        });
+
+        const saved = result.communication as CommunicationRecord;
+        setCommunications((current) => [saved, ...current]);
+
+        if (result.whatsapp?.fallbackUrl) {
+          window.open(result.whatsapp.fallbackUrl, "_blank", "noopener,noreferrer");
+        }
+
+        toast({
+          title: result.whatsapp?.sent ? "WhatsApp enviado" : "WhatsApp preparado",
+          description: result.whatsapp?.sent
+            ? "Se envio por la API oficial de WhatsApp."
+            : "Se abrio WhatsApp con el mensaje listo para enviar.",
+        });
+      } else {
+        const response = await fetch("/api/communications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...nuevaComunicacion,
+            tipo: "salida",
+            prioridad: "media",
+            fecha: new Date().toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || "No se pudo registrar la comunicacion");
+        }
+
+        const saved = (await response.json()) as CommunicationRecord;
+        setCommunications((current) => [saved, ...current]);
+
+        toast({
+          title: "Comunicacion registrada",
+          description: "El registro se guardo en MongoDB",
+        });
       }
 
-      const saved = (await response.json()) as CommunicationRecord;
-      setCommunications((current) => [saved, ...current]);
-
-      toast({
-        title: "Comunicacion registrada",
-        description: "El registro se guardo en MongoDB",
-      });
       setDialogOpen(false);
       setNuevaComunicacion({
         canal: "whatsapp",
@@ -253,6 +286,22 @@ export default function ComunicacionPage() {
         <p className="text-muted-foreground">
           Seguimiento por WhatsApp, correo y llamadas con trazabilidad para cada expediente.
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Badge variant={whatsappStatus?.configured ? "default" : "outline"}>
+            WhatsApp {whatsappStatus?.configured ? "API oficial" : "modo enlace"}
+          </Badge>
+          <Badge variant="secondary">
+            Fuente {whatsappStatus?.source === "database" ? "MongoDB" : whatsappStatus?.source === "env" ? "ENV" : "respaldo"}
+          </Badge>
+          <Badge variant={whatsappStatus?.hasWebhookToken ? "default" : "outline"}>
+            Webhook {whatsappStatus?.hasWebhookToken ? "listo" : "pendiente"}
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            {whatsappStatus?.configured
+              ? "Envia mensajes directo con Meta Cloud API y registra estados y respuestas por webhook."
+              : "Si no configuras la API, TOCHI abre WhatsApp Web con el mensaje listo para enviar."}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -455,7 +504,7 @@ export default function ComunicacionPage() {
                       Guardando...
                     </>
                   ) : (
-                    "Registrar"
+                    nuevaComunicacion.canal === "whatsapp" ? "Enviar WhatsApp" : "Registrar"
                   )}
                 </Button>
               </DialogFooter>
@@ -479,9 +528,26 @@ export default function ComunicacionPage() {
                       <Badge variant="outline">{canalLabels[conversation.canal] || conversation.canal}</Badge>
                       <p className="font-medium">{getClientName(conversation.clienteId)}</p>
                     </div>
-                    <Badge variant="secondary">{conversation.estado}</Badge>
+                    <div className="flex items-center gap-2">
+                      {conversation.canal === "whatsapp" && conversation.whatsappStatus ? (
+                        <Badge variant={conversation.whatsappStatus === "sent" || conversation.whatsappStatus === "delivered" || conversation.whatsappStatus === "read" ? "default" : "secondary"}>
+                          {conversation.whatsappStatus}
+                        </Badge>
+                      ) : null}
+                      <Badge variant="secondary">{conversation.estado}</Badge>
+                    </div>
                   </div>
                   <p className="text-sm text-muted-foreground">{conversation.mensaje}</p>
+                  {conversation.whatsappFallbackUrl ? (
+                    <a
+                      href={conversation.whatsappFallbackUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex text-sm font-medium text-primary hover:underline"
+                    >
+                      Abrir WhatsApp de respaldo
+                    </a>
+                  ) : null}
                   <p className="mt-2 text-xs text-muted-foreground">
                     {conversation.fecha ? new Date(conversation.fecha).toLocaleString("es-CO") : "Sin fecha"}
                   </p>

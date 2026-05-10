@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, Bell, Loader2, Save, Shield, UserCog } from "lucide-react";
+import { Building2, Bell, Loader2, Phone, Save, Shield, UserCog } from "lucide-react";
 import { toast } from "sonner";
+import { saveWhatsAppIntegration, useWhatsAppIntegration } from "@/lib/hooks/use-data";
 
 type UserPreferences = {
   recordatoriosJudiciales: boolean;
@@ -80,7 +81,9 @@ async function fetcher(url: string) {
 
 export default function ConfiguracionPage() {
   const { data: userData, error, isLoading, mutate } = useSWR<UserProfile>("/api/users/me", fetcher);
+  const { integration: whatsappIntegration, isLoading: isLoadingWhatsAppIntegration, mutate: mutateWhatsAppIntegration } = useWhatsAppIntegration();
   const [saving, setSaving] = useState(false);
+  const [savingWhatsApp, setSavingWhatsApp] = useState(false);
   const [perfil, setPerfil] = useState({
     nombre: "",
     apellido: "",
@@ -90,6 +93,16 @@ export default function ConfiguracionPage() {
     especialidades: "",
   });
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
+  const [whatsappConfig, setWhatsAppConfig] = useState({
+    accessToken: "",
+    phoneNumberId: "",
+    webhookVerifyToken: "",
+    graphVersion: "v21.0",
+    defaultCountryCode: "57",
+    publicAppUrl: "",
+    businessAccountId: "",
+    enabled: true,
+  });
 
   useEffect(() => {
     if (!userData) {
@@ -111,8 +124,26 @@ export default function ConfiguracionPage() {
     });
   }, [userData]);
 
+  useEffect(() => {
+    if (!whatsappIntegration) {
+      return;
+    }
+
+    setWhatsAppConfig({
+      accessToken: "",
+      phoneNumberId: whatsappIntegration.phoneNumberId || "",
+      webhookVerifyToken: "",
+      graphVersion: whatsappIntegration.graphVersion || "v21.0",
+      defaultCountryCode: whatsappIntegration.defaultCountryCode || "57",
+      publicAppUrl: whatsappIntegration.publicAppUrl || "",
+      businessAccountId: whatsappIntegration.businessAccountId || "",
+      enabled: typeof whatsappIntegration.enabled === "boolean" ? whatsappIntegration.enabled : true,
+    });
+  }, [whatsappIntegration]);
+
   const currentRole = userData?.rol || "abogado";
   const roleInfo = ROLE_DETAILS[currentRole] || ROLE_DETAILS.abogado;
+  const canEditWhatsApp = currentRole === "admin" || currentRole === "superadmin";
   const specialities = useMemo(
     () =>
       perfil.especialidades
@@ -147,6 +178,26 @@ export default function ConfiguracionPage() {
       toast.error(saveError instanceof Error ? saveError.message : "No se pudo guardar la configuracion");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleWhatsAppSave = async () => {
+    if (!canEditWhatsApp) {
+      toast.error("Solo administradores pueden guardar la integracion de WhatsApp");
+      return;
+    }
+
+    setSavingWhatsApp(true);
+    try {
+      await saveWhatsAppIntegration({
+        ...whatsappConfig,
+      });
+      await mutateWhatsAppIntegration();
+      toast.success("Integracion de WhatsApp guardada");
+    } catch (saveError) {
+      toast.error(saveError instanceof Error ? saveError.message : "No se pudo guardar WhatsApp");
+    } finally {
+      setSavingWhatsApp(false);
     }
   };
 
@@ -315,6 +366,124 @@ export default function ConfiguracionPage() {
             </p>
           </CardContent>
         </Card>
+
+        <Card className="xl:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              Integracion WhatsApp
+            </CardTitle>
+            <CardDescription>
+              TOCHI lee esta configuracion desde MongoDB para enviar mensajes con Meta Cloud API o usar el enlace de respaldo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoadingWhatsAppIntegration ? (
+              <div className="flex h-[180px] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant={whatsappIntegration?.configured ? "default" : "outline"}>
+                    {whatsappIntegration?.configured ? "Configurado" : "Pendiente"}
+                  </Badge>
+                  <Badge variant="secondary">Fuente: {whatsappIntegration?.source || "database"}</Badge>
+                  <Badge variant="outline">Modo: {whatsappIntegration?.mode || "wa_me"}</Badge>
+                  <Badge variant="outline">Webhook: {whatsappIntegration?.hasWebhookToken ? "listo" : "pendiente"}</Badge>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Phone Number ID</label>
+                    <Input
+                      value={whatsappConfig.phoneNumberId}
+                      onChange={(event) => setWhatsAppConfig((current) => ({ ...current, phoneNumberId: event.target.value }))}
+                      placeholder="Id del numero de WhatsApp"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Business Account ID</label>
+                    <Input
+                      value={whatsappConfig.businessAccountId}
+                      onChange={(event) => setWhatsAppConfig((current) => ({ ...current, businessAccountId: event.target.value }))}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Graph Version</label>
+                    <Input
+                      value={whatsappConfig.graphVersion}
+                      onChange={(event) => setWhatsAppConfig((current) => ({ ...current, graphVersion: event.target.value }))}
+                      placeholder="v21.0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Codigo pais</label>
+                    <Input
+                      value={whatsappConfig.defaultCountryCode}
+                      onChange={(event) => setWhatsAppConfig((current) => ({ ...current, defaultCountryCode: event.target.value }))}
+                      placeholder="57"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-medium">URL publica de TOCHI</label>
+                    <Input
+                      value={whatsappConfig.publicAppUrl}
+                      onChange={(event) => setWhatsAppConfig((current) => ({ ...current, publicAppUrl: event.target.value }))}
+                      placeholder="https://tu-dominio.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Access Token</label>
+                    <Input
+                      type="password"
+                      value={whatsappConfig.accessToken}
+                      onChange={(event) => setWhatsAppConfig((current) => ({ ...current, accessToken: event.target.value }))}
+                      placeholder={whatsappIntegration?.hasAccessToken ? "Guardado en base de datos" : "Pega tu token de Meta"}
+                    />
+                    <p className="text-xs text-muted-foreground">Deja vacio para conservar el valor guardado.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Webhook Verify Token</label>
+                    <Input
+                      type="password"
+                      value={whatsappConfig.webhookVerifyToken}
+                      onChange={(event) => setWhatsAppConfig((current) => ({ ...current, webhookVerifyToken: event.target.value }))}
+                      placeholder={whatsappIntegration?.hasWebhookToken ? "Guardado en base de datos" : "Token para Meta y TOCHI"}
+                    />
+                    <p className="text-xs text-muted-foreground">Deja vacio para conservar el valor guardado.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <p className="font-medium">Integracion activa</p>
+                    <p className="text-sm text-muted-foreground">
+                      Si la desactivas, TOCHI usa solo el enlace de respaldo de WhatsApp.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={whatsappConfig.enabled}
+                    onCheckedChange={(checked) =>
+                      setWhatsAppConfig((current) => ({
+                        ...current,
+                        enabled: checked,
+                      }))
+                    }
+                    disabled={!canEditWhatsApp}
+                  />
+                </div>
+
+                {!canEditWhatsApp ? (
+                  <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                    Solo un administrador puede editar esta integracion. Tu perfil puede revisar el estado, pero no cambiar los secretos.
+                  </div>
+                ) : null}
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <div className="flex justify-end">
@@ -328,6 +497,19 @@ export default function ConfiguracionPage() {
             <>
               <Save className="mr-2 h-4 w-4" />
               Guardar configuracion
+            </>
+          )}
+        </Button>
+        <Button onClick={handleWhatsAppSave} disabled={savingWhatsApp || isLoadingWhatsAppIntegration || !canEditWhatsApp} className="ml-3">
+          {savingWhatsApp ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Guardando WhatsApp...
+            </>
+          ) : (
+            <>
+              <Phone className="mr-2 h-4 w-4" />
+              Guardar WhatsApp
             </>
           )}
         </Button>

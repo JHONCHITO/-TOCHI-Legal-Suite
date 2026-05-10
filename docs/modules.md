@@ -31,9 +31,9 @@ Responsabilidades:
 - `/dashboard/citas`: agenda inteligente.
 - `/dashboard/documentos`: gestion documental.
 - `/dashboard/facturacion`: facturas, estados y cobros.
-- `/dashboard/comunicacion`: seguimiento y bitacora de contacto.
+- `/dashboard/comunicacion`: seguimiento y bitacora de contacto, con WhatsApp oficial o enlace de respaldo.
 - `/dashboard/notificaciones`: alertas y seguimiento en tiempo real.
-- `/dashboard/configuracion`: perfil, firma, especialidades y preferencias.
+- `/dashboard/configuracion`: perfil, firma, especialidades, preferencias e integracion de WhatsApp guardada en MongoDB.
 - `/dashboard/seguridad`: controles de seguridad por rol y persistencia.
 - `/dashboard/reportes`: indicadores y analitica.
 

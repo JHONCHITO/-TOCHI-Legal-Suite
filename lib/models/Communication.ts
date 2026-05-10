@@ -14,6 +14,11 @@ export interface ICommunication extends Document {
   fechaRespuesta?: Date
   responsable?: string
   notas?: string
+  whatsappPhone?: string
+  whatsappMessageId?: string
+  whatsappStatus?: "draft" | "queued" | "received" | "sent" | "delivered" | "read" | "failed" | "fallback" | "not_configured"
+  whatsappFallbackUrl?: string
+  whatsappError?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -49,6 +54,15 @@ const CommunicationSchema = new Schema(
     fechaRespuesta: Date,
     responsable: String,
     notas: String,
+    whatsappPhone: { type: String, default: "" },
+    whatsappMessageId: { type: String, default: "" },
+    whatsappStatus: {
+      type: String,
+      enum: ["draft", "queued", "received", "sent", "delivered", "read", "failed", "fallback", "not_configured"],
+      default: "draft",
+    },
+    whatsappFallbackUrl: { type: String, default: "" },
+    whatsappError: { type: String, default: "" },
   },
   { timestamps: true }
 )
