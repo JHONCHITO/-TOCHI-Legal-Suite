@@ -7,6 +7,8 @@ import dbConnect from "./mongodb";
 import User from "./models/User";
 import { ensureSubscriptionForUser } from "./subscription";
 
+const AUTH_COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || "").trim();
+
 const authEnvPaths = [
   path.resolve(process.cwd(), ".env.local"),
   path.resolve(process.cwd(), ".env"),
@@ -36,6 +38,19 @@ const DEFAULT_ADMIN_LASTNAME = process.env.DEFAULT_ADMIN_APELLIDO || "Tochi";
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   trustHost: true,
+  cookies: AUTH_COOKIE_DOMAIN
+    ? {
+        sessionToken: {
+          options: {
+            domain: AUTH_COOKIE_DOMAIN,
+            path: "/",
+            sameSite: "lax",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+          },
+        },
+      }
+    : undefined,
   debug: true,
   logger: {
     error(error) {

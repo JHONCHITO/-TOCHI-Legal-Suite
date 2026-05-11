@@ -16,12 +16,14 @@ const nextConfig = {
       return []
     }
 
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
-      },
-    ]
+    return {
+      beforeFiles: [
+        {
+          source: "/api/:path*",
+          destination: `${backendUrl}/api/:path*`,
+        },
+      ],
+    }
   },
   typescript: {
     ignoreBuildErrors: true,
