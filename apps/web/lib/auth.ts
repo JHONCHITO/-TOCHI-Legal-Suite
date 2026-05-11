@@ -4,12 +4,29 @@ import bcrypt from "bcryptjs";
 import dbConnect from "./mongodb";
 import User from "./models/User";
 
+const AUTH_COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || "").trim();
+
 const DEFAULT_ADMIN_EMAIL = (process.env.DEFAULT_ADMIN_EMAIL || "rick6683rick@gmail.com").toLowerCase();
 const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "123456";
 const DEFAULT_ADMIN_NAME = process.env.DEFAULT_ADMIN_NOMBRE || "Ricky";
 const DEFAULT_ADMIN_LASTNAME = process.env.DEFAULT_ADMIN_APELLIDO || "Tochi";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+  trustHost: true,
+  cookies: AUTH_COOKIE_DOMAIN
+    ? {
+        sessionToken: {
+          options: {
+            domain: AUTH_COOKIE_DOMAIN,
+            path: "/",
+            sameSite: "lax",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+          },
+        },
+      }
+    : undefined,
   providers: [
     Credentials({
       name: "credentials",

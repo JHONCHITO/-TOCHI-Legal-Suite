@@ -32,7 +32,9 @@ npm run build
 - `MONGODB_URI`
 - `AUTH_SECRET` o `NEXTAUTH_SECRET`
 - `AUTH_URL` o `NEXTAUTH_URL`
+- `AUTH_COOKIE_DOMAIN` si compartes login entre subdominios
 - `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_API_URL` si el frontend consume un backend separado
 - `OPENAI_API_KEY`
 - `RESEND_API_KEY`
 - `MAIL_FROM`

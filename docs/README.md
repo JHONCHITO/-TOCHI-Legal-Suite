@@ -48,6 +48,7 @@ TOCHI Legal Suite es una plataforma para abogados y firmas que centraliza:
 - `scripts/`: ingesta legal, scraping, embeddings, limpieza y diagnostico.
 - `infrastructure/`: Docker, Kubernetes y Terraform.
 - `lib/data/`: textos legales, PDFs, JSONs y catalogos de apoyo.
+- `frontend/`: copia separable del frontend para desplegar en Cloud Run si quieres dividir la arquitectura.
 
 ## Flujo basico
 

@@ -51,6 +51,8 @@ if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
   process.env.NEXTAUTH_URL = "http://localhost:3000";
 }
 
+const AUTH_COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || "").trim();
+
 const DEFAULT_ADMIN_EMAIL = (process.env.DEFAULT_ADMIN_EMAIL || "rick6683rick@gmail.com").toLowerCase();
 const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "123456";
 const DEFAULT_ADMIN_NAME = process.env.DEFAULT_ADMIN_NOMBRE || "Ricky";
@@ -60,6 +62,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   trustHost: true,
   debug: true,
+  cookies: AUTH_COOKIE_DOMAIN
+    ? {
+        sessionToken: {
+          options: {
+            domain: AUTH_COOKIE_DOMAIN,
+            path: "/",
+            sameSite: "lax",
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+          },
+        },
+      }
+    : undefined,
   logger: {
     error(error) {
       console.error("[next-auth:error]", error);

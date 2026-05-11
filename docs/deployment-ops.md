@@ -18,6 +18,7 @@ Esta guia explica como levantar TOCHI, que variables necesita y como mantener el
 | `MONGODB_URI` | Conexion principal a MongoDB |
 | `AUTH_SECRET` / `NEXTAUTH_SECRET` | Firma de NextAuth |
 | `AUTH_URL` / `NEXTAUTH_URL` | URL base de autenticacion |
+| `AUTH_COOKIE_DOMAIN` | Dominio compartido de cookies, por ejemplo `.tudominio.com` |
 | `NEXT_PUBLIC_APP_URL` | URL publica para links de reset y retornos |
 | `OPENAI_API_KEY` | IA, embeddings y borradores |
 | `RESEND_API_KEY` | Correos de recuperacion y notificaciones por email |
@@ -56,10 +57,11 @@ npm run build
 1. Copia `.env.example` a `.env` o `.env.local`.
 2. Completa `MONGODB_URI`.
 3. Configura `AUTH_SECRET` y `NEXTAUTH_URL`.
-4. Agrega `OPENAI_API_KEY` si vas a usar IA en linea.
-5. Agrega `RESEND_API_KEY` si vas a enviar correos reales.
-6. Agrega `STRIPE_SECRET_KEY` si vas a probar checkout.
-7. Deja `DISABLE_PLAN_LIMITS=true` solo para desarrollo.
+4. Si vas a separar frontend y backend por subdominios, agrega `AUTH_COOKIE_DOMAIN` con el dominio raiz compartido.
+5. Agrega `OPENAI_API_KEY` si vas a usar IA en linea.
+6. Agrega `RESEND_API_KEY` si vas a enviar correos reales.
+7. Agrega `STRIPE_SECRET_KEY` si vas a probar checkout.
+8. Deja `DISABLE_PLAN_LIMITS=true` solo para desarrollo.
 
 ## Carga del catalogo legal
 
@@ -208,3 +210,24 @@ La base declarativa esta en `infrastructure/terraform/`:
 - Configura correo y OpenAI antes de abrir la aplicacion a usuarios.
 - Genera embeddings despues de cargar el catalogo.
 - Valida login, reset de contrasena, citas, clientes, documentos y notificaciones antes de publicar.
+
+## Despliegue separado en Google Cloud
+
+Si quieres separar frontend y backend en dos servicios Cloud Run, usa esta regla:
+
+- `backend`: despliega la app principal del repo raiz con `infrastructure/docker/Dockerfile`.
+- `frontend`: despliega la app de `frontend/` con `frontend/Dockerfile`.
+- `NEXT_PUBLIC_API_URL`: apunta desde el frontend al URL publico del backend.
+- `NEXT_PUBLIC_APP_URL`: apunta a la URL publica del frontend.
+- `AUTH_COOKIE_DOMAIN`: usa el dominio raiz compartido, por ejemplo `.tudominio.com`.
+
+Flujo recomendado:
+
+1. Sube el backend primero y copia la URL que te entregue Cloud Run, por ejemplo `https://tochi-backend-xxxxx.run.app`.
+2. Configura el frontend con `NEXT_PUBLIC_API_URL` igual a esa URL.
+3. Sube el frontend y copia su URL publica, por ejemplo `https://tochi-frontend-xxxxx.run.app`.
+4. Si vas a usar dominio propio, mapea:
+   - `app.tudominio.com` al frontend,
+   - `api.tudominio.com` al backend.
+
+Con la configuracion actual, cualquier frontend que tenga `NEXT_PUBLIC_API_URL` definido reescribe automaticamente `/api/*` hacia el backend, asi que no necesitas tocar los formularios ni los hooks del cliente.
