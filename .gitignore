@@ -9,7 +9,11 @@ next.user-config.*
 
 # Environment variables
 .env
+.env.*
 .env*.local
+*.env
+backend.env
+frontend.env
 *.tsbuildinfo
 
 # Common ignores
