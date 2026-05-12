@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Briefcase, Calendar, FileText, Loader2, Save, Users } from "lucide-react";
+import { ArrowLeft, Briefcase, Calendar, FileText, Loader2, Plus, Save, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,7 @@ export default function EditarCasoPage() {
   const { case: caseDetail, isLoading, isError } = useCase(id || null);
   const { clients, isLoading: loadingClients } = useClients();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clienteSearch, setClienteSearch] = useState("");
   const [formData, setFormData] = useState({
     titulo: "",
     tipo: "civil",
@@ -79,6 +80,36 @@ export default function EditarCasoPage() {
       notas: detail.notas || "",
     });
   }, [caseDetail]);
+
+  const filteredClients = useMemo(() => {
+    const query = clienteSearch.trim().toLowerCase();
+    if (!query) {
+      return clients;
+    }
+
+    return clients.filter((client: {
+      nombre?: string;
+      apellido?: string;
+      razonSocial?: string;
+      email?: string;
+      cedula?: string;
+      nit?: string;
+    }) => {
+      const haystack = [
+        client.nombre,
+        client.apellido,
+        client.razonSocial,
+        client.email,
+        client.cedula,
+        client.nit,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [clienteSearch, clients]);
 
   const handleSubmit = async () => {
     if (!formData.titulo || !formData.tipo || !formData.clienteId || !formData.calidadCliente || !formData.descripcion) {
@@ -128,7 +159,13 @@ export default function EditarCasoPage() {
   const detail = caseDetail as Record<string, any>;
 
   return (
-    <div className="space-y-6">
+    <form
+      className="space-y-6"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void handleSubmit();
+      }}
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Editar Caso</h1>
@@ -143,7 +180,7 @@ export default function EditarCasoPage() {
               Volver al caso
             </Link>
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -229,8 +266,21 @@ export default function EditarCasoPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Cliente principal *</Label>
+              <div className="space-y-2" id="cliente-principal">
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Cliente principal *</Label>
+                  <Button asChild variant="link" size="sm" className="h-auto px-0">
+                    <Link href="/dashboard/clientes/nuevo">
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Crear cliente
+                    </Link>
+                  </Button>
+                </div>
+                <Input
+                  placeholder="Escribe nombre, correo o documento para filtrar"
+                  value={clienteSearch}
+                  onChange={(e) => setClienteSearch(e.target.value)}
+                />
                 <Select
                   value={formData.clienteId}
                   onValueChange={(value) => setFormData({ ...formData, clienteId: value })}
@@ -239,13 +289,16 @@ export default function EditarCasoPage() {
                     <SelectValue placeholder={loadingClients ? "Cargando..." : "Seleccionar cliente"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((client: { _id: string; tipo: string; nombre?: string; apellido?: string; razonSocial?: string }) => (
+                    {filteredClients.map((client: { _id: string; tipo: string; nombre?: string; apellido?: string; razonSocial?: string }) => (
                       <SelectItem key={client._id} value={client._id}>
                         {getClientDisplayName(client)}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Puedes escribir arriba para filtrar o crear un cliente nuevo si no aparece en la lista.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Calidad del cliente *</Label>
@@ -306,7 +359,7 @@ export default function EditarCasoPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+              <div className="space-y-2" id="fecha-proxima-actuacion">
                 <Label>Fecha pr&oacute;xima actuaci&oacute;n</Label>
                 <Input
                   type="date"
@@ -326,7 +379,7 @@ export default function EditarCasoPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+              <div className="space-y-2" id="honorarios">
                 <Label>Honorarios (COP)</Label>
                 <Input
                   type="number"
@@ -391,22 +444,30 @@ export default function EditarCasoPage() {
               <CardTitle className="text-lg">Checklist operativo</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center gap-3 rounded-lg border p-3">
-                <Users className="h-4 w-4 text-primary" />
-                Vincular cliente y contraparte
-              </div>
-              <div className="flex items-center gap-3 rounded-lg border p-3">
-                <Calendar className="h-4 w-4 text-primary" />
-                Crear plazo y audiencia inicial
-              </div>
-              <div className="flex items-center gap-3 rounded-lg border p-3">
-                <FileText className="h-4 w-4 text-primary" />
-                Cargar documentos base
-              </div>
-              <div className="flex items-center gap-3 rounded-lg border p-3">
-                <Briefcase className="h-4 w-4 text-primary" />
-                Definir estrategia y honorarios
-              </div>
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="#cliente-principal">
+                  <Users className="mr-2 h-4 w-4 text-primary" />
+                  Vincular cliente y contraparte
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="#fecha-proxima-actuacion">
+                  <Calendar className="mr-2 h-4 w-4 text-primary" />
+                  Crear plazo y audiencia inicial
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="/dashboard/documentos">
+                  <FileText className="mr-2 h-4 w-4 text-primary" />
+                  Cargar documentos base
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start">
+                <Link href="#honorarios">
+                  <Briefcase className="mr-2 h-4 w-4 text-primary" />
+                  Definir estrategia y honorarios
+                </Link>
+              </Button>
             </CardContent>
           </Card>
 
@@ -426,6 +487,6 @@ export default function EditarCasoPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </form>
   );
 }

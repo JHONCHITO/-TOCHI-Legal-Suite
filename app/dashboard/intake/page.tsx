@@ -1111,22 +1111,30 @@ export default function IntakePage() {
               <CardTitle className="text-lg">Flujo de trabajo</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <div className="flex items-center gap-3 rounded-2xl border p-3">
-                <UserRound className="h-4 w-4 text-primary" />
-                1. Crear cliente y activar portal si aplica
-              </div>
-              <div className="flex items-center gap-3 rounded-2xl border p-3">
-                <Sparkles className="h-4 w-4 text-primary" />
-                2. Abrir expediente con la informacion base
-              </div>
-              <div className="flex items-center gap-3 rounded-2xl border p-3">
-                <Calendar className="h-4 w-4 text-primary" />
-                3. Agendar la primera cita y dejar trazabilidad
-              </div>
-              <div className="flex items-center gap-3 rounded-2xl border p-3">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-                4. Redirigir al caso para continuar el trabajo
-              </div>
+              <Button asChild variant="outline" className="w-full justify-start rounded-2xl h-auto py-3">
+                <Link href="/dashboard/clientes/nuevo">
+                  <UserRound className="mr-2 h-4 w-4 text-primary" />
+                  1. Crear cliente y activar portal si aplica
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start rounded-2xl h-auto py-3">
+                <Link href="/dashboard/casos/nuevo">
+                  <Sparkles className="mr-2 h-4 w-4 text-primary" />
+                  2. Abrir expediente con la informacion base
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start rounded-2xl h-auto py-3">
+                <Link href="/dashboard/citas">
+                  <Calendar className="mr-2 h-4 w-4 text-primary" />
+                  3. Agendar la primera cita y dejar trazabilidad
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start rounded-2xl h-auto py-3">
+                <Link href="/dashboard/casos">
+                  <CheckCircle2 className="mr-2 h-4 w-4 text-primary" />
+                  4. Redirigir al caso para continuar el trabajo
+                </Link>
+              </Button>
             </CardContent>
           </Card>
 

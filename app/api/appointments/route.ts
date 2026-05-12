@@ -4,7 +4,7 @@ import dbConnect from "@/lib/mongodb"
 import Appointment from "@/lib/models/Appointment"
 import User from "@/lib/models/User"
 import Client from "@/lib/models/Client"
-import { assertPlanLimit } from "@/lib/subscription"
+import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 import { createNotificationForUsers } from "@/lib/services/automation"
 
 export async function GET(request: Request) {
@@ -110,13 +110,15 @@ export async function POST(request: Request) {
       estado: { $in: ["programada", "confirmada", "en_curso", "reprogramada"] },
     })
 
-    try {
-      await assertPlanLimit(session.user.id, "appointments", activeAppointments)
-    } catch (limitError) {
-      return NextResponse.json(
-        { error: limitError instanceof Error ? limitError.message : "Limite de citas alcanzado" },
-        { status: 403 }
-      )
+    if (shouldEnforcePlanLimits()) {
+      try {
+        await assertPlanLimit(session.user.id, "appointments", activeAppointments)
+      } catch (limitError) {
+        return NextResponse.json(
+          { error: limitError instanceof Error ? limitError.message : "Limite de citas alcanzado" },
+          { status: 403 }
+        )
+      }
     }
 
     const newAppointment = new Appointment({

@@ -11,6 +11,10 @@ import { getPlanById, TRIAL_BUSINESS_DAYS, type PlanLimits } from "@/lib/product
 
 export const DEFAULT_PLAN_ID = "plan-esencial";
 
+export function shouldEnforcePlanLimits() {
+  return process.env.NODE_ENV === "production" && process.env.DISABLE_PLAN_LIMITS !== "true";
+}
+
 const RESOURCE_LABELS: Record<SubscriptionResource, string> = {
   cases: "casos activos",
   clients: "clientes activos",
@@ -362,7 +366,7 @@ export async function consumeAiQuery(userId: string, amount = 1) {
     throw new Error("Usuario no encontrado");
   }
 
-  if (effective.isUnlimited || !effective.subscription) {
+  if (!shouldEnforcePlanLimits() || effective.isUnlimited || !effective.subscription) {
     return effective;
   }
 
@@ -397,7 +401,7 @@ export async function assertPlanLimit(
     throw new Error("Usuario no encontrado");
   }
 
-  if (effective.isUnlimited || !effective.subscription) {
+  if (!shouldEnforcePlanLimits() || effective.isUnlimited || !effective.subscription) {
     const limit = effective.limits?.[resource] ?? getPlanLimits(DEFAULT_PLAN_ID)[resource];
 
     if (currentCount + increment > limit) {

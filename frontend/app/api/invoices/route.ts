@@ -4,7 +4,7 @@ import dbConnect from "@/lib/mongodb"
 import Invoice from "@/lib/models/Invoice"
 import User from "@/lib/models/User"
 import Client from "@/lib/models/Client"
-import { assertPlanLimit } from "@/lib/subscription"
+import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 
 export async function GET(request: Request) {
   try {
@@ -82,13 +82,15 @@ export async function POST(request: Request) {
       estado: { $ne: "cancelada" },
     })
 
-    try {
-      await assertPlanLimit(session.user.id, "invoices", activeInvoices)
-    } catch (limitError) {
-      return NextResponse.json(
-        { error: limitError instanceof Error ? limitError.message : "Limite de facturas alcanzado" },
-        { status: 403 }
-      )
+    if (shouldEnforcePlanLimits()) {
+      try {
+        await assertPlanLimit(session.user.id, "invoices", activeInvoices)
+      } catch (limitError) {
+        return NextResponse.json(
+          { error: limitError instanceof Error ? limitError.message : "Limite de facturas alcanzado" },
+          { status: 403 }
+        )
+      }
     }
 
     const items = Array.isArray(body.items)

@@ -4,7 +4,7 @@ import dbConnect from "@/lib/mongodb"
 import Document from "@/lib/models/Document"
 import User from "@/lib/models/User"
 import Client from "@/lib/models/Client"
-import { assertPlanLimit } from "@/lib/subscription"
+import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 
 export async function GET(request: Request) {
   try {
@@ -91,13 +91,15 @@ export async function POST(request: Request) {
       estado: { $ne: "archivado" },
     })
 
-    try {
-      await assertPlanLimit(session.user.id, "documents", activeDocuments)
-    } catch (limitError) {
-      return NextResponse.json(
-        { error: limitError instanceof Error ? limitError.message : "Limite de documentos alcanzado" },
-        { status: 403 }
-      )
+    if (shouldEnforcePlanLimits()) {
+      try {
+        await assertPlanLimit(session.user.id, "documents", activeDocuments)
+      } catch (limitError) {
+        return NextResponse.json(
+          { error: limitError instanceof Error ? limitError.message : "Limite de documentos alcanzado" },
+          { status: 403 }
+        )
+      }
     }
 
     const newDocument = new Document({

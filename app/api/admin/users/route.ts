@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs"
 import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import User from "@/lib/models/User"
-import { assertPlanLimit } from "@/lib/subscription"
+import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 
 // Solo superadmin y admin pueden acceder
 async function checkAdminAccess() {
@@ -79,13 +79,15 @@ export async function POST(request: Request) {
         activo: true,
       })
 
-      try {
-        await assertPlanLimit(access.userId as string, "users", currentSeats)
-      } catch (limitError) {
-        return NextResponse.json(
-          { error: limitError instanceof Error ? limitError.message : "Limite de usuarios alcanzado" },
-          { status: 403 }
-        )
+      if (shouldEnforcePlanLimits()) {
+        try {
+          await assertPlanLimit(access.userId as string, "users", currentSeats)
+        } catch (limitError) {
+          return NextResponse.json(
+            { error: limitError instanceof Error ? limitError.message : "Limite de usuarios alcanzado" },
+            { status: 403 }
+          )
+        }
       }
     }
 

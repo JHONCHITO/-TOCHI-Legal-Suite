@@ -80,7 +80,13 @@ export default function NuevoClientePage() {
   const isNatural = formData.tipo === "persona_natural";
 
   return (
-    <div className="space-y-6">
+    <form
+      className="space-y-6"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void handleSubmit();
+      }}
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Nuevo Cliente</h1>
@@ -95,7 +101,7 @@ export default function NuevoClientePage() {
               Volver a clientes
             </Link>
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -294,6 +300,6 @@ export default function NuevoClientePage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </form>
   );
 }

@@ -4,7 +4,7 @@ import dbConnect from "@/lib/mongodb"
 import Case from "@/lib/models/Case"
 import Client from "@/lib/models/Client"
 import User from "@/lib/models/User"
-import { assertPlanLimit } from "@/lib/subscription"
+import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 import { createNotificationForUsers } from "@/lib/services/automation"
 
 export async function GET(request: Request) {
@@ -100,13 +100,15 @@ export async function POST(request: Request) {
       estado: { $nin: ["cerrado", "archivado"] },
     })
 
-    try {
-      await assertPlanLimit(session.user.id, "cases", activeCases)
-    } catch (limitError) {
-      return NextResponse.json(
-        { error: limitError instanceof Error ? limitError.message : "Limite de casos alcanzado" },
-        { status: 403 }
-      )
+    if (shouldEnforcePlanLimits()) {
+      try {
+        await assertPlanLimit(session.user.id, "cases", activeCases)
+      } catch (limitError) {
+        return NextResponse.json(
+          { error: limitError instanceof Error ? limitError.message : "Limite de casos alcanzado" },
+          { status: 403 }
+        )
+      }
     }
 
     const newCase = new Case({

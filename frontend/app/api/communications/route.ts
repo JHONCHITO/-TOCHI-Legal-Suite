@@ -4,7 +4,7 @@ import dbConnect from "@/lib/mongodb"
 import Communication from "@/lib/models/Communication"
 import User from "@/lib/models/User"
 import Client from "@/lib/models/Client"
-import { assertPlanLimit } from "@/lib/subscription"
+import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 
 export async function GET(request: NextRequest) {
   try {
@@ -84,13 +84,15 @@ export async function POST(request: NextRequest) {
       creadorId: session.user.id,
     })
 
-    try {
-      await assertPlanLimit(session.user.id, "communications", activeCommunications)
-    } catch (limitError) {
-      return NextResponse.json(
-        { error: limitError instanceof Error ? limitError.message : "Limite de comunicaciones alcanzado" },
-        { status: 403 }
-      )
+    if (shouldEnforcePlanLimits()) {
+      try {
+        await assertPlanLimit(session.user.id, "communications", activeCommunications)
+      } catch (limitError) {
+        return NextResponse.json(
+          { error: limitError instanceof Error ? limitError.message : "Limite de comunicaciones alcanzado" },
+          { status: 403 }
+        )
+      }
     }
 
     const newCommunication = new Communication({
