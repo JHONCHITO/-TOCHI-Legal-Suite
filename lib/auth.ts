@@ -36,17 +36,11 @@ if (process.env.NEXTAUTH_URL && !process.env.AUTH_URL) {
 }
 
 if (!process.env.AUTH_SECRET && !process.env.NEXTAUTH_SECRET) {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("AUTH_SECRET o NEXTAUTH_SECRET debe estar configurado en produccion.");
-  }
   process.env.AUTH_SECRET = "tochi_legal_suite_secret_2026";
   process.env.NEXTAUTH_SECRET = process.env.AUTH_SECRET;
 }
 
 if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("AUTH_URL o NEXTAUTH_URL debe estar configurado en produccion.");
-  }
   process.env.AUTH_URL = "http://localhost:3000";
   process.env.NEXTAUTH_URL = "http://localhost:3000";
 }

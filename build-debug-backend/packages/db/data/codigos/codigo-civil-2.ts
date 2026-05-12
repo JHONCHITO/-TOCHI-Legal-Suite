@@ -1,0 +1,225 @@
+// CODIGO CIVIL COLOMBIANO - PARTE 2 (Contratos específicos)
+// Continuación de la Ley 57 de 1887
+
+export const codigoCivilParte2 = {
+  articulos: [
+    // MODOS DE EXTINGUIR OBLIGACIONES
+    { numero: "1625", titulo: "Modos de extinguir obligaciones", contenido: "Toda obligación puede extinguirse por una convención en que las partes interesadas, siendo capaces de disponer libremente de lo suyo, consientan en darla por nula. Las obligaciones se extinguen además en todo o en parte: 1. Por la solución o pago efectivo. 2. Por la novación. 3. Por la transacción. 4. Por la remisión. 5. Por la compensación. 6. Por la confusión. 7. Por la pérdida de la cosa que se debe. 8. Por la declaración de nulidad o por la rescisión. 9. Por el evento de la condición resolutoria. 10. Por la prescripción." },
+    { numero: "1626", titulo: "Pago", contenido: "El pago efectivo es la prestación de lo que se debe." },
+    { numero: "1627", titulo: "A quién debe hacerse el pago", contenido: "El pago debe hacerse al acreedor mismo o a su representante legal o convencional, o a quien tenga su mandato." },
+    { numero: "1628", titulo: "Pago a incapaz", contenido: "El pago hecho al acreedor es nulo en los casos en que, estando bajo tutela o curaduría, no es dueño de sus bienes." },
+    { numero: "1629", titulo: "Por quién puede hacerse el pago", contenido: "Puede pagar por el deudor cualquier persona a nombre del deudor, aun sin su conocimiento o contra su voluntad, y aun a pesar del acreedor." },
+    { numero: "1630", titulo: "Pago por tercero", contenido: "El que paga sin el conocimiento del deudor no tendrá acción sino para que éste le reembolse lo pagado; y no se entenderá subrogado por la ley en el lugar y derechos del acreedor." },
+    { numero: "1631", titulo: "Lugar del pago", contenido: "El pago debe hacerse en el lugar designado por la convención." },
+    { numero: "1632", titulo: "Tiempo del pago", contenido: "El pago debe hacerse en el tiempo estipulado." },
+    { numero: "1633", titulo: "Gastos del pago", contenido: "Los gastos que ocasionare el pago serán de cuenta del deudor." },
+    { numero: "1634", titulo: "Imputación del pago", contenido: "Si se deben capital e intereses, el pago se imputará primeramente a los intereses, salvo que el acreedor consienta expresamente que se impute al capital." },
+    { numero: "1635", titulo: "Pago por consignación", contenido: "Si el acreedor no quiere recibir el pago, el deudor puede pagar por consignación." },
+    { numero: "1636", titulo: "Procedimiento de consignación", contenido: "La consignación debe ser precedida de oferta, y para que sea válida, es necesario: 1. Que sea hecha por persona capaz de pagar. 2. Que sea hecha al acreedor, siendo éste capaz de recibir, o a la persona que tenga su autorización." },
+    { numero: "1637", titulo: "Efectos de la consignación", contenido: "La consignación válida, declarada suficiente por el juez, surte todos los efectos del pago." },
+    { numero: "1638", titulo: "Pago con subrogación", contenido: "La subrogación es la transmisión de los derechos del acreedor a un tercero que le paga." },
+    { numero: "1639", titulo: "Subrogación legal", contenido: "Se efectúa la subrogación por el ministerio de la ley, y aun contra la voluntad del acreedor, en todos los casos señalados por las leyes." },
+    { numero: "1640", titulo: "Casos de subrogación legal", contenido: "Se subroga legalmente: 1. El acreedor que paga a otro acreedor de mejor derecho. 2. El que habiendo comprado un inmueble, es obligado a pagar a los acreedores a quienes el inmueble está hipotecado. 3. El que paga una deuda a que se halla obligado solidaria o subsidiariamente. 4. El heredero beneficiario que paga con su propio dinero las deudas de la herencia. 5. El que paga una deuda ajena, consintiéndolo expresa o tácitamente el deudor." },
+    { numero: "1641", titulo: "Subrogación convencional", contenido: "La subrogación convencional se efectúa cuando el acreedor, recibiendo su pago de un tercero, le subroga voluntariamente en todos los derechos y acciones que le corresponden como tal acreedor." },
+    { numero: "1642", titulo: "Efectos de la subrogación", contenido: "La subrogación, tanto legal como convencional, traspasa al nuevo acreedor todos los derechos, acciones y privilegios del antiguo." },
+    
+    // NOVACIÓN
+    { numero: "1687", titulo: "Novación", contenido: "La novación es la sustitución de una nueva obligación a otra anterior, la cual queda por tanto extinguida." },
+    { numero: "1688", titulo: "Modos de novación", contenido: "La novación puede efectuarse de tres modos: 1. Sustituyéndose una nueva obligación a otra, sin que intervenga nuevo acreedor o deudor. 2. Contrayendo el deudor una nueva obligación respecto de un tercero, y declarándole en consecuencia libre de la obligación primitiva el primer acreedor. 3. Sustituyéndose un nuevo deudor al antiguo, que en consecuencia queda libre." },
+    { numero: "1689", titulo: "Requisitos de la novación", contenido: "Para que sea válida la novación es necesario que tanto la obligación primitiva como el contrato de novación sean válidos, a lo menos naturalmente." },
+    { numero: "1690", titulo: "Novación por cambio de deudor", contenido: "La sustitución de un nuevo deudor a otro no produce novación si el acreedor no expresa su voluntad de dar por libre al primitivo deudor." },
+    { numero: "1691", titulo: "Delegación", contenido: "Si el deudor no hace más que diputar una persona que haya de pagar por él, o el acreedor una persona que haya de recibir por él, no hay novación." },
+    { numero: "1692", titulo: "Efectos de la novación", contenido: "La novación libera a los codeudores solidarios o subsidiarios, que no han accedido a ella." },
+    { numero: "1693", titulo: "Reserva de prendas e hipotecas", contenido: "Sea que la novación se opere por la sustitución de un nuevo deudor, o sin ella, los privilegios de la primera deuda se extinguen por la novación." },
+    
+    // REMISIÓN
+    { numero: "1711", titulo: "Remisión", contenido: "La remisión o condonación de una deuda no tiene valor, sino en cuanto el acreedor es hábil para disponer de la cosa que es objeto de ella." },
+    { numero: "1712", titulo: "Remisión expresa o tácita", contenido: "La remisión puede ser expresa o tácita." },
+    { numero: "1713", titulo: "Entrega del título", contenido: "Hay remisión tácita cuando el acreedor entrega voluntariamente al deudor el título de la obligación, o lo destruye o cancela con ánimo de extinguir la deuda." },
+    { numero: "1714", titulo: "Remisión de la prenda", contenido: "La remisión de la prenda o de la hipoteca no basta para que se presuma remisión de la deuda." },
+    
+    // COMPENSACIÓN
+    { numero: "1714", titulo: "Compensación", contenido: "Cuando dos personas son deudoras una de otra, se opera entre ellas una compensación que extingue ambas deudas." },
+    { numero: "1715", titulo: "Compensación legal", contenido: "La compensación se opera por el solo ministerio de la ley y aun sin conocimiento de los deudores." },
+    { numero: "1716", titulo: "Requisitos de compensación", contenido: "Para que haya lugar a la compensación es preciso que las dos partes sean recíprocamente deudoras." },
+    { numero: "1717", titulo: "Deudas compensables", contenido: "La compensación solo tiene lugar entre deudas líquidas y actualmente exigibles." },
+    { numero: "1718", titulo: "Deudas de distintos lugares", contenido: "Las deudas pagaderas en diferentes lugares pueden compensarse, pero el demandante deberá hacer deducción de los costos de la remesa." },
+    { numero: "1719", titulo: "Compensación de deudas de frutos", contenido: "La compensación también tiene lugar en las deudas de géneros." },
+    { numero: "1720", titulo: "Excepciones a la compensación", contenido: "No puede oponerse compensación a la demanda de restitución de una cosa de que su dueño ha sido injustamente despojado." },
+    { numero: "1721", titulo: "Renuncia de compensación", contenido: "El deudor que acepta sin reserva alguna la cesión que el acreedor hace de sus derechos a un tercero, no puede oponer al cesionario la compensación que antes de la aceptación hubiera podido oponer al cedente." },
+    
+    // CONFUSIÓN
+    { numero: "1724", titulo: "Confusión", contenido: "Cuando concurren en una misma persona las calidades de acreedor y deudor, se verifica de derecho una confusión que extingue la deuda y produce iguales efectos que el pago." },
+    { numero: "1725", titulo: "Confusión parcial", contenido: "La confusión puede ser total o parcial." },
+    { numero: "1726", titulo: "Confusión y fianza", contenido: "La confusión que extingue la obligación principal extingue la fianza; pero la confusión que extingue la fianza no extingue la obligación principal." },
+    
+    // PÉRDIDA DE LA COSA DEBIDA
+    { numero: "1729", titulo: "Pérdida de la cosa debida", contenido: "Cuando el cuerpo cierto que se debe perece, o porque se destruye, o porque deja de estar en el comercio, o porque desaparece y se ignora si existe, se extingue la obligación." },
+    { numero: "1730", titulo: "Pérdida por culpa del deudor", contenido: "Siempre que la cosa perece en poder del deudor, se presume que ha sido por hecho o culpa suya." },
+    { numero: "1731", titulo: "Obligación de indemnizar", contenido: "Si el cuerpo cierto perece por culpa o durante la mora del deudor, la obligación de éste subsiste, pero varía de objeto; el deudor es obligado al precio de la cosa y a indemnizar al acreedor." },
+    { numero: "1732", titulo: "Reaparición de la cosa", contenido: "Si reaparece la cosa perdida cuya existencia se ignoraba, podrá reclamarla el acreedor, restituyendo lo que hubiere recibido en razón de su precio." },
+    
+    // NULIDAD Y RESCISIÓN
+    { numero: "1740", titulo: "Nulidad absoluta y relativa", contenido: "Es nulo todo acto o contrato a que falta alguno de los requisitos que la ley prescribe para el valor del mismo acto o contrato según su especie y la calidad o estado de las partes. La nulidad puede ser absoluta o relativa." },
+    { numero: "1741", titulo: "Nulidad absoluta", contenido: "La nulidad producida por un objeto o causa ilícita, y la nulidad producida por la omisión de algún requisito o formalidad que las leyes prescriben para el valor de ciertos actos o contratos en consideración a la naturaleza de ellos, y no a la calidad o estado de las personas que los ejecutan o acuerdan, son nulidades absolutas." },
+    { numero: "1742", titulo: "Quién puede alegar nulidad absoluta", contenido: "La nulidad absoluta puede y debe ser declarada por el juez, aun sin petición de parte, cuando aparece de manifiesto en el acto o contrato; puede alegarse por todo el que tenga interés en ello; puede asimismo pedirse su declaración por el Ministerio Público en el interés de la moral o de la ley. No puede sanearse por la ratificación de las partes, ni por un lapso que no pase de diez años." },
+    { numero: "1743", titulo: "Nulidad relativa", contenido: "Cualquiera otra especie de vicio produce nulidad relativa, y da derecho a la rescisión del acto o contrato." },
+    { numero: "1744", titulo: "Efectos de la nulidad relativa", contenido: "La nulidad relativa no puede ser declarada por el juez sino a pedimento de parte; ni puede pedirse su declaración por el Ministerio Público en el solo interés de la ley; ni puede alegarse sino por aquellos en cuyo beneficio la han establecido las leyes, o por sus herederos o cesionarios." },
+    { numero: "1745", titulo: "Saneamiento de nulidad relativa", contenido: "La nulidad relativa puede sanearse por el lapso de tiempo o por la ratificación de las partes." },
+    { numero: "1746", titulo: "Plazo para alegar nulidad relativa", contenido: "La acción rescisoria por nulidad relativa dura cuatro años." },
+    { numero: "1747", titulo: "Efectos de la nulidad judicialmente declarada", contenido: "La nulidad pronunciada en sentencia que tiene la fuerza de cosa juzgada, da a las partes derecho para ser restituidas al mismo estado en que se hallarían si no hubiese existido el acto o contrato nulo." },
+    { numero: "1748", titulo: "Restituciones mutuas", contenido: "Pronunciada la nulidad, cada parte será responsable de las pérdidas de las especies o de su deterioro, de los intereses y frutos, y del abono de las mejoras necesarias, útiles o voluptuarias, tomándose en consideración los casos fortuitos, y la posesión de buena fe o mala fe de las partes." },
+    
+    // CONTRATOS EN PARTICULAR - COMPRAVENTA
+    { numero: "1849", titulo: "Definición de compraventa", contenido: "La compraventa es un contrato en que una de las partes se obliga a dar una cosa, y la otra a pagarla en dinero. Aquélla se dice vender y ésta comprar. El dinero que el comprador da por la cosa vendida se llama precio." },
+    { numero: "1850", titulo: "Requisitos de la compraventa", contenido: "Los requisitos de la compraventa son el consentimiento de las partes, la cosa vendida y el precio." },
+    { numero: "1851", titulo: "Perfeccionamiento", contenido: "La venta se reputa perfecta desde que las partes han convenido en la cosa y en el precio." },
+    { numero: "1852", titulo: "Capacidad para comprar y vender", contenido: "Son hábiles para el contrato de venta todas las personas que la ley no declara inhábiles para celebrarlo o para celebrar todo contrato." },
+    { numero: "1853", titulo: "Prohibición de compra", contenido: "Se prohibe a los administradores de establecimientos públicos vender parte alguna de los bienes que administran, y cuya enajenación no esté comprendida en sus facultades administrativas ordinarias." },
+    { numero: "1854", titulo: "Venta de mandatario", contenido: "Se prohibe al mandatario comprar las cosas que el mandante le ha ordenado vender, y vender de lo suyo al mandante lo que éste le ha ordenado comprar." },
+    { numero: "1855", titulo: "Venta entre cónyuges", contenido: "Es nulo el contrato de venta entre cónyuges no separados judicialmente." },
+    { numero: "1856", titulo: "Venta de cosa que no se tiene", contenido: "La venta de cosa ajena vale, sin perjuicio de los derechos del dueño de la cosa vendida, mientras no se extingan por el lapso de tiempo." },
+    { numero: "1857", titulo: "Venta de cosa futura", contenido: "La venta de cosas que no existen, pero se espera que existan, se entenderá hecha bajo la condición de existir." },
+    { numero: "1858", titulo: "Cosa vendida", contenido: "Pueden venderse todas las cosas corporales o incorporales, cuya enajenación no esté prohibida por la ley." },
+    { numero: "1859", titulo: "Precio", contenido: "El precio de la venta debe ser determinado por los contratantes." },
+    { numero: "1860", titulo: "Precio en dinero", contenido: "El precio deberá consistir parte en dinero y parte en otra cosa; pero cuando esta cosa vale más que el dinero, el contrato será de permutación." },
+    { numero: "1861", titulo: "Fijación del precio", contenido: "Podrá asimismo dejarse el precio al arbitrio de un tercero." },
+    { numero: "1862", titulo: "Arras", contenido: "Si se vende con arras, esto es, dando una cosa en prenda de la celebración o ejecución del contrato, se entiende que cada uno de los contratantes podrá retractarse." },
+    { numero: "1863", titulo: "Retracto con arras", contenido: "Si los contratantes no hubieren fijado plazo dentro del cual puedan retractarse, perdiendo las arras, no habrá lugar a la retractación después de los dos meses subsiguientes a la convención." },
+    { numero: "1864", titulo: "Gastos de la venta", contenido: "Los impuestos fiscales o municipales, las costas de la escritura y de cualesquiera otras solemnidades de la venta, serán de cargo del vendedor; a menos de pactarse otra cosa." },
+    { numero: "1865", titulo: "Entrega de la cosa", contenido: "El vendedor es obligado a entregar la cosa vendida inmediatamente después del contrato, o a la época prefijada en él." },
+    { numero: "1866", titulo: "Saneamiento", contenido: "La obligación de saneamiento comprende dos objetos: amparar al comprador en el dominio y posesión pacífica de la cosa vendida, y responder de los defectos ocultos de ésta." },
+    { numero: "1867", titulo: "Saneamiento por evicción", contenido: "Hay evicción de la cosa comprada, cuando el comprador es privado del todo o parte de ella, por sentencia judicial." },
+    { numero: "1868", titulo: "Acción de saneamiento", contenido: "El vendedor es obligado a sanear al comprador todas las evicciones que tengan una causa anterior a la venta." },
+    { numero: "1869", titulo: "Indemnización por evicción", contenido: "El saneamiento de evicción, a que es obligado el vendedor, comprende: 1. La restitución del precio, aunque la cosa, al tiempo de la evicción, valga menos. 2. La de las costas legales del contrato de venta que hubieren sido satisfechas por el comprador. 3. La del valor de los frutos, que el comprador hubiere sido obligado a restituir al dueño. 4. La de las costas que el comprador hubiere sufrido a consecuencia y por efecto de la demanda. 5. El aumento de valor que la cosa evicta haya tomado en poder del comprador, aun por causas naturales." },
+    { numero: "1870", titulo: "Evicción parcial", contenido: "Si la evicción no recae sobre toda la cosa vendida, y la parte evicta es tal que sea de presumir que no se habría comprado la cosa sin ella, habrá derecho a pedir la rescisión de la venta." },
+    { numero: "1871", titulo: "Saneamiento por vicios redhibitorios", contenido: "Se llama acción redhibitoria la que tiene el comprador para que se rescinda la venta o se rebaje proporcionalmente el precio, por los vicios ocultos de la cosa vendida." },
+    { numero: "1872", titulo: "Vicios redhibitorios", contenido: "Son vicios redhibitorios los que reúnen las calidades siguientes: 1. Haber existido al tiempo de la venta. 2. Ser tales, que por ellos la cosa vendida no sirva para su uso natural, o solo sirva imperfectamente. 3. No haberlos manifestado el vendedor, y ser tales que el comprador haya podido ignorarlos sin negligencia grave de su parte." },
+    { numero: "1873", titulo: "Prescripción de acción redhibitoria", contenido: "La acción redhibitoria durará seis meses respecto de las cosas muebles, y un año respecto de los bienes raíces." },
+    
+    // PERMUTA
+    { numero: "1955", titulo: "Permuta", contenido: "La permutación o cambio es un contrato en que las partes se obligan mutuamente a dar una especie o cuerpo cierto por otro." },
+    { numero: "1956", titulo: "Reglas de la permuta", contenido: "Las disposiciones relativas a la compraventa se aplicarán a la permutación en todo lo que no se oponga a la naturaleza de este contrato." },
+    { numero: "1957", titulo: "Evicción en permuta", contenido: "El permutante que sufre evicción de la cosa que recibió en cambio, podrá a su arbitrio reclamar indemnización de perjuicios, o la cosa que él dio en cambio." },
+    
+    // ARRENDAMIENTO
+    { numero: "1973", titulo: "Arrendamiento", contenido: "El arrendamiento es un contrato en que las dos partes se obligan recíprocamente, la una a conceder el goce de una cosa, o a ejecutar una obra o prestar un servicio, y la otra a pagar por este goce, obra o servicio un precio determinado." },
+    { numero: "1974", titulo: "Especies de arrendamiento", contenido: "Son susceptibles de arrendamiento todas las cosas corporales o incorporales que pueden usarse sin consumirse." },
+    { numero: "1975", titulo: "Precio del arrendamiento", contenido: "El precio puede consistir ya en dinero, ya en frutos naturales de la cosa arrendada." },
+    { numero: "1976", titulo: "Obligaciones del arrendador", contenido: "El arrendador es obligado: 1. A entregar al arrendatario la cosa arrendada. 2. A mantenerla en estado de servir para el fin a que ha sido arrendada. 3. A librar al arrendatario de toda turbación o embarazo en el goce de la cosa arrendada." },
+    { numero: "1977", titulo: "Obligaciones del arrendatario", contenido: "El arrendatario es obligado a usar de la cosa según los términos o espíritu del contrato." },
+    { numero: "1978", titulo: "Pago de la renta", contenido: "El arrendatario es obligado al pago del precio o renta." },
+    { numero: "1979", titulo: "Conservación de la cosa", contenido: "El arrendatario empleará en la conservación de la cosa el cuidado de un buen padre de familia." },
+    { numero: "1980", titulo: "Reparaciones locativas", contenido: "El arrendatario es obligado a las reparaciones locativas." },
+    { numero: "1981", titulo: "Restitución", contenido: "El arrendatario es obligado a restituir la cosa al fin del arrendamiento." },
+    { numero: "1982", titulo: "Expiración del arrendamiento", contenido: "El arrendamiento de cosas expira de los mismos modos que los otros contratos, y especialmente: 1. Por la destrucción total de la cosa arrendada. 2. Por la expiración del tiempo estipulado para la duración del arriendo. 3. Por la extinción del derecho del arrendador. 4. Por sentencia de juez en los casos que la ley ha previsto." },
+    { numero: "1983", titulo: "Desahucio", contenido: "Si no se ha fijado tiempo para la duración del arriendo, o si el tiempo no es determinado por el servicio especial a que se destina la cosa arrendada, o por la costumbre, ninguna de las dos partes podrá hacerlo cesar sino desahuciando a la otra." },
+    { numero: "1984", titulo: "Término del desahucio", contenido: "El desahucio anticipado se ajustará a las reglas siguientes." },
+    { numero: "1985", titulo: "Tácita reconducción", contenido: "Si expirado el término, el arrendatario permanece en el goce de la cosa arrendada, y el arrendador no lo contradice, se entiende renovado el contrato, pero solo con respecto al tiempo." },
+    
+    // MANDATO
+    { numero: "2142", titulo: "Mandato", contenido: "El mandato es un contrato en que una persona confía la gestión de uno o más negocios a otra, que se hace cargo de ellos por cuenta y riesgo de la primera." },
+    { numero: "2143", titulo: "Mandante y mandatario", contenido: "La persona que confiere el encargo se llama comitente o mandante, y la que lo acepta apoderado, procurador, y en general, mandatario." },
+    { numero: "2144", titulo: "Aceptación del mandato", contenido: "El contrato de mandato se reputa perfecto por la aceptación del mandatario." },
+    { numero: "2145", titulo: "Objeto del mandato", contenido: "El mandato puede ser gratuito o remunerado." },
+    { numero: "2146", titulo: "Límites del mandato", contenido: "El mandatario se ceñirá rigorosamente a los términos del mandato." },
+    { numero: "2147", titulo: "Facultades del mandatario", contenido: "El mandatario puede apartarse de las instrucciones del mandante siempre que circunstancias desconocidas, que no era fácil consultar con el mandante, le obliguen a ello." },
+    { numero: "2148", titulo: "Rendición de cuentas", contenido: "El mandatario es obligado a dar cuenta de su administración." },
+    { numero: "2149", titulo: "Prohibiciones del mandatario", contenido: "No podrá el mandatario por sí ni por interpuesta persona, comprar las cosas que el mandante le ha ordenado vender." },
+    { numero: "2150", titulo: "Responsabilidad del mandatario", contenido: "El mandatario responde hasta de la culpa leve en el cumplimiento de su encargo." },
+    { numero: "2151", titulo: "Obligaciones del mandante", contenido: "El mandante es obligado: 1. A proveer al mandatario de lo necesario para la ejecución del mandato. 2. A reembolsarle los gastos razonables causados por la ejecución del mandato. 3. A pagarle la remuneración estipulada o usual. 4. A pagarle las anticipaciones de dinero con los intereses corrientes. 5. A indemnizarle de las pérdidas en que haya incurrido sin culpa." },
+    { numero: "2189", titulo: "Terminación del mandato", contenido: "El mandato termina: 1. Por el desempeño del negocio para que fue constituido. 2. Por la expiración del término o por el evento de la condición prefijados para la terminación del mandato. 3. Por la revocación del mandante. 4. Por la renuncia del mandatario. 5. Por la muerte del mandante o del mandatario. 6. Por la quiebra o insolvencia del uno o del otro. 7. Por la interdicción del uno o del otro." },
+    
+    // COMODATO O PRÉSTAMO DE USO
+    { numero: "2200", titulo: "Comodato", contenido: "El comodato o préstamo de uso es un contrato en que una de las partes entrega a la otra gratuitamente una especie mueble o raíz, para que haga uso de ella, y con cargo de restituir la misma especie después de terminado el uso." },
+    { numero: "2201", titulo: "Características del comodato", contenido: "Este contrato no se perfecciona sino por la tradición de la cosa." },
+    { numero: "2202", titulo: "Obligaciones del comodatario", contenido: "El comodatario es obligado a emplear el mayor cuidado en la conservación de la cosa, y responde hasta de la culpa levísima." },
+    { numero: "2203", titulo: "Uso de la cosa", contenido: "El comodatario no puede emplear la cosa sino en el uso convenido, o a falta de convención, en el uso ordinario de las de su clase." },
+    { numero: "2204", titulo: "Gastos de conservación", contenido: "El comodatario es obligado a las expensas de conservación de la cosa." },
+    { numero: "2205", titulo: "Restitución", contenido: "El comodatario es obligado a restituir la cosa prestada en el tiempo convenido." },
+    { numero: "2206", titulo: "Deterioro de la cosa", contenido: "El comodatario es responsable del deterioro que no provenga de la naturaleza o del uso legítimo de la cosa." },
+    
+    // MUTUO O PRÉSTAMO DE CONSUMO
+    { numero: "2221", titulo: "Mutuo", contenido: "El mutuo o préstamo de consumo es un contrato en que una de las partes entrega a la otra cierta cantidad de cosas fungibles con cargo de restituir otras tantas del mismo género y calidad." },
+    { numero: "2222", titulo: "Perfeccionamiento", contenido: "No se perfecciona el contrato de mutuo sino por la tradición, y la tradición transfiere el dominio." },
+    { numero: "2223", titulo: "Cosa prestada", contenido: "Si se ha prestado dinero, solo se debe la suma numérica enunciada en el contrato." },
+    { numero: "2224", titulo: "Intereses", contenido: "No se deben intereses sino cuando expresamente se han estipulado." },
+    { numero: "2225", titulo: "Plazo de restitución", contenido: "Si no se hubiere fijado término para el pago, no habrá derecho de exigirlo dentro de los diez días subsiguientes a la entrega." },
+    { numero: "2226", titulo: "Interés legal", contenido: "El interés legal se fija en seis por ciento anual." },
+    { numero: "2227", titulo: "Anatocismo", contenido: "Los intereses atrasados no producen interés." },
+    
+    // DEPÓSITO
+    { numero: "2236", titulo: "Depósito", contenido: "Llámase en general depósito el contrato en que se confía una cosa corporal a una persona que se encarga de guardarla y de restituirla en especie." },
+    { numero: "2237", titulo: "Especies de depósito", contenido: "El depósito propiamente dicho es un contrato en que una de las partes entrega a la otra una cosa corporal y mueble para que la guarde y la restituya en especie a voluntad del depositante." },
+    { numero: "2238", titulo: "Obligaciones del depositario", contenido: "El depositario es obligado a guardar la cosa y restituirla en especie al depositante, o a quien tenga derecho a recibirla." },
+    { numero: "2239", titulo: "Cuidado del depositario", contenido: "El depositario es obligado a emplear en la custodia de la cosa depositada, si el depósito es gratuito, el cuidado ordinario, esto es, el que emplearía en los negocios propios." },
+    { numero: "2240", titulo: "Prohibición de uso", contenido: "El depositario no tiene derecho para usar la cosa depositada sin permiso del depositante." },
+    { numero: "2241", titulo: "Restitución", contenido: "La restitución es a voluntad del depositante." },
+    { numero: "2242", titulo: "Gastos del depósito", contenido: "Los gastos necesarios del depósito son de cargo del depositante." },
+    { numero: "2243", titulo: "Responsabilidad del depositario", contenido: "Si el depositario se ha ofrecido espontáneamente para el depósito, responde de la culpa leve." },
+    
+    // FIANZA
+    { numero: "2361", titulo: "Fianza", contenido: "La fianza es una obligación accesoria en virtud de la cual una o más personas responden de una obligación ajena, comprometiéndose para con el acreedor a cumplirla en todo o parte, si el deudor principal no la cumple." },
+    { numero: "2362", titulo: "Requisitos de la fianza", contenido: "La fianza puede constituirse no solo a favor del deudor principal, sino de otro fiador." },
+    { numero: "2363", titulo: "Fianza sin consentimiento del deudor", contenido: "El fiador puede obligarse a menos, pero no a más de lo que debe el deudor principal." },
+    { numero: "2364", titulo: "Fianza a plazo", contenido: "El fiador puede estipular con el acreedor una remuneración pecuniaria por el servicio que le presta." },
+    { numero: "2365", titulo: "Efectos de la fianza", contenido: "El fiador podrá oponer al acreedor cualesquiera excepciones reales, como las de dolo, violencia o cosa juzgada." },
+    { numero: "2366", titulo: "Beneficio de excusión", contenido: "El fiador reconvenido goza del beneficio de excusión, en virtud del cual podrá exigir que antes de proceder contra él se persiga la deuda en los bienes del deudor principal." },
+    { numero: "2367", titulo: "Renuncia de beneficio de excusión", contenido: "El fiador puede renunciar el beneficio de excusión." },
+    { numero: "2368", titulo: "Beneficio de división", contenido: "Si hay dos o más fiadores de una misma deuda, cada uno de ellos será solidariamente responsable de toda ella, a menos que hayan limitado expresamente sus respectivas responsabilidades." },
+    { numero: "2369", titulo: "Subrogación del fiador", contenido: "El fiador que paga tiene acción contra el deudor principal para el reembolso de lo que ha pagado por él." },
+    { numero: "2370", titulo: "Extinción de la fianza", contenido: "La fianza se extingue, en todo o parte, por los mismos medios que las otras obligaciones." },
+    
+    // PRENDA
+    { numero: "2409", titulo: "Prenda", contenido: "Por el contrato de empeño o prenda se entrega una cosa mueble a un acreedor para la seguridad de su crédito." },
+    { numero: "2410", titulo: "Constitución de prenda", contenido: "La cosa empeñada se llama prenda. El acreedor que la tiene se llama acreedor prendario." },
+    { numero: "2411", titulo: "Requisitos de la prenda", contenido: "Este contrato se perfecciona por la entrega de la prenda al acreedor." },
+    { numero: "2412", titulo: "Derechos del acreedor prendario", contenido: "El acreedor prendario no puede usar de la prenda sin el consentimiento del deudor." },
+    { numero: "2413", titulo: "Conservación de la prenda", contenido: "El acreedor es obligado a guardar y conservar la prenda como buen padre de familia." },
+    { numero: "2414", titulo: "Venta de la prenda", contenido: "Si el deudor no cumple la obligación garantizada, podrá el acreedor pedir que la prenda del deudor moroso se venda en pública subasta." },
+    { numero: "2415", titulo: "Restitución de la prenda", contenido: "El deudor no podrá reclamar la restitución de la prenda, en todo o parte, mientras no haya pagado la totalidad de la deuda." },
+    { numero: "2416", titulo: "Anticresis", contenido: "La anticresis es un contrato por el que se entrega al acreedor una cosa raíz para que se pague con sus frutos." },
+    
+    // HIPOTECA
+    { numero: "2432", titulo: "Hipoteca", contenido: "La hipoteca es un derecho de prenda, constituido sobre inmuebles que no dejan por eso de permanecer en poder del deudor." },
+    { numero: "2433", titulo: "Requisitos de la hipoteca", contenido: "La hipoteca debe ser inscrita en el registro de instrumentos públicos." },
+    { numero: "2434", titulo: "Bienes hipotecables", contenido: "La hipoteca debe recaer sobre inmuebles que se posean en propiedad." },
+    { numero: "2435", titulo: "Extensión de la hipoteca", contenido: "La hipoteca constituida sobre bienes raíces afecta los inmuebles por destinación que existan en ellos al tiempo de constituirse la hipoteca." },
+    { numero: "2436", titulo: "Hipoteca de cosa ajena", contenido: "La hipoteca de cosa ajena vale, pero el acreedor no podrá obtener el cumplimiento de la obligación por la vía hipotecaria sino cuando el constituyente haya adquirido el dominio de la cosa hipotecada." },
+    { numero: "2437", titulo: "Hipoteca abierta", contenido: "La hipoteca podrá constituirse para garantizar obligaciones futuras." },
+    { numero: "2438", titulo: "Acción hipotecaria", contenido: "La hipoteca da al acreedor el derecho de perseguir la finca hipotecada, sea quien fuere el que la posea, y a cualquier título que la haya adquirido." },
+    { numero: "2439", titulo: "Extinción de la hipoteca", contenido: "La hipoteca se extingue junto con la obligación principal." },
+    { numero: "2440", titulo: "Cancelación de hipoteca", contenido: "La hipoteca se extingue asimismo por la cancelación que el acreedor otorgare por escritura pública." },
+    
+    // TRANSACCIÓN
+    { numero: "2469", titulo: "Transacción", contenido: "La transacción es un contrato en que las partes terminan extrajudicialmente un litigio pendiente, o precaven un litigio eventual." },
+    { numero: "2470", titulo: "Requisitos de la transacción", contenido: "No puede transigir sino la persona capaz de disponer de los objetos comprendidos en la transacción." },
+    { numero: "2471", titulo: "Objeto de la transacción", contenido: "No se puede transigir sobre el estado civil de las personas." },
+    { numero: "2472", titulo: "Transacción sobre delitos", contenido: "La transacción no surte efecto sino entre los contratantes." },
+    { numero: "2473", titulo: "Nulidad de transacción", contenido: "Es nula en todas sus partes la transacción obtenida por título falsificado." },
+    { numero: "2474", titulo: "Error en la transacción", contenido: "El error acerca de la identidad del objeto sobre que se quiere transigir anula la transacción." },
+    { numero: "2475", titulo: "Efecto de cosa juzgada", contenido: "La transacción produce el efecto de cosa juzgada en última instancia." },
+    { numero: "2476", titulo: "Cláusula penal en transacción", contenido: "Si una de las partes ha renunciado el derecho que le competía por un título, y después adquiere otro título sobre el mismo objeto, la transacción no la priva del derecho posteriormente adquirido." },
+    
+    // RESPONSABILIDAD CIVIL EXTRACONTRACTUAL
+    { numero: "2341", titulo: "Responsabilidad por hecho propio", contenido: "El que ha cometido un delito o culpa, que ha inferido daño a otro, es obligado a la indemnización, sin perjuicio de la pena principal que la ley imponga por la culpa o el delito cometido." },
+    { numero: "2342", titulo: "Legitimación para demandar", contenido: "Puede pedir esta indemnización no solo el que es dueño o poseedor de la cosa sobre la cual ha recaído el daño, o su heredero, sino el usufructuario, el habitador, o el usuario, si el daño irroga perjuicio a su derecho de usufructo, habitación o uso." },
+    { numero: "2343", titulo: "Responsabilidad por hecho de tercero", contenido: "Es obligado a la indemnización el que hizo el daño y sus herederos." },
+    { numero: "2344", titulo: "Responsabilidad solidaria", contenido: "Si de un delito o culpa ha sido cometido por dos o más personas, cada una de ellas será solidariamente responsable de todo perjuicio procedente del mismo delito o culpa." },
+    { numero: "2345", titulo: "Responsabilidad de personas jurídicas", contenido: "Las personas jurídicas son responsables de los daños causados por sus dependientes en el ejercicio de sus funciones." },
+    { numero: "2346", titulo: "Responsabilidad del ebrio", contenido: "El ebrio es responsable del daño causado por su delito o culpa." },
+    { numero: "2347", titulo: "Responsabilidad por hecho ajeno", contenido: "Toda persona es responsable, no solo de sus propias acciones para el efecto de indemnizar el daño, sino del hecho de aquellos que estuvieren a su cuidado." },
+    { numero: "2348", titulo: "Responsabilidad de los padres", contenido: "Los padres serán siempre responsables del daño causado por las culpas o delitos cometidos por sus hijos menores, y que conocidamente provengan de mala educación o de hábitos viciosos que les han dejado adquirir." },
+    { numero: "2349", titulo: "Responsabilidad de los artesanos", contenido: "Los artesanos y empresarios son responsables del daño causado por sus aprendices o dependientes, mientras están bajo su cuidado." },
+    { numero: "2350", titulo: "Responsabilidad de empleadores", contenido: "Los amos responderán del daño causado por sus criados o sirvientes, con ocasión del servicio prestado por éstos a aquéllos." },
+    { numero: "2351", titulo: "Responsabilidad del Estado", contenido: "El Estado es responsable de los daños que ocasione por la actividad de sus agentes." },
+    { numero: "2352", titulo: "Prueba de diligencia", contenido: "Las personas obligadas a la reparación de los daños causados por las que de ellas dependen, podrán excepcionarse probando que emplearon la autoridad y el cuidado que su respectiva calidad les confiere y prescribe, y que no han podido impedir el hecho." },
+    { numero: "2353", titulo: "Responsabilidad del dueño de edificio", contenido: "El dueño de un edificio es responsable de los daños que ocasione su ruina, acaecida por haber omitido las reparaciones necesarias o por haber faltado de otra manera al cuidado de un buen padre de familia." },
+    { numero: "2354", titulo: "Responsabilidad por cosas que caen", contenido: "El daño causado por una cosa que cae o se arroja de la parte superior de un edificio, es imputable a todas las personas que habitan la misma parte del edificio." },
+    { numero: "2355", titulo: "Responsabilidad por animales", contenido: "El daño causado por un animal fiero, de que no se reporta utilidad para la guarda o servicio de un predio, será siempre imputable al que lo tenga." },
+    { numero: "2356", titulo: "Actividades peligrosas", contenido: "Por regla general todo daño que pueda imputarse a malicia o negligencia de otra persona, debe ser reparado por ésta." },
+    { numero: "2357", titulo: "Reducción de indemnización", contenido: "La apreciación del daño está sujeta a reducción, si el que lo ha sufrido se expuso a él imprudentemente." },
+    { numero: "2358", titulo: "Acción popular", contenido: "Las acciones populares en protección de intereses públicos se regirán por el procedimiento especial." },
+    { numero: "2359", titulo: "Prescripción", contenido: "Las acciones para la reparación del daño proveniente de delito o culpa, que puedan ejercitarse contra los que sean punibles por el delito o culpa, prescriben dentro de veinte años." },
+  ]
+};

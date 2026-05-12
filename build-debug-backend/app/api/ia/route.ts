@@ -1,0 +1,140 @@
+import OpenAI from "openai";
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { consumeAiQuery } from "@/lib/subscription";
+import { buildLegalAssistantFallback } from "@/lib/services/legal-assistant-fallback";
+import { searchSemanticLegalContent } from "@/lib/services/legal-vector-search";
+import { findExactLegalArticle } from "@/lib/services/legal-catalog";
+
+export const runtime = "nodejs";
+
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  : null;
+
+export async function POST(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { pregunta } = await req.json();
+    if (!pregunta || !String(pregunta).trim()) {
+      return NextResponse.json({ error: "Pregunta vacia" }, { status: 400 });
+    }
+
+    const exactArticle = await findExactLegalArticle(pregunta);
+    if (exactArticle) {
+      return NextResponse.json({
+        respuesta: [
+          `${exactArticle.nombre} - Articulo ${exactArticle.articulo}`,
+          exactArticle.titulo ? `Titulo: ${exactArticle.titulo}` : null,
+          "",
+          exactArticle.contenido,
+          "",
+          "La consulta se resolvio con el texto completo cargado en TOCHI.",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        fuentes: [
+          {
+            source: exactArticle.source,
+            codigo: exactArticle.codigo,
+            nombre: exactArticle.nombre,
+            articulo: exactArticle.articulo,
+            titulo: exactArticle.titulo,
+            url: exactArticle.url,
+          },
+          ...exactArticle.resources.map((resource) => ({
+            source: "oficial",
+            codigo: exactArticle.codigo,
+            nombre: exactArticle.nombre,
+            titulo: resource.label,
+            url: resource.url,
+          })),
+        ],
+        fallback: false,
+        model: `exact-${exactArticle.source}`,
+      });
+    }
+
+    const ranked = await searchSemanticLegalContent(pregunta, 8);
+
+    if (!openai || !ranked.length) {
+      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: ranked, limit: 6 });
+      return NextResponse.json({
+        respuesta: fallback.message,
+        fuentes: fallback.references,
+        fallback: fallback.fallback,
+        model: fallback.model,
+      });
+    }
+
+    try {
+      await consumeAiQuery(session.user.id);
+    } catch (limitError) {
+      return NextResponse.json(
+        { error: limitError instanceof Error ? limitError.message : "Limite de IA alcanzado" },
+        { status: 403 }
+      );
+    }
+
+    const contexto = ranked
+      .map((doc: any, index: number) => {
+        return `Fuente ${index + 1} (${doc.source}):
+Norma: ${doc.titulo}
+Codigo: ${doc.codigo}
+Articulo: ${doc.articulo}
+Titulo: ${doc.titulo || ""}
+
+${String(doc.contenido || doc.resumen || "").slice(0, 1200)}
+`;
+      })
+      .join("\n------\n");
+
+    try {
+      const respuestaIA = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Eres un abogado experto en derecho colombiano. Responde con base en el contexto dado y cita el codigo y el articulo cuando sea posible.",
+          },
+          {
+            role: "user",
+            content: `Pregunta: ${pregunta}\n\nContexto:\n${contexto}`,
+          },
+        ],
+      });
+
+      return NextResponse.json({
+        respuesta: respuestaIA.choices[0]?.message?.content || "Sin respuesta",
+        fuentes: ranked.map((doc: any) => ({
+          source: doc.source,
+          codigo: doc.codigo,
+          nombre: doc.nombre,
+          articulo: doc.articulo,
+          titulo: doc.titulo,
+          score: doc.score,
+        })),
+      });
+    } catch (error) {
+      console.error("Error IA, usando fallback local:", error);
+      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: ranked, limit: 6 });
+      return NextResponse.json({
+        respuesta: fallback.message,
+        fuentes: fallback.references,
+        fallback: fallback.fallback,
+        model: fallback.model,
+      });
+    }
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Error IA" }, { status: 500 });
+  }
+}

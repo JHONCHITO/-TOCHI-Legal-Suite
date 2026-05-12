@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tochi-legal-suite-config
+  namespace: tochi-legal-suite
+data:
+  NODE_ENV: "production"
+  NEXT_TELEMETRY_DISABLED: "1"
+  NEXT_PUBLIC_APP_NAME: "TOCHI Legal Suite"
+  NEXT_PUBLIC_APP_URL: "https://tochi.example.com"
+  AUTH_URL: "https://tochi.example.com"
+  NEXTAUTH_URL: "https://tochi.example.com"

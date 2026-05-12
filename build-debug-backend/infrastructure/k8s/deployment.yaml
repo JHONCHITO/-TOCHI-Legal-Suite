@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tochi-legal-suite
+  namespace: tochi-legal-suite
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tochi-legal-suite
+  template:
+    metadata:
+      labels:
+        app: tochi-legal-suite
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/your-org/tochi-legal-suite:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: tochi-legal-suite-config
+            - secretRef:
+                name: tochi-legal-suite-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
