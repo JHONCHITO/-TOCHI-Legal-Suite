@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 interface ChatSource {
   title: string;
   url: string;

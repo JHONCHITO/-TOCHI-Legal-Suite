@@ -21,6 +21,8 @@ import {
   Star,
 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 const recentSearches = [
   "1502 codigo civil",
   "debido proceso",

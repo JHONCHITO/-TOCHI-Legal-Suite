@@ -20,6 +20,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 type ResultadoBusqueda = {
   tipo?: string;
   source?: string;
