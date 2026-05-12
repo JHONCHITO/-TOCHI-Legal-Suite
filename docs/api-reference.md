@@ -81,10 +81,11 @@ Las rutas API viven en `app/api/` y se conectan a modelos de MongoDB, IA, notifi
 
 ## Checkout y suscripcion
 
-La experiencia de pago se resuelve con acciones de servidor en `app/actions/stripe.ts`:
+La experiencia de pago se resuelve con acciones de servidor en `app/actions/wompi.ts`:
 
-- `createCheckoutSession(planId)`: crea la sesion de Stripe.
-- `getCheckoutSession(sessionId)`: consulta el resultado de la sesion.
+- `createWompiCheckoutSession(planId, paymentMethodPreference)`: crea la configuracion del checkout seguro de Wompi para tarjeta o Nequi.
+- `POST /api/payments/wompi/webhook`: confirma eventos de pago y activa la suscripcion.
+- `GET /api/payments/wompi/status?reference=...`: consulta el estado actual del pago.
 
 ## Patrones comunes
 

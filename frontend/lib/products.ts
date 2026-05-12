@@ -26,7 +26,7 @@ export interface PlanLimits {
 export const TRIAL_BUSINESS_DAYS = 7
 
 // Planes de suscripcion para TOCHI Legal Suite
-// Precios en COP en unidades menores para Stripe
+// Precios en COP en unidades menores para el checkout de pagos
 export const PLANS: Plan[] = [
   {
     id: 'plan-esencial',

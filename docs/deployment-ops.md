@@ -8,7 +8,8 @@ Esta guia explica como levantar TOCHI, que variables necesita y como mantener el
 - MongoDB
 - Cuenta de OpenAI si quieres IA en linea
 - Cuenta de Resend para correo transaccional
-- Cuenta de Stripe para checkout y suscripciones
+- Cuenta de Wompi para checkout con Nequi y tarjeta
+- Cuenta de Stripe solo si quieres mantener el flujo legacy
 - Un navegador moderno para SSE y notificaciones
 
 ## Variables de entorno
@@ -30,7 +31,10 @@ Esta guia explica como levantar TOCHI, que variables necesita y como mantener el
 | `WHATSAPP_GRAPH_VERSION` | Version de Graph API usada para WhatsApp |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Token de verificacion del webhook de Meta |
 | `WHATSAPP_DEFAULT_COUNTRY_CODE` | Prefijo por defecto para normalizar telefonos |
-| `STRIPE_SECRET_KEY` | Checkout y suscripciones |
+| `WOMPI_PUBLIC_KEY` | Checkout de Wompi para tarjeta y Nequi |
+| `WOMPI_INTEGRITY_SECRET` | Firma de integridad del checkout |
+| `WOMPI_EVENT_SECRET` | Validacion de eventos webhook |
+| `STRIPE_SECRET_KEY` | Checkout legacy de Stripe |
 | `DISABLE_PLAN_LIMITS` | Desactiva limites en desarrollo |
 | `DEFAULT_ADMIN_EMAIL` | Bootstrap del superadmin |
 | `DEFAULT_ADMIN_PASSWORD` | Bootstrap del superadmin |
@@ -60,8 +64,9 @@ npm run build
 4. Si vas a separar frontend y backend por subdominios, agrega `AUTH_COOKIE_DOMAIN` con el dominio raiz compartido.
 5. Agrega `OPENAI_API_KEY` si vas a usar IA en linea.
 6. Agrega `RESEND_API_KEY` si vas a enviar correos reales.
-7. Agrega `STRIPE_SECRET_KEY` si vas a probar checkout.
-8. Deja `DISABLE_PLAN_LIMITS=true` solo para desarrollo.
+7. Agrega `WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET` y `WOMPI_EVENT_SECRET` si vas a probar checkout con Nequi o tarjeta.
+8. Agrega `STRIPE_SECRET_KEY` solo si vas a probar el checkout legacy de Stripe.
+9. Deja `DISABLE_PLAN_LIMITS=true` solo para desarrollo.
 
 ## Carga del catalogo legal
 

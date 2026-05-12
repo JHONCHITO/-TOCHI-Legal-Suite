@@ -3,6 +3,7 @@ import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import Subscription, {
   type ISubscription,
+  type PaymentMethodPreference,
   type SubscriptionResource,
   type SubscriptionStatus,
 } from "@/lib/models/Subscription";
@@ -265,6 +266,94 @@ export async function setCheckoutSubscriptionPlan(userId: string, planId: string
     resetTrial: true,
     status: "trialing",
   });
+}
+
+export async function markWompiCheckoutPending(
+  userId: string,
+  options: {
+    planId: string;
+    reference: string;
+    paymentMethodPreference: PaymentMethodPreference;
+  }
+) {
+  const subscription = await setCheckoutSubscriptionPlan(userId, options.planId);
+  if (!subscription) {
+    return null;
+  }
+
+  subscription.paymentProvider = "wompi";
+  subscription.paymentReference = options.reference;
+  subscription.paymentMethodPreference = options.paymentMethodPreference;
+  subscription.paymentStatus = "pending";
+  subscription.paymentTransactionId = undefined;
+  subscription.paymentApprovedAt = undefined;
+  subscription.paymentFailureReason = undefined;
+  subscription.lastSyncedAt = new Date();
+
+  try {
+    await subscription.save();
+  } catch (error) {
+    console.warn("No se pudo guardar el pago pendiente de Wompi:", error instanceof Error ? error.message : error);
+  }
+
+  return subscription;
+}
+
+export async function syncWompiPaymentByReference(
+  reference: string,
+  transaction: {
+    id?: string;
+    status?: string;
+    payment_method_type?: string;
+    failureReason?: { message?: string } | null;
+  }
+) {
+  await dbConnect();
+
+  const subscription = await Subscription.findOne({ paymentReference: reference });
+  if (!subscription) {
+    return null;
+  }
+
+  const status = String(transaction.status || "").toUpperCase();
+  const paymentMethodType = String(transaction.payment_method_type || "").toUpperCase();
+
+  subscription.paymentProvider = "wompi";
+  subscription.paymentTransactionId = transaction.id || subscription.paymentTransactionId;
+  subscription.paymentStatus =
+    status === "APPROVED"
+      ? "approved"
+      : status === "DECLINED" || status === "VOIDED"
+        ? "declined"
+        : status === "ERROR"
+          ? "error"
+          : "pending";
+  subscription.paymentMethodPreference =
+    paymentMethodType === "NEQUI"
+      ? "nequi"
+      : paymentMethodType === "CARD"
+        ? "card"
+        : subscription.paymentMethodPreference;
+  subscription.lastSyncedAt = new Date();
+
+  if (status === "APPROVED") {
+    const now = new Date();
+    subscription.status = "active";
+    subscription.currentPeriodStart = now;
+    subscription.currentPeriodEnd = addMonths(now, 1);
+    subscription.paymentApprovedAt = now;
+    subscription.paymentFailureReason = undefined;
+  } else if (status === "DECLINED" || status === "VOIDED" || status === "ERROR") {
+    subscription.paymentFailureReason = transaction.failureReason?.message || subscription.paymentFailureReason;
+  }
+
+  try {
+    await subscription.save();
+  } catch (error) {
+    console.warn("No se pudo sincronizar el pago de Wompi:", error instanceof Error ? error.message : error);
+  }
+
+  return subscription;
 }
 
 export async function consumeAiQuery(userId: string, amount = 1) {

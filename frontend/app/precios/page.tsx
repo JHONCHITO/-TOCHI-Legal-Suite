@@ -113,7 +113,7 @@ export default function PreciosPage() {
               </div>
               <h3 className="font-semibold">Pago Seguro</h3>
               <p className="text-sm text-muted-foreground">
-                Procesado por Stripe con encriptacion de nivel bancario
+                Procesado por Wompi con tarjeta y Nequi, bajo estandares de seguridad bancaria
               </p>
             </div>
             <div className="flex flex-col items-center gap-3">

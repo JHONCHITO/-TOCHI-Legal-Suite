@@ -2,6 +2,9 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 import type { PlanLimits } from "../products";
 
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "canceled";
+export type PaymentProvider = "stripe" | "wompi";
+export type PaymentStatus = "pending" | "approved" | "declined" | "error";
+export type PaymentMethodPreference = "card" | "nequi";
 
 export type SubscriptionResource =
   | "cases"
@@ -35,6 +38,13 @@ export interface ISubscription extends Document {
   currentPeriodEnd: Date;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
+  paymentProvider?: PaymentProvider;
+  paymentReference?: string;
+  paymentTransactionId?: string;
+  paymentMethodPreference?: PaymentMethodPreference;
+  paymentStatus?: PaymentStatus;
+  paymentApprovedAt?: Date;
+  paymentFailureReason?: string;
   limits: PlanLimits;
   usage: ISubscriptionUsage;
   lastSyncedAt?: Date;
@@ -87,6 +97,23 @@ const SubscriptionSchema = new Schema<ISubscription>(
     currentPeriodEnd: { type: Date, required: true, default: Date.now },
     stripeCustomerId: String,
     stripeSubscriptionId: String,
+    paymentProvider: {
+      type: String,
+      enum: ["stripe", "wompi"],
+    },
+    paymentReference: { type: String, index: true },
+    paymentTransactionId: { type: String, index: true },
+    paymentMethodPreference: {
+      type: String,
+      enum: ["card", "nequi"],
+    },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "approved", "declined", "error"],
+      default: "pending",
+    },
+    paymentApprovedAt: Date,
+    paymentFailureReason: String,
     limits: { type: limitsSchema, required: true },
     usage: { type: usageSchema, default: () => ({}) },
     lastSyncedAt: Date,
@@ -100,6 +127,7 @@ const SubscriptionSchema = new Schema<ISubscription>(
 
 SubscriptionSchema.index({ userId: 1 }, { unique: true });
 SubscriptionSchema.index({ planId: 1, status: 1 });
+SubscriptionSchema.index({ paymentReference: 1 });
 
 const Subscription: Model<ISubscription> =
   mongoose.models.Subscription || mongoose.model<ISubscription>("Subscription", SubscriptionSchema);

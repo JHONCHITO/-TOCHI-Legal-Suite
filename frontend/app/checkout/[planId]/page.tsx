@@ -130,6 +130,9 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           {/* Checkout Form */}
           <div className="order-1 lg:order-2">
             <h2 className="text-2xl font-bold mb-6">Informacion de pago</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Puedes continuar con tarjeta o con Nequi. El checkout seguro de Wompi se encarga de procesar y confirmar la transaccion.
+            </p>
             <div className="border rounded-xl overflow-hidden bg-card">
               <CheckoutForm planId={planId} />
             </div>
