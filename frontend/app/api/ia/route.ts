@@ -8,9 +8,11 @@ import { consumeAiQuery } from "@/lib/subscription";
 
 export const runtime = "nodejs";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+  : null;
 
 function cosineSimilarity(a: number[], b: number[]) {
   const length = Math.min(a.length, b.length);
@@ -42,6 +44,15 @@ export async function POST(req: Request) {
     const { pregunta } = await req.json();
     if (!pregunta || !String(pregunta).trim()) {
       return NextResponse.json({ error: "Pregunta vacia" }, { status: 400 });
+    }
+
+    if (!openai) {
+      return NextResponse.json(
+        {
+          error: "Falta configurar OPENAI_API_KEY en el servidor para activar la consulta IA.",
+        },
+        { status: 500 }
+      );
     }
 
     try {
