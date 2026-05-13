@@ -1,0 +1,8 @@
+#!include:.gitignore
+
+# Source deploys only need the app source, not the debug build copy.
+build-debug-backend/
+
+# Be explicit about generated build artifacts so Cloud Build never uploads them.
+**/.next/
+**/node_modules/
