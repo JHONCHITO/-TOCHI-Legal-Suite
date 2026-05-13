@@ -10,6 +10,7 @@ Esta es la documentacion central del proyecto. Resume como esta organizado TOCHI
 4. [Referencia de APIs](api-reference.md)
 5. [Modelos de datos](data-models.md)
 6. [Despliegue y operaciones](deployment-ops.md)
+7. [TOCHI en Google Cloud](google-cloud-architecture.md)
 
 ## Resumen del producto
 
