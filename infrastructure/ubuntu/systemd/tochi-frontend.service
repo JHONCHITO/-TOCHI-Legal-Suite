@@ -1,0 +1,20 @@
+[Unit]
+Description=TOCHI frontend
+After=network.target
+
+[Service]
+Type=simple
+User=tochi
+Group=tochi
+WorkingDirectory=/opt/tochi/TOCHI_LEGAL_SUITE/frontend
+Environment=NODE_ENV=production
+Environment=PORT=3000
+EnvironmentFile=/opt/tochi/TOCHI_LEGAL_SUITE/frontend/.env.local
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -11,6 +11,7 @@ Esta es la documentacion central del proyecto. Resume como esta organizado TOCHI
 5. [Modelos de datos](data-models.md)
 6. [Despliegue y operaciones](deployment-ops.md)
 7. [TOCHI en Google Cloud](google-cloud-architecture.md)
+8. [TOCHI en Ubuntu VM](ubuntu-vm-deployment.md)
 
 ## Resumen del producto
 

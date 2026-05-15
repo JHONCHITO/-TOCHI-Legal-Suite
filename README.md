@@ -12,6 +12,7 @@ Plataforma legal colombiana con IA, biblioteca juridica, expediente 360, portal 
 - [Modelos de datos](docs/data-models.md)
 - [Despliegue y operaciones](docs/deployment-ops.md)
 - [TOCHI en Google Cloud](docs/google-cloud-architecture.md)
+- [TOCHI en Ubuntu VM](docs/ubuntu-vm-deployment.md)
 
 ## Desarrollo rapido
 
