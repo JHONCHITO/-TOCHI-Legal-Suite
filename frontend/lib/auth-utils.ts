@@ -62,6 +62,14 @@ export function isClient(role: UserRole): boolean {
   return role === "cliente";
 }
 
+export function isInternalUser(role: UserRole): boolean {
+  return role !== "cliente";
+}
+
+export function getRoleLandingPath(role: UserRole): string {
+  return isClient(role) ? "/portal" : "/dashboard";
+}
+
 // Obtener la sesión actual con información del usuario
 export async function getSession() {
   try {

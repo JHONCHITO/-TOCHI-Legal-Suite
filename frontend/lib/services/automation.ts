@@ -73,7 +73,7 @@ async function getAlertRecipients() {
     .lean<Recipient[]>();
 }
 
-async function createNotificationForUsers(params: {
+export async function createNotificationForUsers(params: {
   userIds: unknown[];
   tipo: "cita_proxima" | "actualizacion_ley";
   titulo: string;

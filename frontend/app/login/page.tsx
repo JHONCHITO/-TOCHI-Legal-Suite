@@ -32,7 +32,11 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Credenciales invalidas. Verifica tu email y contrasena.");
       } else {
-        router.push("/dashboard");
+        const profileResponse = await fetch("/api/users/me", {
+          cache: "no-store",
+        });
+        const profile = profileResponse.ok ? await profileResponse.json().catch(() => null) : null;
+        router.push(profile?.rol === "cliente" ? "/portal" : "/dashboard");
         router.refresh();
       }
     } catch {

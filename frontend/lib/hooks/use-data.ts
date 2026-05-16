@@ -154,6 +154,25 @@ export function useNotifications() {
   }
 }
 
+// Comunicaciones
+export function useCommunications(filters?: { clienteId?: string; casoId?: string; canal?: string; estado?: string }) {
+  const params = new URLSearchParams()
+  if (filters?.clienteId) params.set("clienteId", filters.clienteId)
+  if (filters?.casoId) params.set("casoId", filters.casoId)
+  if (filters?.canal) params.set("canal", filters.canal)
+  if (filters?.estado) params.set("estado", filters.estado)
+
+  const url = `/api/communications${params.toString() ? `?${params.toString()}` : ""}`
+  const { data, error, isLoading, mutate } = useSWR(url, fetcher)
+
+  return {
+    communications: data || [],
+    isLoading,
+    isError: error,
+    mutate,
+  }
+}
+
 // Funciones de mutacion
 export async function createCase(data: Record<string, unknown>) {
   const res = await fetch("/api/cases", {
@@ -269,6 +288,31 @@ export async function createDocument(data: Record<string, unknown>) {
   if (!res.ok) {
     const error = await res.json()
     throw new Error(error.error || "Error al crear documento")
+  }
+  return res.json()
+}
+
+export async function uploadDocument(formData: FormData) {
+  const res = await fetch("/api/documents/upload", {
+    method: "POST",
+    body: formData,
+  })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.error || "Error al cargar documento")
+  }
+  return res.json()
+}
+
+export async function approvePortalDocument(id: string, data: Record<string, unknown>) {
+  const res = await fetch(`/api/documents/${id}/approval`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.error || "Error al aprobar documento")
   }
   return res.json()
 }
