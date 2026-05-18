@@ -12,14 +12,17 @@ import {
   MapPin,
   Phone,
   Plus,
+  RefreshCw,
   Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useClient } from "@/lib/hooks/use-data";
+import { syncClientPortal, useClient } from "@/lib/hooks/use-data";
 import { formatDate, getClientDisplayName, getInitials } from "@/lib/utils/format";
+import { useState } from "react";
+import { toast } from "sonner";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -29,6 +32,7 @@ export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const clientId = params?.id ?? null;
   const { client, isLoading, isError, mutate } = useClient(clientId);
+  const [isSyncingPortal, setIsSyncingPortal] = useState(false);
 
   if (isLoading) {
     return (
@@ -63,6 +67,23 @@ export default function ClienteDetallePage() {
   const detail = client as Record<string, any>;
   const cases = Array.isArray(detail.casos) ? detail.casos : [];
   const displayName = getClientDisplayName(detail as { tipo: string; nombre?: string; apellido?: string; razonSocial?: string });
+
+  const handleSyncPortal = async () => {
+    if (!clientId) {
+      return;
+    }
+
+    setIsSyncingPortal(true);
+    try {
+      const result = await syncClientPortal(clientId);
+      toast.success(result.message || "Portal del cliente sincronizado");
+      await mutate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo sincronizar el portal");
+    } finally {
+      setIsSyncingPortal(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -145,6 +166,14 @@ export default function ClienteDetallePage() {
                 <p className="text-sm text-muted-foreground">Portal cliente</p>
                 <p className="font-medium">
                   {detail.tieneAccesoPortal ? "Habilitado" : "No habilitado"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Ultima sincronizacion</p>
+                <p className="font-medium">
+                  {detail.portalUltimaSincronizacion
+                    ? formatDate(detail.portalUltimaSincronizacion)
+                    : "Pendiente"}
                 </p>
               </div>
               <div>
@@ -253,6 +282,19 @@ export default function ClienteDetallePage() {
                   <BadgeCheck className="mr-2 h-4 w-4" />
                   Programar cita
                 </Link>
+              </Button>
+              <Button className="w-full justify-start" onClick={handleSyncPortal} disabled={isSyncingPortal}>
+                {isSyncingPortal ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    {detail.tieneAccesoPortal ? "Reenviar al portal" : "Enviar al portal"}
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>

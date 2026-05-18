@@ -27,6 +27,7 @@ export interface IClient extends Document {
   // Portal Cliente
   tieneAccesoPortal: boolean;
   userId?: mongoose.Types.ObjectId;
+  portalUltimaSincronizacion?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -64,6 +65,7 @@ const ClientSchema = new Schema<IClient>(
     notas: String,
     tieneAccesoPortal: { type: Boolean, default: false },
     userId: { type: Schema.Types.ObjectId, ref: "User" },
+    portalUltimaSincronizacion: Date,
   },
   {
     timestamps: true,

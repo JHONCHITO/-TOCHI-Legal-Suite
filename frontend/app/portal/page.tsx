@@ -243,7 +243,9 @@ export default function ClientPortalPage() {
         <CardHeader>
           <CardTitle>Sin perfil de cliente</CardTitle>
           <CardDescription>
-            No encontramos un registro de cliente vinculado a tu correo.
+            Tu abogado todavía no ha sincronizado tu expediente al portal. Pidele que use el
+            boton "Enviar al portal" desde la ficha del cliente para vincular tu cuenta y
+            compartir tus casos, documentos, citas y facturas.
           </CardDescription>
         </CardHeader>
       </Card>

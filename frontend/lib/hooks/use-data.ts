@@ -265,6 +265,17 @@ export async function updateClient(id: string, data: Record<string, unknown>) {
   return res.json()
 }
 
+export async function syncClientPortal(id: string) {
+  const res = await fetch(`/api/clients/${id}/portal`, {
+    method: "POST",
+  })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.error || "Error al sincronizar el portal del cliente")
+  }
+  return res.json()
+}
+
 export async function deleteClient(id: string) {
   const res = await fetch(`/api/clients/${id}`, { method: "DELETE" })
   if (!res.ok) {
