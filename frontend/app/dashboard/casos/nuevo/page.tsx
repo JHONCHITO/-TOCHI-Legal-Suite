@@ -44,6 +44,7 @@ export default function NuevoCasoPage() {
       })),
     [clients]
   );
+  const noClientsAvailable = !loadingClients && clientOptions.length === 0;
 
   const [formData, setFormData] = useState({
     titulo: "",
@@ -64,10 +65,20 @@ export default function NuevoCasoPage() {
     honorarios: "",
     notas: "",
   });
+  const missingRequiredFields = [
+    !formData.titulo.trim() ? { id: "titulo-caso", label: "Titulo del caso" } : null,
+    !formData.tipo ? { id: "tipo-caso", label: "Tipo de caso" } : null,
+    !formData.clienteId ? { id: "cliente-principal", label: "Cliente principal" } : null,
+    !formData.calidadCliente ? { id: "calidad-cliente", label: "Calidad del cliente" } : null,
+    !formData.descripcion.trim() ? { id: "descripcion-caso", label: "Descripcion" } : null,
+  ].filter((field): field is { id: string; label: string } => Boolean(field));
 
   const handleSubmit = async () => {
-    if (!formData.titulo || !formData.tipo || !formData.clienteId || !formData.calidadCliente || !formData.descripcion) {
-      toast.error("Por favor completa los campos requeridos: titulo, tipo, cliente, calidad y descripcion");
+    if (missingRequiredFields.length > 0) {
+      toast.error(
+        `Faltan campos requeridos: ${missingRequiredFields.map((field) => field.label).join(", ")}`
+      );
+      document.getElementById(missingRequiredFields[0].id)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
@@ -135,8 +146,15 @@ export default function NuevoCasoPage() {
             <CardDescription>Base operativa para procesos civiles, laborales, penales o administrativos.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {missingRequiredFields.length > 0 ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p className="font-medium">Antes de guardar falta completar:</p>
+                <p className="mt-1">{missingRequiredFields.map((field) => field.label).join(", ")}</p>
+              </div>
+            ) : null}
+
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+              <div className="space-y-2" id="tipo-caso">
                 <Label>Tipo de caso *</Label>
                 <Select
                   value={formData.tipo}
@@ -175,8 +193,9 @@ export default function NuevoCasoPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Titulo del caso *</Label>
+              <Label htmlFor="titulo-caso">Titulo del caso *</Label>
               <Input
+                id="titulo-caso"
                 placeholder="Ej: Demanda laboral por despido injustificado"
                 value={formData.titulo}
                 onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
@@ -205,8 +224,13 @@ export default function NuevoCasoPage() {
                 <p className="text-xs text-muted-foreground">
                   Escribe para buscar un cliente existente o crea uno nuevo si no aparece en la lista.
                 </p>
+                {noClientsAvailable ? (
+                  <p className="text-xs font-medium text-amber-700">
+                    No tienes clientes cargados todavía. Crea uno antes de guardar un caso.
+                  </p>
+                ) : null}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2" id="calidad-cliente">
                 <Label>Calidad del cliente *</Label>
                 <Select
                   value={formData.calidadCliente}
@@ -309,8 +333,9 @@ export default function NuevoCasoPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Descripcion del caso *</Label>
+              <Label htmlFor="descripcion-caso">Descripcion del caso *</Label>
               <Textarea
+                id="descripcion-caso"
                 rows={3}
                 placeholder="Breve descripcion del asunto legal"
                 value={formData.descripcion}
