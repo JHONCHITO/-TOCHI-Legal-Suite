@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableCombobox } from "@/components/ui/searchable-combobox"
 import {
   Table,
   TableBody,
@@ -41,6 +41,7 @@ import {
 } from "lucide-react"
 import { useInvoices, useClients, useCases } from "@/lib/hooks/use-data"
 import { useToast } from "@/hooks/use-toast"
+import { getClientDisplayName, formatCopNumber, parseCopNumber } from "@/lib/utils/format"
 
 type FacturaItem = {
   descripcion: string
@@ -65,6 +66,18 @@ export default function FacturacionPage() {
   const { cases } = useCases()
   const { toast } = useToast()
 
+  const clientOptions = clients.map((client: any) => ({
+    value: String(client._id),
+    label: getClientDisplayName(client),
+    keywords: [client.email, client.cedula, client.nit].filter(Boolean) as string[],
+  }))
+
+  const caseOptions = cases.map((caso: any) => ({
+    value: String(caso._id),
+    label: `${caso.numeroInterno || "Caso"} - ${caso.titulo || "Sin titulo"}`,
+    keywords: [caso.numeroInterno, caso.numeroRadicado, caso.titulo, caso.despacho].filter(Boolean) as string[],
+  }))
+
   const [nuevaFactura, setNuevaFactura] = useState({
     numero: "",
     clienteId: "",
@@ -72,6 +85,7 @@ export default function FacturacionPage() {
     concepto: "",
     items: [{ descripcion: "", cantidad: 1, valorUnitario: 0, subtotal: 0 }] as FacturaItem[],
     subtotal: 0,
+    ivaPorcentaje: 19,
     iva: 0,
     total: 0,
     estado: "pendiente",
@@ -79,23 +93,32 @@ export default function FacturacionPage() {
     notas: "",
   })
 
-  const calcularTotales = (items: FacturaItem[]) => {
+  const calcularTotales = (items: FacturaItem[], ivaPorcentaje: number) => {
     const subtotal = items.reduce(
       (sum, item) => sum + Number(item.cantidad || 0) * Number(item.valorUnitario || 0),
       0
     )
-    const iva = Math.round(subtotal * 0.19)
+    const iva = Math.round(subtotal * (ivaPorcentaje / 100))
     const total = subtotal + iva
     return { subtotal, iva, total }
   }
 
   const handleItemChange = (index: number, field: keyof FacturaItem, value: string | number) => {
     const newItems = [...nuevaFactura.items]
-    const updatedItem = { ...newItems[index], [field]: value } as FacturaItem
+    const updatedItem = { ...newItems[index] } as FacturaItem
+
+    if (field === "descripcion") {
+      updatedItem.descripcion = String(value)
+    } else if (field === "cantidad") {
+      updatedItem.cantidad = Number(String(value).replace(/[^\d]/g, "")) || 0
+    } else if (field === "valorUnitario") {
+      updatedItem.valorUnitario = parseCopNumber(value)
+    }
+
     updatedItem.subtotal =
       Number(updatedItem.cantidad || 0) * Number(updatedItem.valorUnitario || 0)
     newItems[index] = updatedItem
-    const totales = calcularTotales(newItems)
+    const totales = calcularTotales(newItems, nuevaFactura.ivaPorcentaje)
     setNuevaFactura({ ...nuevaFactura, items: newItems, ...totales })
   }
 
@@ -108,7 +131,7 @@ export default function FacturacionPage() {
 
   const removeItem = (index: number) => {
     const newItems = nuevaFactura.items.filter((_, i) => i !== index)
-    const totales = calcularTotales(newItems)
+    const totales = calcularTotales(newItems, nuevaFactura.ivaPorcentaje)
     setNuevaFactura({ ...nuevaFactura, items: newItems, ...totales })
   }
 
@@ -138,13 +161,15 @@ export default function FacturacionPage() {
         valorUnitario: Number(item.valorUnitario || 0),
         subtotal: Number(item.cantidad || 0) * Number(item.valorUnitario || 0),
       }))
-      const totales = calcularTotales(items)
+      const ivaPorcentaje = Number(nuevaFactura.ivaPorcentaje || 0) || 0
+      const totales = calcularTotales(items, ivaPorcentaje)
       const facturaData = {
         ...nuevaFactura,
         numero: nuevaFactura.numero || generateInvoiceNumber(),
         fecha: new Date().toISOString(),
         items,
         subtotal: totales.subtotal,
+        ivaPorcentaje,
         iva: totales.iva,
         total: totales.total,
         impuestos: totales.iva,
@@ -171,6 +196,7 @@ export default function FacturacionPage() {
         concepto: "",
         items: [{ descripcion: "", cantidad: 1, valorUnitario: 0, subtotal: 0 }],
         subtotal: 0,
+        ivaPorcentaje: 19,
         iva: 0,
         total: 0,
         estado: "pendiente",
@@ -313,41 +339,29 @@ export default function FacturacionPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente *</Label>
-                  <Select
+                  <SearchableCombobox
                     value={nuevaFactura.clienteId}
                     onValueChange={(v) => setNuevaFactura({ ...nuevaFactura, clienteId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients?.map((client: any) => (
-                        <SelectItem key={client._id} value={client._id}>
-                          {client.tipo === "persona_natural"
-                            ? `${client.nombre || ""} ${client.apellido || ""}`
-                            : client.razonSocial}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={clientOptions}
+                    placeholder="Seleccionar cliente"
+                    searchPlaceholder="Buscar cliente por nombre, correo o documento"
+                    emptyText="No hay clientes disponibles"
+                    allowClear
+                    clearLabel="Sin cliente"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Caso Relacionado</Label>
-                  <Select
+                  <SearchableCombobox
                     value={nuevaFactura.casoId}
                     onValueChange={(v) => setNuevaFactura({ ...nuevaFactura, casoId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar caso" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cases?.map((caso: any) => (
-                        <SelectItem key={caso._id} value={caso._id}>
-                          {caso.numeroInterno} - {caso.titulo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={caseOptions}
+                    placeholder="Seleccionar caso"
+                    searchPlaceholder="Buscar caso por numero, titulo o despacho"
+                    emptyText="No hay casos disponibles"
+                    allowClear
+                    clearLabel="Sin caso"
+                  />
                 </div>
               </div>
 
@@ -388,10 +402,11 @@ export default function FacturacionPage() {
                       </div>
                       <div className="w-32">
                         <Input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           placeholder="Valor"
-                          value={item.valorUnitario}
-                          onChange={(e) => handleItemChange(index, "valorUnitario", Number(e.target.value) || 0)}
+                          value={formatCopNumber(item.valorUnitario)}
+                          onChange={(e) => handleItemChange(index, "valorUnitario", e.target.value)}
                         />
                       </div>
                       <Button
@@ -409,12 +424,28 @@ export default function FacturacionPage() {
               </div>
 
               <div className="border-t pt-4 space-y-2">
+                <div className="grid grid-cols-2 gap-4 items-end">
+                  <div className="space-y-2">
+                    <Label>IVA (%)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={nuevaFactura.ivaPorcentaje}
+                      onChange={(e) => {
+                        const ivaPorcentaje = Number(e.target.value) || 0
+                        const totales = calcularTotales(nuevaFactura.items, ivaPorcentaje)
+                        setNuevaFactura({ ...nuevaFactura, ivaPorcentaje, ...totales })
+                      }}
+                    />
+                  </div>
+                </div>
                 <div className="flex justify-between text-sm">
                   <span>Subtotal:</span>
                   <span>{formatCurrency(nuevaFactura.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>IVA (19%):</span>
+                  <span>IVA ({nuevaFactura.ivaPorcentaje}%):</span>
                   <span>{formatCurrency(nuevaFactura.iva)}</span>
                 </div>
                 <div className="flex justify-between font-bold">

@@ -63,6 +63,7 @@ export async function GET(
       ...accessFilter,
     })
       .populate("casos", "titulo estado numeroInterno tipo fechaInicio cuantia")
+      .populate("userId", "nombre apellido email rol activo")
       .lean()
 
     if (!client) {
@@ -116,6 +117,7 @@ export async function PUT(
       { new: true, runValidators: true }
     )
       .populate("casos", "titulo estado numeroInterno")
+      .populate("userId", "nombre apellido email rol activo")
       .lean()
 
     if (!updatedClient) {

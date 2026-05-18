@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -18,44 +19,31 @@ import {
 } from "@/components/ui/select";
 import { ArrowLeft, Briefcase, Calendar, FileText, Loader2, Plus, Save, Users } from "lucide-react";
 import { useClients, createCase } from "@/lib/hooks/use-data";
-import { getClientDisplayName, caseTypeLabels, caseStatusLabels } from "@/lib/utils/format";
+import { getClientDisplayName, caseTypeLabels, caseStatusLabels, formatCopNumber, parseCopNumber } from "@/lib/utils/format";
 import { toast } from "sonner";
 
 export default function NuevoCasoPage() {
   const router = useRouter();
   const { clients, isLoading: loadingClients } = useClients();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [clienteSearch, setClienteSearch] = useState("");
-
-  const filteredClients = useMemo(() => {
-    const query = clienteSearch.trim().toLowerCase();
-    if (!query) {
-      return clients;
-    }
-
-    return clients.filter((client: {
-      nombre?: string;
-      apellido?: string;
-      razonSocial?: string;
-      email?: string;
-      cedula?: string;
-      nit?: string;
-    }) => {
-      const haystack = [
-        client.nombre,
-        client.apellido,
-        client.razonSocial,
-        client.email,
-        client.cedula,
-        client.nit,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(query);
-    });
-  }, [clienteSearch, clients]);
+  const clientOptions = useMemo(
+    () =>
+      clients.map((client: {
+        _id: string;
+        tipo: string;
+        nombre?: string;
+        apellido?: string;
+        razonSocial?: string;
+        email?: string;
+        cedula?: string;
+        nit?: string;
+      }) => ({
+        value: client._id,
+        label: getClientDisplayName(client),
+        keywords: [client.email, client.cedula, client.nit].filter(Boolean) as string[],
+      })),
+    [clients]
+  );
 
   const [formData, setFormData] = useState({
     titulo: "",
@@ -87,8 +75,8 @@ export default function NuevoCasoPage() {
     try {
       const caseData = {
         ...formData,
-        cuantia: formData.cuantia ? parseFloat(formData.cuantia) : undefined,
-        honorarios: formData.honorarios ? parseFloat(formData.honorarios) : undefined,
+        cuantia: formData.cuantia ? parseCopNumber(formData.cuantia) : undefined,
+        honorarios: formData.honorarios ? parseCopNumber(formData.honorarios) : undefined,
         fechaProximaActuacion: formData.fechaProximaActuacion ? new Date(formData.fechaProximaActuacion) : undefined,
       };
 
@@ -206,28 +194,16 @@ export default function NuevoCasoPage() {
                     </Link>
                   </Button>
                 </div>
-                <Input
-                  placeholder="Escribe nombre, correo o documento para filtrar"
-                  value={clienteSearch}
-                  onChange={(e) => setClienteSearch(e.target.value)}
-                />
-                <Select
+                <SearchableCombobox
                   value={formData.clienteId}
                   onValueChange={(value) => setFormData({ ...formData, clienteId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingClients ? "Cargando..." : "Seleccionar cliente"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredClients.map((client: { _id: string; tipo: string; nombre?: string; apellido?: string; razonSocial?: string }) => (
-                      <SelectItem key={client._id} value={client._id}>
-                        {getClientDisplayName(client)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={clientOptions}
+                  placeholder={loadingClients ? "Cargando..." : "Seleccionar cliente"}
+                  searchPlaceholder="Escribe nombre, correo o documento"
+                  emptyText="No hay clientes para mostrar"
+                />
                 <p className="text-xs text-muted-foreground">
-                  Puedes escribir arriba para filtrar o crear un cliente nuevo si no aparece en la lista.
+                  Escribe para buscar un cliente existente o crea uno nuevo si no aparece en la lista.
                 </p>
               </div>
               <div className="space-y-2">
@@ -311,19 +287,23 @@ export default function NuevoCasoPage() {
               <div className="space-y-2">
                 <Label>Cuantia (COP)</Label>
                 <Input
-                  type="number"
+                  inputMode="numeric"
                   placeholder="0"
                   value={formData.cuantia}
-                  onChange={(e) => setFormData({ ...formData, cuantia: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, cuantia: formatCopNumber(parseCopNumber(e.target.value)) })
+                  }
                 />
               </div>
               <div className="space-y-2" id="honorarios">
                 <Label>Honorarios (COP)</Label>
                 <Input
-                  type="number"
+                  inputMode="numeric"
                   placeholder="0"
                   value={formData.honorarios}
-                  onChange={(e) => setFormData({ ...formData, honorarios: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, honorarios: formatCopNumber(parseCopNumber(e.target.value)) })
+                  }
                 />
               </div>
             </div>
@@ -376,17 +356,23 @@ export default function NuevoCasoPage() {
               <CardTitle className="text-lg">Checklist operativo</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="#cliente-principal">
-                  <Users className="mr-2 h-4 w-4 text-primary" />
-                  Vincular cliente y contraparte
-                </Link>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => document.getElementById("cliente-principal")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
+                <Users className="mr-2 h-4 w-4 text-primary" />
+                Vincular cliente y contraparte
               </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="#fecha-proxima-actuacion">
-                  <Calendar className="mr-2 h-4 w-4 text-primary" />
-                  Crear plazo y audiencia inicial
-                </Link>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => document.getElementById("fecha-proxima-actuacion")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
+                <Calendar className="mr-2 h-4 w-4 text-primary" />
+                Crear plazo y audiencia inicial
               </Button>
               <Button asChild variant="outline" className="w-full justify-start">
                 <Link href="/dashboard/documentos">
@@ -394,11 +380,14 @@ export default function NuevoCasoPage() {
                   Cargar documentos base
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="w-full justify-start">
-                <Link href="#honorarios">
-                  <Briefcase className="mr-2 h-4 w-4 text-primary" />
-                  Definir estrategia y honorarios
-                </Link>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => document.getElementById("honorarios")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
+                <Briefcase className="mr-2 h-4 w-4 text-primary" />
+                Definir estrategia y honorarios
               </Button>
             </CardContent>
           </Card>

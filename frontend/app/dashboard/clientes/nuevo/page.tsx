@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -45,6 +46,7 @@ export default function NuevoClientePage() {
     direccion: "",
     ciudad: "",
     departamento: "",
+    tieneAccesoPortal: true,
     notas: "",
   });
 
@@ -265,6 +267,21 @@ export default function NuevoClientePage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div className="rounded-xl border p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label className="text-base">Habilitar portal del cliente</Label>
+                <p className="text-sm text-muted-foreground">
+                  Quedara marcado para vincularlo al portal cuando exista una cuenta de cliente con el mismo correo.
+                </p>
+              </div>
+              <Switch
+                checked={formData.tieneAccesoPortal}
+                onCheckedChange={(checked) => setFormData({ ...formData, tieneAccesoPortal: checked })}
+              />
             </div>
           </div>
 

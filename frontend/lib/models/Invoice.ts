@@ -32,6 +32,7 @@ export interface IInvoice extends Document {
   items: IInvoiceItem[];
   // Valores
   subtotal: number;
+  ivaPorcentaje?: number;
   impuestos: number;
   descuento: number;
   total: number;
@@ -78,6 +79,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     concepto: { type: String, required: true },
     items: [InvoiceItemSchema],
     subtotal: { type: Number, required: true },
+    ivaPorcentaje: { type: Number, default: 19 },
     impuestos: { type: Number, default: 0 },
     descuento: { type: Number, default: 0 },
     total: { type: Number, required: true },

@@ -117,7 +117,11 @@ export async function POST(request: Request) {
       ? items.reduce((sum: number, item: { subtotal: number }) => sum + item.subtotal, 0)
       : Number(body.subtotal ?? 0) || 0
 
-    const impuestos = Number(body.impuestos ?? body.iva ?? Math.round(subtotal * 0.19)) || 0
+    const ivaPorcentaje =
+      body.ivaPorcentaje === undefined || body.ivaPorcentaje === null || body.ivaPorcentaje === ""
+        ? 19
+        : Number(body.ivaPorcentaje) || 0
+    const impuestos = Number(body.impuestos ?? body.iva ?? Math.round(subtotal * (ivaPorcentaje / 100))) || 0
     const descuento = Number(body.descuento ?? 0) || 0
     const total = Number(body.total ?? subtotal + impuestos - descuento) || subtotal + impuestos - descuento
     const generatedNumero = `FAC-${new Date().getFullYear()}-${String((await Invoice.countDocuments()) + 1).padStart(5, "0")}`
@@ -128,6 +132,7 @@ export async function POST(request: Request) {
       items,
       abogadoId: session.user.id,
       subtotal,
+      ivaPorcentaje,
       impuestos,
       descuento,
       total,

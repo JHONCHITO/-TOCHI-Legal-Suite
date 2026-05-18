@@ -7,6 +7,36 @@ export function formatCurrencyCop(value: number): string {
   }).format(value)
 }
 
+// Formatear numero colombiano sin simbolo de moneda
+export function formatCopNumber(value: number | string | null | undefined): string {
+  const parsed = typeof value === "number" ? value : Number(String(value ?? "").replace(/[^\d-]/g, ""))
+  if (!Number.isFinite(parsed) || parsed === 0) {
+    return parsed === 0 ? "0" : ""
+  }
+
+  return new Intl.NumberFormat("es-CO", {
+    maximumFractionDigits: 0,
+  }).format(parsed)
+}
+
+// Convertir un texto con puntos, comas o simbolos a numero
+export function parseCopNumber(value: string | number | null | undefined): number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0
+  }
+
+  const normalized = String(value ?? "")
+    .replace(/[^\d-]/g, "")
+    .trim()
+
+  if (!normalized) {
+    return 0
+  }
+
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 // Formatear fecha
 export function formatDate(date: string | Date): string {
   return new Intl.DateTimeFormat("es-CO", {

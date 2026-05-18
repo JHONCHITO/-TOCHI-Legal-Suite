@@ -147,6 +147,16 @@ export default function ClienteDetallePage() {
                   {detail.tieneAccesoPortal ? "Habilitado" : "No habilitado"}
                 </p>
               </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Usuario vinculado</p>
+                <p className="font-medium">
+                  {isRecord(detail.userId)
+                    ? `${String(detail.userId.email || "Vinculado")}`
+                    : detail.userId
+                      ? "Vinculado"
+                      : "Sin usuario vinculado"}
+                </p>
+              </div>
             </CardContent>
           </Card>
 

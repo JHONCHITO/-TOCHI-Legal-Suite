@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableCombobox } from "@/components/ui/searchable-combobox"
 import {
   Download,
   Eye,
@@ -36,6 +37,7 @@ import {
 import { useDocuments, useCases, useClients } from "@/lib/hooks/use-data"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { getClientDisplayName } from "@/lib/utils/format"
 
 const categoriaColores: Record<string, string> = {
   Laboral: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
@@ -89,6 +91,22 @@ export default function DocumentosPage() {
         item.categoria.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [searchTerm])
+
+  const clientOptions = useMemo(() => {
+    return (clients || []).map((client: any) => ({
+      value: String(client._id),
+      label: getClientDisplayName(client),
+      keywords: [client.email, client.cedula, client.nit].filter(Boolean) as string[],
+    }))
+  }, [clients])
+
+  const caseOptions = useMemo(() => {
+    return (cases || []).map((caso: any) => ({
+      value: String(caso._id),
+      label: `${caso.numeroInterno || "Caso"} - ${caso.titulo || "Sin titulo"}`,
+      keywords: [caso.numeroInterno, caso.numeroRadicado, caso.titulo, caso.despacho].filter(Boolean) as string[],
+    }))
+  }, [cases])
 
   const handleCrearDocumento = async () => {
     if (!nuevoDocumento.nombre || !nuevoDocumento.tipo) {
@@ -274,41 +292,29 @@ export default function DocumentosPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente</Label>
-                  <Select
+                  <SearchableCombobox
                     value={nuevoDocumento.clienteId}
                     onValueChange={(v) => setNuevoDocumento({ ...nuevoDocumento, clienteId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients?.map((client: any) => (
-                        <SelectItem key={client._id} value={client._id}>
-                          {client.tipoPersona === "natural"
-                            ? `${client.nombres} ${client.apellidos}`
-                            : client.razonSocial}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={clientOptions}
+                    placeholder="Seleccionar"
+                    searchPlaceholder="Buscar cliente por nombre, correo o documento"
+                    emptyText="No hay clientes disponibles"
+                    allowClear
+                    clearLabel="Sin cliente"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Caso relacionado</Label>
-                  <Select
+                  <SearchableCombobox
                     value={nuevoDocumento.casoId}
                     onValueChange={(v) => setNuevoDocumento({ ...nuevoDocumento, casoId: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cases?.map((caso: any) => (
-                        <SelectItem key={caso._id} value={caso._id}>
-                          {caso.numeroInterno} - {caso.titulo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={caseOptions}
+                    placeholder="Seleccionar"
+                    searchPlaceholder="Buscar caso por numero, titulo o despacho"
+                    emptyText="No hay casos disponibles"
+                    allowClear
+                    clearLabel="Sin caso"
+                  />
                 </div>
               </div>
               <div className="space-y-2">

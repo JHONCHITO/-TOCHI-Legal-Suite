@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -48,6 +49,7 @@ export default function EditarClientePage() {
     direccion: "",
     ciudad: "",
     departamento: "",
+    tieneAccesoPortal: true,
     notas: "",
   });
 
@@ -68,6 +70,7 @@ export default function EditarClientePage() {
         direccion: detail.direccion || "",
         ciudad: detail.ciudad || "",
         departamento: detail.departamento || "",
+        tieneAccesoPortal: Boolean(detail.tieneAccesoPortal),
         notas: detail.notas || "",
       });
     }
@@ -302,6 +305,21 @@ export default function EditarClientePage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div className="rounded-xl border p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label className="text-base">Habilitar portal del cliente</Label>
+                <p className="text-sm text-muted-foreground">
+                  Si esta activo, el cliente quedara marcado para su portal y sus notificaciones.
+                </p>
+              </div>
+              <Switch
+                checked={formData.tieneAccesoPortal}
+                onCheckedChange={(checked) => setFormData({ ...formData, tieneAccesoPortal: checked })}
+              />
             </div>
           </div>
 

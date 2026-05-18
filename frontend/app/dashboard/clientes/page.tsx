@@ -178,6 +178,7 @@ export default function ClientesPage() {
             telefono: string;
             ciudad: string;
             activo: boolean;
+            tieneAccesoPortal?: boolean;
             casos?: { _id: string }[];
           }) => {
             const displayName = getClientDisplayName(client);
@@ -264,7 +265,12 @@ export default function ClientesPage() {
                     <Badge variant={client.activo ? "default" : "secondary"}>
                       {client.activo ? "Activo" : "Inactivo"}
                     </Badge>
-                    <span className="text-sm text-muted-foreground">{activeCases} casos</span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={client.tieneAccesoPortal ? "outline" : "secondary"}>
+                        {client.tieneAccesoPortal ? "Portal" : "Sin portal"}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">{activeCases} casos</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
