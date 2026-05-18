@@ -265,6 +265,32 @@ function buildOfficialReferences(question: string, topCodes: CodigoLegalData[]) 
   return references;
 }
 
+function formatReferenceSummary(reference: LegalAssistantReference, index: number) {
+  const parts = [`${index + 1}. ${reference.title}`];
+
+  if (reference.snippet) {
+    parts.push(`   ${reference.snippet}`);
+  }
+
+  const contextParts: string[] = [];
+
+  if (reference.source === "codigo") {
+    contextParts.push("Ficha interna");
+  } else if (reference.source === "articulo") {
+    contextParts.push(reference.articulo ? `Articulo ${reference.articulo}` : "Articulo relacionado");
+  } else if (reference.source === "oficial") {
+    contextParts.push("Fuente oficial");
+  } else if (reference.source === "monitoreo") {
+    contextParts.push("Seguimiento reciente");
+  }
+
+  if (contextParts.length) {
+    parts.push(`   ${contextParts.join(" · ")}`);
+  }
+
+  return parts.join("\n");
+}
+
 function buildMessage(question: string, references: LegalAssistantReference[]) {
   const area = inferArea(question);
   const monitoring = getFallbackLegalUpdates(area);
@@ -273,7 +299,7 @@ function buildMessage(question: string, references: LegalAssistantReference[]) {
     const officialBlock = buildOfficialReferences(question, []);
     const lines = officialBlock
       .slice(0, 4)
-      .map((reference) => `- ${reference.title}\n  ${reference.url}`)
+      .map((reference, index) => formatReferenceSummary(reference, index))
       .join("\n");
 
     return sanitizeLegalAiResponse([
@@ -282,7 +308,7 @@ function buildMessage(question: string, references: LegalAssistantReference[]) {
       monitoring.summary,
       "",
       "No encontré una coincidencia exacta en la base local.",
-      lines ? `\nFuentes oficiales:\n${lines}` : "",
+      lines ? `\nFuentes oficiales sugeridas:\n${lines}` : "",
       "",
       "Siguiente paso sugerido: contrastar la referencia oficial elegida con la fuente primaria y, si aplica, convertirla en estrategia procesal, matriz de pruebas o escrito.",
     ]
@@ -292,12 +318,7 @@ function buildMessage(question: string, references: LegalAssistantReference[]) {
   }
 
   const lines = references.slice(0, 5).map((reference, index) => {
-    const parts = [`${index + 1}. ${reference.title}`];
-    if (reference.snippet) {
-      parts.push(`   ${reference.snippet}`);
-    }
-    parts.push(`   Abrir: ${reference.url}`);
-    return parts.join("\n");
+    return formatReferenceSummary(reference, index);
   });
 
   const recentNote = isRecentQuery(question)
