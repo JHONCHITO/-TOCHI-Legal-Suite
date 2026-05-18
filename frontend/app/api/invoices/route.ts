@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Invoice from "@/lib/models/Invoice"
 import User from "@/lib/models/User"
-import Client from "@/lib/models/Client"
+import { ensureClientProfileForSession } from "@/lib/services/client-profile"
+import { notifyClientByClientId } from "@/lib/services/client-notifications"
 import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 
 export async function GET(request: Request) {
@@ -32,9 +33,13 @@ export async function GET(request: Request) {
       query = {}
     } else if (userRole === "cliente") {
       // Cliente solo ve sus propias facturas
-      const clientRecord = await Client.findOne({ email: session.user.email }).select("_id").lean()
+      const clientRecord = await ensureClientProfileForSession({
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      })
       if (clientRecord) {
-        query = { clienteId: (clientRecord as any)._id }
+        query = { clienteId: String((clientRecord as { _id: unknown })._id) }
       } else {
         return NextResponse.json([])
       }
@@ -138,6 +143,27 @@ export async function POST(request: Request) {
       .populate("clienteId", "nombre apellido razonSocial tipo email telefono")
       .populate("casoId", "titulo numeroInterno")
       .lean()
+
+    const invoiceClientId = (populatedInvoice as { clienteId?: { _id?: unknown } | unknown } | null)?.clienteId
+    const notificationClientId =
+      invoiceClientId && typeof invoiceClientId === "object" && "_id" in invoiceClientId
+        ? (invoiceClientId as { _id?: unknown })._id
+        : invoiceClientId
+
+    if (notificationClientId) {
+      await notifyClientByClientId({
+        clientId: notificationClientId,
+        tipo: "sistema",
+        prioridad: "media",
+        titulo: `Nueva factura emitida: ${newInvoice.numero}`,
+        mensaje: `Se emitió la factura ${newInvoice.numero} por ${newInvoice.total.toLocaleString(
+          "es-CO",
+          { style: "currency", currency: "COP", maximumFractionDigits: 0 }
+        )}.`,
+        enlace: "/portal#facturas",
+        casoId: body.casoId,
+      })
+    }
 
     return NextResponse.json(populatedInvoice, { status: 201 })
   } catch (error) {

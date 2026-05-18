@@ -39,7 +39,9 @@ export async function GET(request: Request) {
       query = {}
     } else if (userRole === "cliente") {
       // Cliente solo ve su propio perfil
-      query = { email: session.user.email }
+      query = {
+        $or: [{ userId: session.user.id }, { email: session.user.email }],
+      }
     } else {
       // Abogado/Asistente ven clientes asignados a ellos
       query = { abogadoAsignado: session.user.id }
@@ -86,6 +88,12 @@ export async function POST(request: Request) {
     const user = await User.findById(session.user.id).select("rol").lean()
     const userRole = (user as any)?.rol || "abogado"
     const normalizedEmail = String(body.email || "").toLowerCase().trim()
+    const linkedUser = await User.findOne({
+      email: normalizedEmail,
+      rol: "cliente",
+    })
+      .select("_id")
+      .lean()
 
     // Validar campos requeridos
     if (!body.tipo || !normalizedEmail || !body.telefono || !body.direccion || !body.ciudad || !body.departamento) {
@@ -180,6 +188,12 @@ export async function POST(request: Request) {
       email: normalizedEmail,
       abogadoAsignado: session.user.id,
       casos: [],
+      ...(linkedUser
+        ? {
+            userId: (linkedUser as { _id: unknown })._id,
+            tieneAccesoPortal: true,
+          }
+        : {}),
     })
 
     await newClient.save()

@@ -3,8 +3,9 @@ import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Client from "@/lib/models/Client"
 import User from "@/lib/models/User"
+import { ensureClientProfileForSession } from "@/lib/services/client-profile"
 
-async function getClientAccessFilter(session: { user?: { id?: string; email?: string } }) {
+async function getClientAccessFilter(session: { user?: { id?: string; email?: string; name?: string } }): Promise<Record<string, unknown> | null> {
   if (!session.user?.id) {
     return null
   }
@@ -17,7 +18,23 @@ async function getClientAccessFilter(session: { user?: { id?: string; email?: st
   }
 
   if (userRole === "cliente") {
-    return { email: session.user.email }
+    const clientRecord = await ensureClientProfileForSession({
+      id: session.user.id || "",
+      email: session.user.email,
+      name: session.user.name,
+    })
+
+    if (!clientRecord) {
+      return null
+    }
+
+    return {
+      $or: [
+        { userId: session.user.id },
+        { _id: String((clientRecord as { _id: unknown })._id) },
+        { email: session.user.email },
+      ],
+    }
   }
 
   return { abogadoAsignado: session.user.id }

@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Briefcase, FileText, LogOut, Scale, ShieldCheck } from "lucide-react";
+import { Bell, Briefcase, FileText, ListChecks, LogOut, Scale, ShieldCheck } from "lucide-react";
 
 export function PortalHeader() {
   const { data: session } = useSession();
@@ -68,6 +68,18 @@ export function PortalHeader() {
             <Button variant="ghost" size="sm">
               <FileText className="mr-2 h-4 w-4" />
               Documentos
+            </Button>
+          </Link>
+          <Link href="/portal#actuaciones">
+            <Button variant="ghost" size="sm">
+              <ListChecks className="mr-2 h-4 w-4" />
+              Actuaciones
+            </Button>
+          </Link>
+          <Link href="/portal#notificaciones">
+            <Button variant="ghost" size="sm">
+              <Bell className="mr-2 h-4 w-4" />
+              Notificaciones
             </Button>
           </Link>
           <Link href="/portal#facturas">

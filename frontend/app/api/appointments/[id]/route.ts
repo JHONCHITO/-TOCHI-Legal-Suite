@@ -3,11 +3,12 @@ import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Appointment from "@/lib/models/Appointment"
 import User from "@/lib/models/User"
-import Client from "@/lib/models/Client"
+import { ensureClientProfileForSession } from "@/lib/services/client-profile"
+import { notifyClientByClientId } from "@/lib/services/client-notifications"
 
-type SessionLike = { user?: { id?: string; email?: string } } | null
+type SessionLike = { user?: { id?: string; email?: string; name?: string } } | null
 
-async function getAppointmentAccessFilter(session: SessionLike) {
+async function getAppointmentAccessFilter(session: SessionLike): Promise<Record<string, unknown> | null> {
   const user = await User.findById(session?.user?.id).select("rol").lean()
   const userRole = (user as { rol?: string } | null)?.rol || "abogado"
 
@@ -16,12 +17,16 @@ async function getAppointmentAccessFilter(session: SessionLike) {
   }
 
   if (userRole === "cliente") {
-    const clientRecord = await Client.findOne({ email: session?.user?.email }).select("_id").lean()
+    const clientRecord = await ensureClientProfileForSession({
+      id: session?.user?.id || "",
+      email: session?.user?.email,
+      name: session?.user?.name,
+    })
     if (!clientRecord) return null
-    return { clienteId: clientRecord._id }
+    return { clienteId: String((clientRecord as { _id: unknown })._id) }
   }
 
-  return { abogadoId: session?.user?.id }
+  return { abogadoId: session?.user?.id || "" }
 }
 
 export async function GET(
@@ -99,6 +104,28 @@ export async function PUT(
 
     if (!updatedAppointment) {
       return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 })
+    }
+
+    const appointmentClientId = (updatedAppointment as { clienteId?: { _id?: unknown } | unknown }).clienteId
+    const notificationClientId =
+      appointmentClientId && typeof appointmentClientId === "object" && "_id" in appointmentClientId
+        ? (appointmentClientId as { _id?: unknown })._id
+        : appointmentClientId
+
+    if (notificationClientId) {
+      const appointmentLabel =
+        (updatedAppointment as { titulo?: string }).titulo || "tu cita"
+
+      await notifyClientByClientId({
+        clientId: notificationClientId,
+        tipo: "cita_proxima",
+        prioridad: "media",
+        titulo: `Cita actualizada: ${appointmentLabel}`,
+        mensaje: `La cita ${appointmentLabel} fue actualizada por el despacho.`,
+        enlace: "/portal#agenda",
+        casoId: (updatedAppointment as { casoId?: unknown }).casoId,
+        citaId: (updatedAppointment as { _id?: unknown })._id,
+      })
     }
 
     return NextResponse.json(updatedAppointment)

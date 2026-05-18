@@ -3,11 +3,12 @@ import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Invoice from "@/lib/models/Invoice"
 import User from "@/lib/models/User"
-import Client from "@/lib/models/Client"
+import { ensureClientProfileForSession } from "@/lib/services/client-profile"
+import { notifyClientByClientId } from "@/lib/services/client-notifications"
 
-type SessionLike = { user?: { id?: string; email?: string } } | null
+type SessionLike = { user?: { id?: string; email?: string; name?: string } } | null
 
-async function getInvoiceAccessFilter(session: SessionLike) {
+async function getInvoiceAccessFilter(session: SessionLike): Promise<Record<string, unknown> | null> {
   const user = await User.findById(session?.user?.id).select("rol").lean()
   const userRole = (user as { rol?: string } | null)?.rol || "abogado"
 
@@ -16,12 +17,16 @@ async function getInvoiceAccessFilter(session: SessionLike) {
   }
 
   if (userRole === "cliente") {
-    const clientRecord = await Client.findOne({ email: session?.user?.email }).select("_id").lean()
+    const clientRecord = await ensureClientProfileForSession({
+      id: session?.user?.id || "",
+      email: session?.user?.email,
+      name: session?.user?.name,
+    })
     if (!clientRecord) return null
-    return { clienteId: clientRecord._id }
+    return { clienteId: String((clientRecord as { _id: unknown })._id) }
   }
 
-  return { abogadoId: session?.user?.id }
+  return { abogadoId: session?.user?.id || "" }
 }
 
 export async function GET(
@@ -175,6 +180,28 @@ export async function PATCH(
         .populate("clienteId", "nombre apellido razonSocial tipo email telefono")
         .populate("casoId", "titulo numeroInterno")
         .lean()
+
+      const invoiceClientId = (updatedInvoice as { clienteId?: { _id?: unknown } | unknown } | null)?.clienteId
+      const notificationClientId =
+        invoiceClientId && typeof invoiceClientId === "object" && "_id" in invoiceClientId
+          ? (invoiceClientId as { _id?: unknown })._id
+          : invoiceClientId
+
+      if (notificationClientId) {
+        await notifyClientByClientId({
+          clientId: notificationClientId,
+          tipo: "sistema",
+          prioridad: "media",
+          titulo: `Pago registrado en la factura ${invoice.numero}`,
+          mensaje: `Se registró un pago de ${Number(body.pago.monto || 0).toLocaleString("es-CO", {
+            style: "currency",
+            currency: "COP",
+            maximumFractionDigits: 0,
+          })} sobre la factura ${invoice.numero}.`,
+          enlace: "/portal#facturas",
+          casoId: invoice.casoId,
+        })
+      }
 
       return NextResponse.json(updatedInvoice)
     }

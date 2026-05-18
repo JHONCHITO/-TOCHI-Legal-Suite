@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Document from "@/lib/models/Document"
 import User from "@/lib/models/User"
-import Client from "@/lib/models/Client"
+import { ensureClientProfileForSession } from "@/lib/services/client-profile"
+import { notifyClientByClientId } from "@/lib/services/client-notifications"
 import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 
 export async function GET(request: Request) {
@@ -34,9 +35,13 @@ export async function GET(request: Request) {
       query = {}
     } else if (userRole === "cliente") {
       // Cliente solo ve sus propios documentos
-      const clientRecord = await Client.findOne({ email: session.user.email }).select("_id").lean()
+      const clientRecord = await ensureClientProfileForSession({
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      })
       if (clientRecord) {
-        query = { clienteId: (clientRecord as any)._id }
+        query = { clienteId: String((clientRecord as { _id: unknown })._id) }
       } else {
         return NextResponse.json([])
       }
@@ -114,6 +119,32 @@ export async function POST(request: Request) {
       .populate("clienteId", "nombre apellido razonSocial tipo")
       .populate("casoId", "titulo numeroInterno")
       .lean()
+
+    const clientId = body.clienteId || (populatedDocument as { clienteId?: { _id?: unknown } | unknown } | null)?.clienteId
+    const sharedToPortal = Boolean(body.portalCompartido || body.requiereAprobacion)
+
+    if (clientId && sharedToPortal) {
+      const caseLabel =
+        (populatedDocument as { casoId?: { numeroInterno?: string; titulo?: string } } | null)?.casoId &&
+        typeof (populatedDocument as { casoId?: unknown }).casoId === "object"
+          ? `${(populatedDocument as { casoId?: { numeroInterno?: string; titulo?: string } }).casoId?.numeroInterno || (populatedDocument as { casoId?: { numeroInterno?: string; titulo?: string } }).casoId?.titulo || "tu caso"}`
+          : "tu caso"
+
+      await notifyClientByClientId({
+        clientId,
+        tipo: body.requiereAprobacion ? "documento_nuevo" : "sistema",
+        prioridad: body.requiereAprobacion ? "media" : "baja",
+        titulo: body.requiereAprobacion
+          ? `Nuevo documento pendiente de revision`
+          : `Nuevo documento compartido`,
+        mensaje: body.requiereAprobacion
+          ? `Se compartió el documento ${body.nombre} para revisión en ${caseLabel}.`
+          : `Se compartió el documento ${body.nombre} en ${caseLabel}.`,
+        enlace: "/portal#documentos",
+        casoId: body.casoId,
+        documentoId: (populatedDocument as { _id?: unknown } | null)?._id || newDocument._id,
+      })
+    }
 
     return NextResponse.json(populatedDocument, { status: 201 })
   } catch (error) {

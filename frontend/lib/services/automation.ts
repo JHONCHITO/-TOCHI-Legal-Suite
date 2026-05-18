@@ -1,6 +1,7 @@
 import Appointment from "@/lib/models/Appointment";
 import Notification from "@/lib/models/Notification";
 import User from "@/lib/models/User";
+import type { NotificationType } from "@/lib/models/Notification";
 import {
   LEGAL_AREAS,
   getAreaDefinition,
@@ -75,11 +76,14 @@ async function getAlertRecipients() {
 
 export async function createNotificationForUsers(params: {
   userIds: unknown[];
-  tipo: "cita_proxima" | "actualizacion_ley";
+  tipo: NotificationType;
   titulo: string;
   mensaje: string;
   enlace?: string;
+  prioridad?: "alta" | "media" | "baja";
+  casoId?: unknown;
   citaId?: unknown;
+  documentoId?: unknown;
 }) {
   const createdUserIds: string[] = [];
   const cutoff = hoursAgo(new Date(), params.tipo === "cita_proxima" ? APPOINTMENT_DUPLICATE_WINDOW_HOURS : LEGAL_DUPLICATE_WINDOW_HOURS);
@@ -105,10 +109,13 @@ export async function createNotificationForUsers(params: {
     await Notification.create({
       userId: normalizedUserId,
       tipo: params.tipo,
+      prioridad: params.prioridad || "media",
       titulo: params.titulo,
       mensaje: params.mensaje,
       enlace: params.enlace,
+      casoId: params.casoId ? String(params.casoId) : undefined,
       citaId: params.citaId ? String(params.citaId) : undefined,
+      documentoId: params.documentoId ? String(params.documentoId) : undefined,
     });
 
     createdUserIds.push(String(userId));

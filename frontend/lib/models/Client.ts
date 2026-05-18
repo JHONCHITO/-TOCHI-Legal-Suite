@@ -15,11 +15,11 @@ export interface IClient extends Document {
   email: string;
   telefono: string;
   celular?: string;
-  direccion: string;
-  ciudad: string;
-  departamento: string;
+  direccion?: string;
+  ciudad?: string;
+  departamento?: string;
   // Relaciones
-  abogadoAsignado: mongoose.Types.ObjectId;
+  abogadoAsignado?: mongoose.Types.ObjectId;
   casos: mongoose.Types.ObjectId[];
   // Estado
   activo: boolean;
@@ -50,15 +50,14 @@ const ClientSchema = new Schema<IClient>(
       lowercase: true,
       trim: true,
     },
-    telefono: { type: String, required: true, trim: true },
+    telefono: { type: String, trim: true },
     celular: { type: String, trim: true },
-    direccion: { type: String, required: true, trim: true },
-    ciudad: { type: String, required: true, trim: true },
-    departamento: { type: String, required: true, trim: true },
+    direccion: { type: String, trim: true },
+    ciudad: { type: String, trim: true },
+    departamento: { type: String, trim: true },
     abogadoAsignado: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
     casos: [{ type: Schema.Types.ObjectId, ref: "Case" }],
     activo: { type: Boolean, default: true },

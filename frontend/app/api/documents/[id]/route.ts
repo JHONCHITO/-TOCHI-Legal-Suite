@@ -3,11 +3,11 @@ import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Document from "@/lib/models/Document"
 import User from "@/lib/models/User"
-import Client from "@/lib/models/Client"
+import { ensureClientProfileForSession } from "@/lib/services/client-profile"
 
-type SessionLike = { user?: { id?: string; email?: string } } | null
+type SessionLike = { user?: { id?: string; email?: string; name?: string } } | null
 
-async function getDocumentAccessFilter(session: SessionLike) {
+async function getDocumentAccessFilter(session: SessionLike): Promise<Record<string, unknown> | null> {
   const user = await User.findById(session?.user?.id).select("rol").lean()
   const userRole = (user as { rol?: string } | null)?.rol || "abogado"
 
@@ -16,12 +16,16 @@ async function getDocumentAccessFilter(session: SessionLike) {
   }
 
   if (userRole === "cliente") {
-    const clientRecord = await Client.findOne({ email: session?.user?.email }).select("_id").lean()
+    const clientRecord = await ensureClientProfileForSession({
+      id: session?.user?.id || "",
+      email: session?.user?.email,
+      name: session?.user?.name,
+    })
     if (!clientRecord) return null
-    return { clienteId: clientRecord._id }
+    return { clienteId: String((clientRecord as { _id: unknown })._id) }
   }
 
-  return { creadorId: session?.user?.id }
+  return { creadorId: session?.user?.id || "" }
 }
 
 export async function GET(

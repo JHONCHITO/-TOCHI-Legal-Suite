@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongodb"
 import Case from "@/lib/models/Case"
 import Client from "@/lib/models/Client"
 import User from "@/lib/models/User"
+import { ensureClientProfileForSession } from "@/lib/services/client-profile"
 import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 
 export async function GET(request: Request) {
@@ -32,9 +33,13 @@ export async function GET(request: Request) {
       query = {}
     } else if (userRole === "cliente") {
       // Cliente solo ve sus propios casos (donde es el cliente)
-      const clientRecord = await Client.findOne({ email: session.user.email }).select("_id").lean()
+      const clientRecord = await ensureClientProfileForSession({
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      })
       if (clientRecord) {
-        query = { clienteId: (clientRecord as any)._id }
+        query = { clienteId: String((clientRecord as { _id: unknown })._id) }
       } else {
         return NextResponse.json([]) // No tiene casos si no está registrado como cliente
       }

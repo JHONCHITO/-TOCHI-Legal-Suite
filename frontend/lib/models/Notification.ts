@@ -14,6 +14,7 @@ export interface INotification extends Document {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   tipo: NotificationType;
+  prioridad?: "alta" | "media" | "baja";
   titulo: string;
   mensaje: string;
   enlace?: string;
@@ -46,6 +47,11 @@ const NotificationSchema = new Schema<INotification>(
         "sistema",
       ],
       required: true,
+    },
+    prioridad: {
+      type: String,
+      enum: ["alta", "media", "baja"],
+      default: "media",
     },
     titulo: { type: String, required: true },
     mensaje: { type: String, required: true },

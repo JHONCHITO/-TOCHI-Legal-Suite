@@ -6,6 +6,7 @@ import Client from "@/lib/models/Client";
 import Document from "@/lib/models/Document";
 import User from "@/lib/models/User";
 import { createNotificationForUsers } from "@/lib/services/automation";
+import { ensureClientProfileForSession } from "@/lib/services/client-profile";
 
 export const runtime = "nodejs";
 
@@ -33,9 +34,20 @@ type PortalCaseRecord = {
   abogadosAsociados?: unknown[];
 };
 
-async function getClientRecord(email?: string | null): Promise<PortalClientRecord | null> {
-  if (!email) return null;
-  return Client.findOne({ email }).select("_id tipo nombre apellido razonSocial cedula nit abogadoAsignado").lean();
+async function getClientRecord(sessionUser: { id: string; email?: string | null; name?: string | null }): Promise<PortalClientRecord | null> {
+  const client = await ensureClientProfileForSession({
+    id: sessionUser.id,
+    email: sessionUser.email,
+    name: sessionUser.name,
+  });
+
+  if (!client) {
+    return null;
+  }
+
+  return Client.findById((client as { _id: unknown })._id)
+    .select("_id tipo nombre apellido razonSocial cedula nit abogadoAsignado")
+    .lean();
 }
 
 function getClientDisplayName(client: {
@@ -68,7 +80,11 @@ export async function POST(
       return NextResponse.json({ error: "Solo el portal del cliente puede aprobar documentos" }, { status: 403 });
     }
 
-    const clientRecord = await getClientRecord(session.user.email);
+    const clientRecord = await getClientRecord({
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+    });
     if (!clientRecord) {
       return NextResponse.json({ error: "Perfil de cliente no encontrado" }, { status: 404 });
     }

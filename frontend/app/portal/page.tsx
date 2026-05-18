@@ -5,10 +5,12 @@ import Link from "next/link";
 import useSWR from "swr";
 import {
   ArrowUpRight,
+  Bell,
   Calendar,
   FileText,
   Loader2,
   MessageSquare,
+  ListChecks,
   Upload,
   Wallet,
   Briefcase,
@@ -31,6 +33,7 @@ import {
   useCommunications,
   useDocuments,
   useInvoices,
+  useNotifications,
 } from "@/lib/hooks/use-data";
 import {
   appointmentTypeLabels,
@@ -60,6 +63,7 @@ export default function ClientPortalPage() {
   const { appointments, isLoading: appointmentsLoading } = useAppointments();
   const { invoices, isLoading: invoicesLoading } = useInvoices();
   const { communications, isLoading: communicationsLoading } = useCommunications();
+  const { notifications, unreadCount, isLoading: notificationsLoading } = useNotifications();
 
   const [isUploading, setIsUploading] = useState(false);
   const [selectedUploadCaseId, setSelectedUploadCaseId] = useState("");
@@ -88,6 +92,21 @@ export default function ClientPortalPage() {
   );
 
   const recentDocuments = useMemo(() => documents.slice(0, 6), [documents]);
+  const recentNotifications = useMemo(() => notifications.slice(0, 6), [notifications]);
+  const recentActuations = useMemo(() => {
+    const timeline = cases.flatMap((item: Record<string, any>) =>
+      (item.actuaciones || []).map((actuacion: Record<string, any>) => ({
+        ...actuacion,
+        caseId: String(item._id),
+        caseTitle: item.titulo || "Caso",
+        caseNumber: item.numeroInterno || item.numeroRadicado || "",
+      }))
+    );
+
+    return timeline
+      .sort((a: Record<string, any>, b: Record<string, any>) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+      .slice(0, 6);
+  }, [cases]);
   const approvalPendingDocuments = useMemo(
     () =>
       documents.filter(
@@ -179,7 +198,16 @@ export default function ClientPortalPage() {
     }
   };
 
-  if (userLoading || clientLoading || casesLoading || documentsLoading || appointmentsLoading || invoicesLoading || communicationsLoading) {
+  if (
+    userLoading ||
+    clientLoading ||
+    casesLoading ||
+    documentsLoading ||
+    appointmentsLoading ||
+    invoicesLoading ||
+    communicationsLoading ||
+    notificationsLoading
+  ) {
     return (
       <div className="flex h-[420px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -313,6 +341,85 @@ export default function ClientPortalPage() {
           </div>
         </div>
       </section>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card id="notificaciones">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Bell className="h-5 w-5 text-primary" />
+                Notificaciones recientes
+              </CardTitle>
+              <CardDescription>
+                Alertas de tu caso, agenda y documentos. Sin informacion de otros clientes.
+              </CardDescription>
+            </div>
+            {unreadCount > 0 ? <Badge className="rounded-full bg-destructive text-destructive-foreground">{unreadCount}</Badge> : null}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentNotifications.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Todavia no tienes notificaciones.
+              </div>
+            ) : (
+              recentNotifications.map((notif: Record<string, any>) => (
+                <div key={String(notif._id)} className="rounded-2xl border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="font-medium">{notif.titulo || "Notificacion"}</p>
+                      <p className="text-sm text-muted-foreground">{notif.mensaje || "Sin detalle"}</p>
+                    </div>
+                    {notif.leida ? <Badge variant="outline">Leida</Badge> : <Badge>Nuevo</Badge>}
+                  </div>
+                  {notif.enlace ? (
+                    <Button asChild variant="link" className="mt-2 h-auto p-0">
+                      <Link href={notif.enlace}>Ver detalle</Link>
+                    </Button>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card id="actuaciones">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <ListChecks className="h-5 w-5 text-primary" />
+                Actuaciones del caso
+              </CardTitle>
+              <CardDescription>
+                Seguimiento de movimientos, tareas y avances registrados por el despacho.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentActuations.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Aun no hay actuaciones visibles para tus casos.
+              </div>
+            ) : (
+              recentActuations.map((actuacion: Record<string, any>) => (
+                <div key={`${actuacion.caseId}-${String(actuacion.fecha)}-${actuacion.tipo}`} className="rounded-2xl border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="font-medium">{actuacion.tipo || "Actuacion"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {actuacion.caseNumber || "Caso"} · {actuacion.caseTitle || "Caso"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{actuacion.descripcion || "Sin descripcion"}</p>
+                    </div>
+                    <span className="whitespace-nowrap text-xs text-muted-foreground">
+                      {formatDateTime(actuacion.fecha)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
         <Card id="subir-archivo">

@@ -2,10 +2,11 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Case from "@/lib/models/Case"
-import Client from "@/lib/models/Client"
 import User from "@/lib/models/User"
+import { ensureClientProfileForSession } from "@/lib/services/client-profile"
+import { notifyClientByClientId } from "@/lib/services/client-notifications"
 
-async function getCaseAccessFilter(session: { user?: { id?: string; email?: string } }) {
+async function getCaseAccessFilter(session: { user?: { id?: string; email?: string; name?: string } }): Promise<Record<string, unknown> | null> {
   if (!session.user?.id) {
     return null
   }
@@ -18,12 +19,16 @@ async function getCaseAccessFilter(session: { user?: { id?: string; email?: stri
   }
 
   if (userRole === "cliente") {
-    const clientRecord = await Client.findOne({ email: session.user.email }).select("_id").lean()
+    const clientRecord = await ensureClientProfileForSession({
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+    })
     if (!clientRecord) {
       return null
     }
 
-    return { clienteId: clientRecord._id }
+    return { clienteId: String((clientRecord as { _id: unknown })._id) }
   }
 
   return { abogadoPrincipal: session.user.id }
@@ -91,11 +96,37 @@ export async function PUT(
       { $set: body },
       { new: true, runValidators: true }
     )
-      .populate("clienteId", "nombre apellido razonSocial tipo email telefono")
+      .populate("clienteId", "nombre apellido razonSocial tipo email telefono userId")
       .lean()
 
     if (!updatedCase) {
       return NextResponse.json({ error: "Caso no encontrado" }, { status: 404 })
+    }
+
+    const caseClientId = (updatedCase as { clienteId?: { _id?: unknown } | unknown }).clienteId
+    const notificationClientId =
+      caseClientId && typeof caseClientId === "object" && "_id" in caseClientId
+        ? (caseClientId as { _id?: unknown })._id
+        : caseClientId
+
+    if (notificationClientId) {
+      const caseLabel =
+        (updatedCase as { numeroInterno?: string; titulo?: string }).numeroInterno ||
+        (updatedCase as { numeroInterno?: string; titulo?: string }).titulo ||
+        "tu caso"
+
+      await notifyClientByClientId({
+        clientId: notificationClientId,
+        tipo: "caso_actualizado",
+        prioridad: "media",
+        titulo: `Caso actualizado: ${caseLabel}`,
+        mensaje:
+          body.actuacion
+            ? `Se registró una nueva actuación en ${caseLabel}.`
+            : `Se actualizaron los datos del expediente ${caseLabel}.`,
+        enlace: "/portal#casos",
+        casoId: (updatedCase as { _id?: unknown })._id,
+      })
     }
 
     return NextResponse.json(updatedCase)
@@ -173,11 +204,36 @@ export async function PATCH(
         },
         { new: true }
       )
-        .populate("clienteId", "nombre apellido razonSocial tipo")
+        .populate("clienteId", "nombre apellido razonSocial tipo email telefono userId")
         .lean()
 
       if (!updatedCase) {
         return NextResponse.json({ error: "Caso no encontrado" }, { status: 404 })
+      }
+
+      const caseClientId = (updatedCase as { clienteId?: { _id?: unknown } | unknown }).clienteId
+      const notificationClientId =
+        caseClientId && typeof caseClientId === "object" && "_id" in caseClientId
+          ? (caseClientId as { _id?: unknown })._id
+          : caseClientId
+
+      if (notificationClientId) {
+        const caseLabel =
+          (updatedCase as { numeroInterno?: string; titulo?: string }).numeroInterno ||
+          (updatedCase as { numeroInterno?: string; titulo?: string }).titulo ||
+          "tu caso"
+
+        await notifyClientByClientId({
+          clientId: notificationClientId,
+          tipo: "caso_actualizado",
+          prioridad: "media",
+          titulo: `Nueva actuación en ${caseLabel}`,
+          mensaje: body.actuacion?.descripcion
+            ? `${body.actuacion.tipo || "Actuación"}: ${body.actuacion.descripcion}`
+            : `Se registró una nueva actuación en ${caseLabel}.`,
+          enlace: "/portal#actuaciones",
+          casoId: (updatedCase as { _id?: unknown })._id,
+        })
       }
 
       return NextResponse.json(updatedCase)

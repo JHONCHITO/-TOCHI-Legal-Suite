@@ -4,6 +4,7 @@ import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import { ensureSubscriptionForUser } from "@/lib/subscription";
 import { getPlanById } from "@/lib/products";
+import { findOrCreateClientForUser } from "@/lib/services/client-profile";
 
 export async function POST(request: Request) {
   try {
@@ -23,49 +24,44 @@ export async function POST(request: Request) {
     const allowedRoles = new Set(["abogado", "cliente"]);
     const requestedRole = allowedRoles.has(String(rol)) ? String(rol) : "abogado";
 
-    // Validaciones
     if (!nombre || !apellido || !email || !password) {
       return NextResponse.json(
-        { error: "Nombre, apellido, email y contraseña son requeridos" },
+        { error: "Nombre, apellido, email y contrasena son requeridos" },
         { status: 400 }
       );
     }
 
     if (password.length < 6) {
       return NextResponse.json(
-        { error: "La contraseña debe tener al menos 6 caracteres" },
+        { error: "La contrasena debe tener al menos 6 caracteres" },
         { status: 400 }
       );
     }
 
-    // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json(
-        { error: "El formato del email no es válido" },
+        { error: "El formato del email no es valido" },
         { status: 400 }
       );
     }
 
     await dbConnect();
 
-    // Verificar si el usuario ya existe
-    const existingUser = await User.findOne({ 
-      email: email.toLowerCase().trim() 
+    const existingUser = await User.findOne({
+      email: email.toLowerCase().trim(),
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "Ya existe una cuenta con este correo electrónico" },
+        { error: "Ya existe una cuenta con este correo electronico" },
         { status: 400 }
       );
     }
 
-    // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(password, 12);
     const selectedPlanId = getPlanById(String(planId))?.id || "plan-esencial";
 
-    // Crear el usuario
     const user = await User.create({
       nombre: nombre.trim(),
       apellido: apellido.trim(),
@@ -93,7 +89,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // No devolver la contraseña
+    if (requestedRole === "cliente") {
+      try {
+        await findOrCreateClientForUser({
+          _id: String(user._id),
+          email: user.email,
+          nombre: user.nombre,
+          apellido: user.apellido,
+          telefono: user.telefono,
+        });
+      } catch (clientError) {
+        console.warn(
+          "No se pudo crear o enlazar la ficha de cliente desde el registro:",
+          clientError instanceof Error ? clientError.message : clientError
+        );
+      }
+    }
+
     const userResponse = {
       id: user._id,
       nombre: user.nombre,
@@ -103,19 +115,18 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json(
-      { 
-        message: "Usuario registrado exitosamente", 
-        user: userResponse 
+      {
+        message: "Usuario registrado exitosamente",
+        user: userResponse,
       },
       { status: 201 }
     );
   } catch (error: any) {
     console.error("[v0] Error en registro:", error);
-    
-    // Error de duplicado de MongoDB
+
     if (error.code === 11000) {
       return NextResponse.json(
-        { error: "Ya existe una cuenta con este correo electrónico" },
+        { error: "Ya existe una cuenta con este correo electronico" },
         { status: 400 }
       );
     }

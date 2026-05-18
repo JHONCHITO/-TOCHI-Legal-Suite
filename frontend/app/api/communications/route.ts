@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Communication from "@/lib/models/Communication"
 import User from "@/lib/models/User"
-import Client from "@/lib/models/Client"
+import { ensureClientProfileForSession } from "@/lib/services/client-profile"
+import { notifyClientByClientId } from "@/lib/services/client-notifications"
 import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 
 export async function GET(request: NextRequest) {
@@ -29,12 +30,16 @@ export async function GET(request: NextRequest) {
     if (userRole === "superadmin" || userRole === "admin") {
       if (clienteId) query.clienteId = clienteId
     } else if (userRole === "cliente") {
-      const clientRecord = await Client.findOne({ email: session.user.email }).select("_id").lean()
+      const clientRecord = await ensureClientProfileForSession({
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      })
       if (clientRecord) {
         query.$or = [
           { creadorId: session.user.id },
           { creadorId: { $exists: false } },
-          { clienteId: (clientRecord as any)._id },
+          { clienteId: String((clientRecord as { _id: unknown })._id) },
         ]
       } else {
         return NextResponse.json([])
@@ -102,6 +107,18 @@ export async function POST(request: NextRequest) {
     })
     
     await newCommunication.save()
+
+    if (data.clienteId) {
+      await notifyClientByClientId({
+        clientId: data.clienteId,
+        tipo: "mensaje",
+        prioridad: "media",
+        titulo: data.asunto ? `Nuevo mensaje: ${data.asunto}` : "Nuevo mensaje del despacho",
+        mensaje: data.mensaje,
+        enlace: "/portal#mensajes",
+        casoId: data.casoId,
+      })
+    }
     
     return NextResponse.json(newCommunication, { status: 201 })
   } catch (error) {

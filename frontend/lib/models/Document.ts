@@ -30,6 +30,14 @@ export interface IDocument extends MongoDocument {
   archivoNombre?: string;
   archivoTipo?: string;
   archivoTamano?: number;
+  // Portal cliente
+  portalCompartido?: boolean;
+  requiereAprobacion?: boolean;
+  aprobadoPorClienteId?: mongoose.Types.ObjectId;
+  aprobadoPorClienteAt?: Date;
+  firmaClienteNombre?: string;
+  firmaClienteDocumento?: string;
+  firmaClienteTexto?: string;
   // Contenido (para documentos generados)
   contenido?: string;
   // Metadata
@@ -77,6 +85,13 @@ const DocumentSchema = new Schema<IDocument>(
     archivoNombre: String,
     archivoTipo: String,
     archivoTamano: Number,
+    portalCompartido: { type: Boolean, default: false },
+    requiereAprobacion: { type: Boolean, default: false },
+    aprobadoPorClienteId: { type: Schema.Types.ObjectId, ref: "Client" },
+    aprobadoPorClienteAt: Date,
+    firmaClienteNombre: String,
+    firmaClienteDocumento: String,
+    firmaClienteTexto: String,
     contenido: String,
     version: { type: Number, default: 1 },
     creadorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
