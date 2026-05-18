@@ -3,8 +3,18 @@ import useSWR from "swr"
 const fetcher = async (url: string) => {
   const res = await fetch(url)
   if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.error || "Error al obtener datos")
+    const contentType = res.headers.get("content-type") || ""
+    if (contentType.includes("application/json")) {
+      try {
+        const error = await res.json()
+        throw new Error(error.error || `Error al obtener datos (${res.status})`)
+      } catch {
+        // Fallback to plain text below.
+      }
+    }
+
+    const text = (await res.text()).trim()
+    throw new Error(text || `Error al obtener datos (${res.status})`)
   }
   return res.json()
 }
@@ -181,8 +191,18 @@ export async function createCase(data: Record<string, unknown>) {
     body: JSON.stringify(data),
   })
   if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.error || "Error al crear caso")
+    const contentType = res.headers.get("content-type") || ""
+    if (contentType.includes("application/json")) {
+      try {
+        const error = await res.json()
+        throw new Error(error.error || `Error al crear caso (${res.status})`)
+      } catch {
+        // Fallback to plain text below.
+      }
+    }
+
+    const text = (await res.text()).trim()
+    throw new Error(text || `Error al crear caso (${res.status})`)
   }
   return res.json()
 }
@@ -194,8 +214,18 @@ export async function updateCase(id: string, data: Record<string, unknown>) {
     body: JSON.stringify(data),
   })
   if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.error || "Error al actualizar caso")
+    const contentType = res.headers.get("content-type") || ""
+    if (contentType.includes("application/json")) {
+      try {
+        const error = await res.json()
+        throw new Error(error.error || `Error al actualizar caso (${res.status})`)
+      } catch {
+        // Fallback to plain text below.
+      }
+    }
+
+    const text = (await res.text()).trim()
+    throw new Error(text || `Error al actualizar caso (${res.status})`)
   }
   return res.json()
 }

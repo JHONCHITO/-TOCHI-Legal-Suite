@@ -56,8 +56,9 @@ export async function reserveNextCaseNumber() {
       },
     ],
     {
-      new: true,
+      returnDocument: "after",
       upsert: true,
+      updatePipeline: true,
     }
   );
 

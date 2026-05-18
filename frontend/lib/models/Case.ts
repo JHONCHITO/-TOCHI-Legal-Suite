@@ -214,8 +214,9 @@ CaseSchema.pre("save", async function () {
         },
       ],
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
+        updatePipeline: true,
       }
     );
 
