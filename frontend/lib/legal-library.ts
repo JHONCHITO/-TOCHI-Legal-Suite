@@ -22,6 +22,12 @@ export interface LegalCodeContent {
   notas?: string[];
 }
 
+export interface PracticalLegalGuide {
+  resumen: string;
+  puntosClave: string[];
+  siguientesPasos: string[];
+}
+
 export function normalizeLegalSlug(value: string) {
   return value.toLowerCase().replace(/-/g, "_");
 }
@@ -130,6 +136,40 @@ export function getOfficialLegalResources(codigoData: CodigoLegalData) {
     { label: "SUIN", url: codigoData.urlSUIN },
     { label: "Senado", url: codigoData.urlSenado },
   ].filter((item) => Boolean(item.url));
+}
+
+export function getPracticalLegalGuide(
+  codigoData: CodigoLegalData,
+  content?: LegalCodeContent
+): PracticalLegalGuide {
+  const areas = codigoData.areasDelDerecho.slice(0, 3).join(", ") || "su area principal";
+  const hasLocalContent = Boolean(content?.articulos.length);
+  const temasClave = content?.temasClave.slice(0, 3) ?? [];
+
+  return {
+    resumen: hasLocalContent
+      ? `Este codigo ya tiene ${content?.articulos.length ?? 0} extractos locales. Empieza por los temas clave, valida la vigencia y luego contrasta con la fuente oficial antes de usarlo en un escrito.`
+      : `Este codigo aun no tiene extractos locales cargados. Lo mas util es revisar la fuente oficial, identificar el numero de norma y apoyar la consulta con la IA para aterrizarlo al caso concreto.`,
+    puntosClave: [
+      `Areas del derecho: ${areas}`,
+      `Norma de referencia: ${codigoData.numeroNorma}`,
+      hasLocalContent
+        ? `Contenido local: ${content?.articulos.length ?? 0} extractos disponibles`
+        : "Contenido local: pendiente de sincronizar",
+      temasClave.length ? `Temas clave: ${temasClave.join(" · ")}` : "Temas clave: revisar en fuente oficial",
+    ],
+    siguientesPasos: hasLocalContent
+      ? [
+          "Abrir los extractos y copiar lo relevante",
+          "Consultar la IA con este codigo como contexto",
+          "Verificar la fuente oficial antes de presentar el caso",
+        ]
+      : [
+          "Abrir la fuente oficial",
+          "Consultar la IA con el codigo como contexto",
+          "Guardar notas internas para el caso o cliente",
+        ],
+  };
 }
 
 export const LEGAL_CODE_LIBRARY: Record<string, LegalCodeContent> = {
@@ -464,6 +504,45 @@ export const LEGAL_CODE_LIBRARY: Record<string, LegalCodeContent> = {
         titulo: "Medios de control",
         vigente: true,
         palabrasClave: ["nulidad", "restablecimiento del derecho"],
+      },
+    ],
+  },
+  estatuto_migratorio: {
+    codigo: "ESTATUTO_MIGRATORIO",
+    descripcion:
+      "Guia operativa para revisar regularizacion, permanencia, documentacion y tramites migratorios en Colombia.",
+    nivelContenido: "resumen_local",
+    temasClave: ["regularizacion", "permanencia", "documentos migratorios", "extranjeria"],
+    notas: [
+      "Este resumen es orientativo. Para uso en un caso, valida siempre la fuente oficial y la norma vigente.",
+    ],
+    articulos: [
+      {
+        numero: "1",
+        epigrafe: "Condicion migratoria y permanencia",
+        resumen:
+          "Verifica el estatus migratorio, la vigencia del permiso o visa y la condicion de permanencia en el pais.",
+        titulo: "Control migratorio",
+        vigente: true,
+        palabrasClave: ["migracion", "visa", "permanencia", "estatus"],
+      },
+      {
+        numero: "2",
+        epigrafe: "Documentacion de soporte",
+        resumen:
+          "Agrupa pasaporte, visado, cédula de extranjeria, sellos de entrada y cualquier soporte exigible por la autoridad.",
+        titulo: "Soporte documental",
+        vigente: true,
+        palabrasClave: ["documentos", "pasaporte", "cedula de extranjeria"],
+      },
+      {
+        numero: "3",
+        epigrafe: "Actualizacion y control de datos",
+        resumen:
+          "Mantiene datos actualizados, respeta plazos y revisa obligaciones de ingreso, salida o renovacion segun el tramite.",
+        titulo: "Seguimiento del tramite",
+        vigente: true,
+        palabrasClave: ["renovacion", "actualizacion", "tramite"],
       },
     ],
   },

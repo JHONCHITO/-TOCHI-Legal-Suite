@@ -25,6 +25,7 @@ import {
   getCodigoLegal,
   getLegalCodeContent,
   getOfficialLegalResources,
+  getPracticalLegalGuide,
   normalizeLegalSlug,
   toLegalSlug,
 } from "@/lib/legal-library";
@@ -39,6 +40,10 @@ export default function CodigoDetailPage() {
 
   const codigoData = getCodigoLegal(slug);
   const content = codigoData ? getLegalCodeContent(codigoData.codigo) : undefined;
+  const officialResources = codigoData ? getOfficialLegalResources(codigoData) : [];
+  const practicalGuide = codigoData
+    ? getPracticalLegalGuide(codigoData, content)
+    : null;
 
   const filteredArticles = useMemo(() => {
     const articles = content?.articulos ?? [];
@@ -112,8 +117,6 @@ export default function CodigoDetailPage() {
       </div>
     );
   }
-
-  const officialResources = getOfficialLegalResources(codigoData);
 
   return (
     <div className="space-y-6">
@@ -233,6 +236,53 @@ export default function CodigoDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {practicalGuide ? (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader>
+                <CardTitle>Resumen practico</CardTitle>
+                <CardDescription>
+                  Una guia corta para entender el codigo antes de leer el texto completo o pedir ayuda a la IA.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm leading-relaxed text-muted-foreground">{practicalGuide.resumen}</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {practicalGuide.puntosClave.map((item) => (
+                    <div key={item} className="rounded-lg border bg-background/80 p-3 text-sm">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild>
+                    <Link href={`/dashboard/asistente?context=${toLegalSlug(codigoData.codigo)}`}>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Consultar IA
+                    </Link>
+                  </Button>
+                  {officialResources[0] ? (
+                    <Button variant="outline" asChild>
+                      <a href={officialResources[0].url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        Ver fuente oficial
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+                {practicalGuide.siguientesPasos.length ? (
+                  <div className="rounded-lg border border-dashed p-4">
+                    <p className="mb-2 text-sm font-medium">Siguientes pasos</p>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      {practicalGuide.siguientesPasos.map((step) => (
+                        <li key={step}>- {step}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
 
           {content ? (
             <>
