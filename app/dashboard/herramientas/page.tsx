@@ -34,7 +34,7 @@ const herramientas = [
   },
   {
     title: "Consulta de Procesos",
-    description: "Consulta el estado de procesos en la Rama Judicial desde un solo lugar.",
+    description: "Consulta expedientes reales cargados en TOCHI y contrasta con la Rama Judicial.",
     icon: Scale,
     href: "/dashboard/herramientas/consulta-procesos",
     color: "from-violet-500 to-fuchsia-500",
