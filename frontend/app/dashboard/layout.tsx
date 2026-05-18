@@ -1,5 +1,13 @@
 export const dynamic = 'force-dynamic'; // 🔥 evita errores de build
 
+export const metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
+};
+
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { Sidebar } from "@/components/dashboard/sidebar";

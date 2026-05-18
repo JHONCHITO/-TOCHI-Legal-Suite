@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /dashboard/
+Disallow: /portal/
+Disallow: /login
+Disallow: /register
+Disallow: /setup-admin
+Disallow: /api/
