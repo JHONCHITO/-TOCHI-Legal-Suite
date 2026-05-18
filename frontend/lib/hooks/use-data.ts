@@ -265,9 +265,15 @@ export async function updateClient(id: string, data: Record<string, unknown>) {
   return res.json()
 }
 
-export async function syncClientPortal(id: string) {
+export type ClientPortalShareScope = "all" | "cases" | "documents" | "invoices" | "appointments"
+
+export async function syncClientPortal(id: string, scope: ClientPortalShareScope = "all") {
   const res = await fetch(`/api/clients/${id}/portal`, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ scope }),
   })
   if (!res.ok) {
     const error = await res.json()

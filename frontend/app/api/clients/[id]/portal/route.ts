@@ -18,8 +18,59 @@ type SessionLike = {
   };
 };
 
+type PortalShareScope = "all" | "cases" | "documents" | "invoices" | "appointments";
+
 function normalizeEmail(email?: string | null) {
   return String(email || "").toLowerCase().trim();
+}
+
+function normalizeScope(scope: unknown): PortalShareScope {
+  const value = String(scope || "all").toLowerCase().trim();
+  if (value === "cases" || value === "documents" || value === "invoices" || value === "appointments") {
+    return value;
+  }
+  return "all";
+}
+
+function scopeConfig(scope: PortalShareScope) {
+  switch (scope) {
+    case "cases":
+      return {
+        title: "Casos compartidos al portal",
+        label: "casos",
+        link: "/portal#casos",
+        tipo: "caso_actualizado" as const,
+      };
+    case "documents":
+      return {
+        title: "Documentos compartidos al portal",
+        label: "documentos",
+        link: "/portal#documentos",
+        tipo: "documento_nuevo" as const,
+      };
+    case "invoices":
+      return {
+        title: "Facturas compartidas al portal",
+        label: "facturas",
+        link: "/portal#facturas",
+        tipo: "sistema" as const,
+      };
+    case "appointments":
+      return {
+        title: "Citas compartidas al portal",
+        label: "citas",
+        link: "/portal#agenda",
+        tipo: "cita_proxima" as const,
+      };
+    case "all":
+    default:
+      return {
+        title: "Portal actualizado por tu abogado",
+        label: "contenido del portal",
+        link: "/portal",
+        tipo: "sistema" as const,
+      };
+  }
 }
 
 async function canManageClient(session: SessionLike, clientId: string) {
@@ -53,6 +104,13 @@ export async function POST(
     }
 
     const { id } = await params;
+    let body: { scope?: unknown } = {};
+    try {
+      body = (await request.json()) as { scope?: unknown };
+    } catch {
+      body = {};
+    }
+
     await dbConnect();
 
     const allowed = await canManageClient(session, id);
@@ -121,17 +179,54 @@ export async function POST(
       Communication.countDocuments({ clienteId: id }),
     ]);
 
+    const scope = normalizeScope(body.scope);
+    const config = scopeConfig(scope);
+    const countByScope = {
+      all: casesCount + documentsCount + invoicesCount + appointmentsCount + communicationsCount,
+      cases: casesCount,
+      documents: documentsCount,
+      invoices: invoicesCount,
+      appointments: appointmentsCount,
+    } as const;
+    const selectedCount = countByScope[scope];
+    const singularLabel =
+      scope === "cases"
+        ? "caso"
+        : scope === "documents"
+          ? "documento"
+          : scope === "invoices"
+            ? "factura"
+            : scope === "appointments"
+              ? "cita"
+              : "elemento";
+    const pluralLabel =
+      scope === "cases"
+        ? "casos"
+        : scope === "documents"
+          ? "documentos"
+          : scope === "invoices"
+            ? "facturas"
+            : scope === "appointments"
+              ? "citas"
+              : "elementos";
+
     await notifyClientByClientId({
       clientId: id,
-      tipo: "sistema",
+      tipo: config.tipo,
       prioridad: "media",
-      titulo: "Portal actualizado por tu abogado",
-      mensaje: `Tu abogado sincronizó tu portal. Ahora puedes revisar ${casesCount} casos, ${documentsCount} documentos, ${appointmentsCount} citas, ${invoicesCount} facturas y ${communicationsCount} comunicaciones.`,
-      enlace: "/portal",
+      titulo: config.title,
+      mensaje:
+        scope === "all"
+          ? `Tu abogado sincronizó tu portal. Ahora puedes revisar ${casesCount} casos, ${documentsCount} documentos, ${appointmentsCount} citas, ${invoicesCount} facturas y ${communicationsCount} comunicaciones.`
+          : selectedCount > 0
+            ? `Tu abogado compartió ${selectedCount} ${selectedCount === 1 ? singularLabel : pluralLabel} con tu portal.`
+            : `Tu portal quedó listo para ${pluralLabel}, pero todavía no hay ${pluralLabel} para mostrar.`,
+      enlace: config.link,
     });
 
     return NextResponse.json({
       client: updatedClient,
+      scope,
       counts: {
         cases: casesCount,
         documents: documentsCount,

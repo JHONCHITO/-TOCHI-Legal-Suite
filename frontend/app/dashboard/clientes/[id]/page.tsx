@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   BadgeCheck,
+  Briefcase,
+  CalendarDays,
   Edit,
   FileText,
   Loader2,
@@ -13,6 +15,8 @@ import {
   Phone,
   Plus,
   RefreshCw,
+  Share2,
+  Wallet,
   Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -20,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { syncClientPortal, useClient } from "@/lib/hooks/use-data";
+import type { ClientPortalShareScope } from "@/lib/hooks/use-data";
 import { formatDate, getClientDisplayName, getInitials } from "@/lib/utils/format";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -32,7 +37,7 @@ export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const clientId = params?.id ?? null;
   const { client, isLoading, isError, mutate } = useClient(clientId);
-  const [isSyncingPortal, setIsSyncingPortal] = useState(false);
+  const [isSyncingPortal, setIsSyncingPortal] = useState<ClientPortalShareScope | null>(null);
 
   if (isLoading) {
     return (
@@ -68,20 +73,20 @@ export default function ClienteDetallePage() {
   const cases = Array.isArray(detail.casos) ? detail.casos : [];
   const displayName = getClientDisplayName(detail as { tipo: string; nombre?: string; apellido?: string; razonSocial?: string });
 
-  const handleSyncPortal = async () => {
+  const handleSyncPortal = async (scope: ClientPortalShareScope = "all") => {
     if (!clientId) {
       return;
     }
 
-    setIsSyncingPortal(true);
+    setIsSyncingPortal(scope);
     try {
-      const result = await syncClientPortal(clientId);
+      const result = await syncClientPortal(clientId, scope);
       toast.success(result.message || "Portal del cliente sincronizado");
       await mutate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo sincronizar el portal");
     } finally {
-      setIsSyncingPortal(false);
+      setIsSyncingPortal(null);
     }
   };
 
@@ -283,8 +288,8 @@ export default function ClienteDetallePage() {
                   Programar cita
                 </Link>
               </Button>
-              <Button className="w-full justify-start" onClick={handleSyncPortal} disabled={isSyncingPortal}>
-                {isSyncingPortal ? (
+              <Button className="w-full justify-start" onClick={() => handleSyncPortal()} disabled={isSyncingPortal !== null}>
+                {isSyncingPortal === "all" ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Sincronizando...
@@ -292,9 +297,75 @@ export default function ClienteDetallePage() {
                 ) : (
                   <>
                     <RefreshCw className="mr-2 h-4 w-4" />
-                    {detail.tieneAccesoPortal ? "Reenviar al portal" : "Enviar al portal"}
+                    {detail.tieneAccesoPortal ? "Sincronizar portal completo" : "Activar portal completo"}
                   </>
                 )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Share2 className="h-4 w-4 text-primary" />
+                Portal del cliente
+              </CardTitle>
+              <CardDescription>
+                Comparte cada tipo de información por separado para que el cliente vea solo lo que necesitas publicar.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-2 sm:grid-cols-2">
+              <Button
+                variant="outline"
+                className="justify-start"
+                onClick={() => handleSyncPortal("cases")}
+                disabled={isSyncingPortal !== null}
+              >
+                {isSyncingPortal === "cases" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Briefcase className="mr-2 h-4 w-4" />
+                )}
+                Compartir casos
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start"
+                onClick={() => handleSyncPortal("documents")}
+                disabled={isSyncingPortal !== null}
+              >
+                {isSyncingPortal === "documents" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-2 h-4 w-4" />
+                )}
+                Compartir documentos
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start"
+                onClick={() => handleSyncPortal("invoices")}
+                disabled={isSyncingPortal !== null}
+              >
+                {isSyncingPortal === "invoices" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Wallet className="mr-2 h-4 w-4" />
+                )}
+                Compartir facturas
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start"
+                onClick={() => handleSyncPortal("appointments")}
+                disabled={isSyncingPortal !== null}
+              >
+                {isSyncingPortal === "appointments" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CalendarDays className="mr-2 h-4 w-4" />
+                )}
+                Compartir citas
               </Button>
             </CardContent>
           </Card>
