@@ -123,14 +123,39 @@ export async function POST(request: Request) {
       documentos: [],
     })
 
-    await newCase.save()
+    let savedCase = null
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        savedCase = await newCase.save()
+        break
+      } catch (saveError) {
+        const errorObject = saveError as {
+          code?: number
+          keyPattern?: Record<string, unknown>
+          keyValue?: Record<string, unknown>
+        }
+        const isDuplicateNumeroInterno =
+          errorObject.code === 11000 &&
+          JSON.stringify(errorObject.keyPattern || errorObject.keyValue || {}).includes("numeroInterno")
+
+        if (!isDuplicateNumeroInterno || attempt === 1) {
+          throw saveError
+        }
+
+        delete (newCase as { numeroInterno?: string }).numeroInterno
+      }
+    }
+
+    if (!savedCase) {
+      throw new Error("No se pudo generar el numero interno del caso")
+    }
 
     // Actualizar el cliente con el nuevo caso
     await Client.findByIdAndUpdate(body.clienteId, {
-      $push: { casos: newCase._id }
+      $push: { casos: savedCase._id }
     })
 
-    const populatedCase = await Case.findById(newCase._id)
+    const populatedCase = await Case.findById(savedCase._id)
       .populate("clienteId", "nombre apellido razonSocial tipo email telefono")
       .lean()
 
