@@ -20,6 +20,10 @@ function normalizeEmail(email?: string | null) {
   return String(email || "").toLowerCase().trim();
 }
 
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 async function getDefaultAdvisorId() {
   const advisor = await User.findOne({
     rol: { $in: ["superadmin", "admin", "abogado"] },
@@ -40,14 +44,18 @@ export async function findOrCreateClientForUser(user: ClientSourceUser) {
     return null;
   }
 
-  const existingClient = await Client.findOne({
-    $or: [{ userId: user._id }, { email }],
-  }).lean();
+  const userId = String(user._id);
+  const emailPattern = new RegExp(`^${escapeRegex(email)}$`, "i");
+
+  const existingClient =
+    (await Client.findOne({ userId }).lean()) ||
+    (await Client.findOne({ email }).lean()) ||
+    (await Client.findOne({ email: emailPattern }).lean());
 
   if (existingClient) {
     const updates: Record<string, unknown> = {};
 
-    if (!existingClient.userId) {
+    if (String(existingClient.userId || "") !== userId) {
       updates.userId = user._id;
     }
     if (existingClient.email !== email) {
