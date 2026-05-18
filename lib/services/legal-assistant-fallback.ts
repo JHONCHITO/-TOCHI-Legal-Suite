@@ -210,9 +210,7 @@ function buildLocalReferences(question: string) {
       if (articleScore > 0) {
         references.push({
           title: `${code.nombre} - Art. ${article.numero}`,
-          url: `/dashboard/busqueda?q=${encodeURIComponent(
-            `${code.nombre} ${article.numero} ${article.epigrafe}`.trim()
-          )}`,
+          url: `/dashboard/leyes/${toLegalSlug(code.codigo)}`,
           source: "articulo",
           codigo: code.codigo,
           nombre: code.nombre,
