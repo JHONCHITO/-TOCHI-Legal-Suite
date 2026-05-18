@@ -7,8 +7,12 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'TOCHI Legal Suite - Plataforma para Abogados',
-  description: 'Plataforma integral para abogados colombianos: gestion de casos, clientes, citas, documentos y consulta de codigos legales con IA',
+  metadataBase: new URL('https://www.tochilegalsuite.online'),
+  title: {
+    default: 'TOCHI Legal Suite',
+    template: '%s | TOCHI Legal Suite',
+  },
+  description: 'Plataforma legal en linea para abogados colombianos con gestion de casos, clientes, documentos, facturacion, agenda, portal de clientes y base juridica con IA.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -26,6 +30,10 @@ export const metadata: Metadata = {
       },
     ],
     apple: '/apple-icon.png',
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 }
 

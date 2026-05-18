@@ -1,7 +1,14 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Scale, BookOpen, Calendar, Users, Brain, FileText, Bell, Shield, ArrowRight } from 'lucide-react'
+
+export const metadata: Metadata = {
+  title: 'Abogados en linea en Colombia',
+  description:
+    'TOCHI Legal Suite es una plataforma legal en linea para abogados colombianos. Gestiona casos, clientes, documentos, facturacion, agenda, notificaciones y portal de clientes con IA.',
+}
 
 async function checkSession() {
   try {
@@ -61,11 +68,11 @@ export default async function HomePage() {
             Plataforma diseñada para abogados colombianos
           </div>
           <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6 text-balance max-w-4xl mx-auto">
-            La plataforma legal mas completa de Colombia
+            Plataforma legal en linea para abogados en Colombia
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8 text-pretty">
-            Gestiona casos, clientes, citas y documentos. Consulta todos los codigos legales colombianos 
-            actualizados y utiliza IA especializada en derecho colombiano.
+            Gestiona casos, clientes, citas, documentos, facturacion y portal de clientes. Consulta
+            codigos legales colombianos actualizados y usa IA especializada en derecho colombiano.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/precios">
@@ -89,9 +96,11 @@ export default async function HomePage() {
       {/* Features Section */}
       <section id="caracteristicas" className="py-20 container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Todo lo que necesitas en un solo lugar</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Gestion legal completa para abogados colombianos
+          </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Herramientas diseñadas especificamente para la practica legal en Colombia
+            Herramientas disenadas especificamente para la practica legal en Colombia
           </p>
         </div>
 
