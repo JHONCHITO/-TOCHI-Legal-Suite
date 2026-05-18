@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Scale, BookOpen, Calendar, Users, Brain, FileText, Bell, Shield, ArrowRight } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Software juridico para abogados en Colombia | TOCHI Legal Suite',
+  title: 'Aplicacion legal para abogados en Colombia | TOCHI Legal Suite',
   description:
-    'TOCHI Legal Suite es un software juridico para despachos y abogados en Colombia. Gestiona casos, clientes, documentos, facturacion, agenda, notificaciones y portal de clientes en una sola plataforma.',
+    'TOCHI Legal Suite es una aplicacion legal para abogados y despachos en Colombia. Gestiona casos, clientes, documentos, facturacion, agenda, notificaciones y portal de clientes en una sola plataforma.',
 }
 
 async function checkSession() {
@@ -43,7 +43,7 @@ export default async function HomePage() {
           </div>
           <nav className="hidden md:flex items-center gap-6">
             <Link href="/software-juridico" className="text-muted-foreground hover:text-foreground transition-colors">
-              Software juridico
+              Aplicacion legal
             </Link>
             <Link href="#caracteristicas" className="text-muted-foreground hover:text-foreground transition-colors">
               Caracteristicas
@@ -68,16 +68,16 @@ export default async function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <div className="inline-flex items-center gap-2 bg-accent/10 text-accent px-4 py-2 rounded-full text-sm font-medium mb-6">
             <Shield className="w-4 h-4" />
-            Software juridico para abogados, despachos y consultorios en Colombia
+            Aplicacion legal para abogados, despachos y consultorios en Colombia
           </div>
           <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6 text-balance max-w-4xl mx-auto">
-            Software juridico para abogados en Colombia
+            Aplicacion legal para abogados en Colombia
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8 text-pretty">
             Gestiona casos, clientes, citas, documentos, facturacion y portal de clientes. Consulta
             codigos legales colombianos actualizados y usa IA especializada en derecho colombiano.
             Pensado para despachos, consultorios juridicos y abogados independientes que buscan una
-            plataforma legal en linea.
+            aplicacion legal facil de usar y lista para trabajar.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/precios">

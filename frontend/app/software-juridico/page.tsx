@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Software juridico para abogados y despachos en Colombia",
+  title: "Aplicacion legal para abogados y despachos en Colombia",
   description:
-    "TOCHI Legal Suite es un software juridico en linea para abogados y despachos en Colombia. Gestiona casos, clientes, documentos, facturacion, agenda, notificaciones, portal de clientes e IA legal.",
+    "TOCHI Legal Suite es una aplicacion legal en linea para abogados y despachos en Colombia. Gestiona casos, clientes, documentos, facturacion, agenda, notificaciones, portal de clientes e IA legal.",
 };
 
 const faqs = [
@@ -104,16 +104,16 @@ export default function SoftwareJuridicoPage() {
         <div className="container mx-auto px-4 py-20">
           <div className="mx-auto max-w-4xl text-center">
             <Badge className="mb-6 rounded-full bg-primary/10 px-4 py-1 text-primary hover:bg-primary/10">
-              Software juridico para despachos, consultorios y abogados
-            </Badge>
+                Aplicacion legal para despachos, consultorios y abogados
+              </Badge>
             <h1 className="text-4xl font-bold tracking-tight text-balance md:text-6xl">
-              Software juridico para abogados y despachos en Colombia
+              Aplicacion legal para abogados y despachos en Colombia
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-lg text-muted-foreground text-pretty md:text-xl">
               TOCHI Legal Suite ayuda a gestionar casos, clientes, documentos, facturacion, agenda,
-              notificaciones y portal de clientes desde una sola plataforma web. Si buscas software
-              juridico en Colombia, esta pagina esta pensada para que Google entienda mejor tu
-              solucion y para que tus clientes entiendan que haces.
+              notificaciones y portal de clientes desde una sola plataforma web. Si buscas una
+              aplicacion legal para abogados en Colombia, esta pagina esta pensada para que Google
+              entienda mejor tu solucion y para que tus clientes entiendan que haces.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Button asChild size="lg" className="rounded-full px-8">
@@ -198,9 +198,9 @@ export default function SoftwareJuridicoPage() {
       <section className="border-y bg-muted/30">
         <div className="container mx-auto px-4 py-16">
           <div className="mx-auto max-w-4xl">
-            <h2 className="text-3xl font-bold tracking-tight">Para quienes es este software juridico</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Para quienes es esta aplicacion legal</h2>
             <p className="mt-3 text-muted-foreground">
-              Esta pagina responde a busquedas como software juridico para abogados, plataforma
+              Esta pagina responde a busquedas como aplicacion legal para abogados, plataforma
               legal en Colombia, gestion de expedientes, portal de clientes y facturacion para
               despachos.
             </p>
