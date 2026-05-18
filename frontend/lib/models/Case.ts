@@ -193,13 +193,26 @@ CaseSchema.pre("save", async function () {
     const counterId = `case-${year}`;
     const initialSequence = await getInitialCaseSequence(year);
 
-    // Secuencia atómica por año para evitar duplicados cuando varios usuarios crean casos.
+    // Secuencia atómica por año para evitar duplicados y recuperar el contador si quedó atrasado.
     const counter = await CaseSequence.findOneAndUpdate(
       { _id: counterId },
-      {
-        $setOnInsert: { seq: initialSequence },
-        $inc: { seq: 1 },
-      },
+      [
+        {
+          $set: {
+            seq: {
+              $add: [
+                {
+                  $max: [
+                    { $ifNull: ["$seq", 0] },
+                    initialSequence,
+                  ],
+                },
+                1,
+              ],
+            },
+          },
+        },
+      ],
       {
         new: true,
         upsert: true,

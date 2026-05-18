@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server"
+import mongoose from "mongoose"
 import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Case from "@/lib/models/Case"
 import Client from "@/lib/models/Client"
 import User from "@/lib/models/User"
+import { reserveNextCaseNumber } from "@/lib/services/case-number"
 import { ensureClientProfileForSession } from "@/lib/services/client-profile"
 import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
 
@@ -93,6 +95,14 @@ export async function POST(request: Request) {
       )
     }
 
+    if (
+      typeof body.clienteId !== "string" ||
+      !body.clienteId.trim() ||
+      !mongoose.isValidObjectId(body.clienteId)
+    ) {
+      return NextResponse.json({ error: "Cliente no válido" }, { status: 400 })
+    }
+
     // Verificar que el cliente existe
     const clientExists = await Client.findById(body.clienteId)
     if (!clientExists) {
@@ -115,8 +125,11 @@ export async function POST(request: Request) {
       }
     }
 
+    const numeroInterno = await reserveNextCaseNumber()
+
     const newCase = new Case({
       ...body,
+      numeroInterno,
       abogadoPrincipal: session.user.id,
       fechaInicio: body.fechaInicio || new Date(),
       actuaciones: [],
@@ -150,10 +163,14 @@ export async function POST(request: Request) {
       throw new Error("No se pudo generar el numero interno del caso")
     }
 
-    // Actualizar el cliente con el nuevo caso
-    await Client.findByIdAndUpdate(body.clienteId, {
-      $push: { casos: savedCase._id }
-    })
+    // Actualizar el cliente con el nuevo caso sin bloquear el guardado del expediente.
+    try {
+      await Client.findByIdAndUpdate(body.clienteId, {
+        $addToSet: { casos: savedCase._id },
+      })
+    } catch (clientLinkError) {
+      console.warn("No se pudo enlazar el caso al cliente:", clientLinkError)
+    }
 
     const populatedCase = await Case.findById(savedCase._id)
       .populate("clienteId", "nombre apellido razonSocial tipo email telefono")
@@ -162,6 +179,11 @@ export async function POST(request: Request) {
     return NextResponse.json(populatedCase, { status: 201 })
   } catch (error) {
     console.error("Error creating case:", error)
-    return NextResponse.json({ error: "Error al crear caso" }, { status: 500 })
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Error al crear caso"
+
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }
