@@ -29,6 +29,11 @@ export interface IActuacion {
   responsable: mongoose.Types.ObjectId;
 }
 
+interface ICaseSequence {
+  _id: string;
+  seq: number;
+}
+
 export interface ICase extends Document {
   _id: mongoose.Types.ObjectId;
   // Identificacion
@@ -84,6 +89,33 @@ const ActuacionSchema = new Schema<IActuacion>({
   documentos: [String],
   responsable: { type: Schema.Types.ObjectId, ref: "User", required: true },
 });
+
+const CaseSequenceSchema = new Schema<ICaseSequence>(
+  {
+    _id: { type: String, required: true },
+    seq: { type: Number, default: 0 },
+  },
+  {
+    collection: "case_sequences",
+    versionKey: false,
+  }
+);
+
+const CaseSequence: Model<ICaseSequence> =
+  mongoose.models.CaseSequence || mongoose.model<ICaseSequence>("CaseSequence", CaseSequenceSchema);
+
+async function getInitialCaseSequence(year: number) {
+  const CaseModel = (mongoose.models.Case as Model<ICase>) || mongoose.model<ICase>("Case");
+  const latestCase = await CaseModel.findOne({
+    numeroInterno: { $regex: `^TOCHI-${year}-` },
+  })
+    .sort({ numeroInterno: -1 })
+    .select("numeroInterno")
+    .lean();
+
+  const currentSequence = Number(String(latestCase?.numeroInterno || "").split("-").pop()) || 0;
+  return currentSequence;
+}
 
 const CaseSchema = new Schema<ICase>(
   {
@@ -158,8 +190,38 @@ const CaseSchema = new Schema<ICase>(
 CaseSchema.pre("save", async function () {
   if (!this.numeroInterno) {
     const year = new Date().getFullYear();
-    const count = await mongoose.models.Case.countDocuments();
-    this.numeroInterno = `TOCHI-${year}-${String(count + 1).padStart(5, "0")}`;
+    const counterId = `case-${year}`;
+    const initialSequence = await getInitialCaseSequence(year);
+
+    // Secuencia atómica por año para evitar duplicados y recuperar el contador si quedó atrasado.
+    const counter = await CaseSequence.findOneAndUpdate(
+      { _id: counterId },
+      [
+        {
+          $set: {
+            seq: {
+              $add: [
+                {
+                  $max: [
+                    { $ifNull: ["$seq", 0] },
+                    initialSequence,
+                  ],
+                },
+                1,
+              ],
+            },
+          },
+        },
+      ],
+      {
+        returnDocument: "after",
+        upsert: true,
+        updatePipeline: true,
+      }
+    );
+
+    const sequence = counter?.seq || initialSequence + 1;
+    this.numeroInterno = `TOCHI-${year}-${String(sequence).padStart(5, "0")}`;
   }
 });
 

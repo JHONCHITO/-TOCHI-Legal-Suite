@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server"
+import mongoose from "mongoose"
 import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import Case from "@/lib/models/Case"
 import Client from "@/lib/models/Client"
 import User from "@/lib/models/User"
 import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
+import { reserveNextCaseNumber } from "@/lib/services/case-number"
 import { createNotificationForUsers } from "@/lib/services/automation"
 
 export async function GET(request: Request) {
@@ -89,6 +91,14 @@ export async function POST(request: Request) {
       )
     }
 
+    if (
+      typeof body.clienteId !== "string" ||
+      !body.clienteId.trim() ||
+      !mongoose.isValidObjectId(body.clienteId)
+    ) {
+      return NextResponse.json({ error: "Cliente no valido" }, { status: 400 })
+    }
+
     // Verificar que el cliente existe
     const clientExists = await Client.findById(body.clienteId)
     if (!clientExists) {
@@ -111,20 +121,52 @@ export async function POST(request: Request) {
       }
     }
 
+    const numeroInterno = await reserveNextCaseNumber()
+
     const newCase = new Case({
       ...body,
+      numeroInterno,
       abogadoPrincipal: session.user.id,
       fechaInicio: body.fechaInicio || new Date(),
       actuaciones: [],
       documentos: [],
     })
 
-    await newCase.save()
+    let savedCase = null
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        savedCase = await newCase.save()
+        break
+      } catch (saveError) {
+        const errorObject = saveError as {
+          code?: number
+          keyPattern?: Record<string, unknown>
+          keyValue?: Record<string, unknown>
+        }
+        const isDuplicateNumeroInterno =
+          errorObject.code === 11000 &&
+          JSON.stringify(errorObject.keyPattern || errorObject.keyValue || {}).includes("numeroInterno")
+
+        if (!isDuplicateNumeroInterno || attempt === 1) {
+          throw saveError
+        }
+
+        delete (newCase as { numeroInterno?: string }).numeroInterno
+      }
+    }
+
+    if (!savedCase) {
+      throw new Error("No se pudo generar el numero interno del caso")
+    }
 
     // Actualizar el cliente con el nuevo caso
-    await Client.findByIdAndUpdate(body.clienteId, {
-      $push: { casos: newCase._id }
-    })
+    try {
+      await Client.findByIdAndUpdate(body.clienteId, {
+        $push: { casos: savedCase._id }
+      })
+    } catch (clientLinkError) {
+      console.warn("No se pudo enlazar el caso al cliente:", clientLinkError)
+    }
 
     const clientRecord = await Client.findById(body.clienteId)
       .select("userId nombre apellido razonSocial tipo")
@@ -154,19 +196,20 @@ export async function POST(request: Request) {
       userIds: [...recipients],
       tipo: "caso_actualizado",
       prioridad: "media",
-      titulo: `Nuevo caso: ${newCase.titulo}`,
-      mensaje: `Se creo el expediente ${newCase.numeroInterno} para ${clientName}. Revisa el resumen y la primera actuacion registrada.`,
-      enlace: `/dashboard/casos/${newCase._id}`,
-      casoId: newCase._id,
+      titulo: `Nuevo caso: ${savedCase.titulo}`,
+      mensaje: `Se creo el expediente ${savedCase.numeroInterno} para ${clientName}. Revisa el resumen y la primera actuacion registrada.`,
+      enlace: `/dashboard/casos/${savedCase._id}`,
+      casoId: savedCase._id,
     })
 
-    const populatedCase = await Case.findById(newCase._id)
+    const populatedCase = await Case.findById(savedCase._id)
       .populate("clienteId", "nombre apellido razonSocial tipo email telefono")
       .lean()
 
     return NextResponse.json(populatedCase, { status: 201 })
   } catch (error) {
     console.error("Error creating case:", error)
-    return NextResponse.json({ error: "Error al crear caso" }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Error al crear caso"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
