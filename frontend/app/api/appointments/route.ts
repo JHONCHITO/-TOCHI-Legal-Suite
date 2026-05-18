@@ -24,6 +24,7 @@ export async function GET(request: Request) {
     const fecha = searchParams.get("fecha")
     const tipo = searchParams.get("tipo")
     const estado = searchParams.get("estado")
+    const clienteId = searchParams.get("clienteId")
 
     // Filtrar según el rol del usuario
     let query: Record<string, unknown> = {}
@@ -46,6 +47,10 @@ export async function GET(request: Request) {
     } else {
       // Abogado/Asistente ven citas asignadas a ellos
       query = { abogadoId: session.user.id }
+    }
+
+    if (clienteId) {
+      query.clienteId = clienteId
     }
 
     if (fecha) {

@@ -24,7 +24,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { syncClientPortal, useClient } from "@/lib/hooks/use-data";
-import type { ClientPortalShareScope } from "@/lib/hooks/use-data";
 import { formatDate, getClientDisplayName, getInitials } from "@/lib/utils/format";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -37,7 +36,7 @@ export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const clientId = params?.id ?? null;
   const { client, isLoading, isError, mutate } = useClient(clientId);
-  const [isSyncingPortal, setIsSyncingPortal] = useState<ClientPortalShareScope | null>(null);
+  const [isSyncingPortal, setIsSyncingPortal] = useState(false);
 
   if (isLoading) {
     return (
@@ -73,20 +72,20 @@ export default function ClienteDetallePage() {
   const cases = Array.isArray(detail.casos) ? detail.casos : [];
   const displayName = getClientDisplayName(detail as { tipo: string; nombre?: string; apellido?: string; razonSocial?: string });
 
-  const handleSyncPortal = async (scope: ClientPortalShareScope = "all") => {
+  const handleSyncPortal = async () => {
     if (!clientId) {
       return;
     }
 
-    setIsSyncingPortal(scope);
+    setIsSyncingPortal(true);
     try {
-      const result = await syncClientPortal(clientId, scope);
+      const result = await syncClientPortal(clientId);
       toast.success(result.message || "Portal del cliente sincronizado");
       await mutate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo sincronizar el portal");
     } finally {
-      setIsSyncingPortal(null);
+      setIsSyncingPortal(false);
     }
   };
 
@@ -277,19 +276,19 @@ export default function ClienteDetallePage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <Button className="w-full justify-start" asChild>
-                <Link href="/dashboard/casos/nuevo">
+                <Link href={`/dashboard/casos/nuevo?clienteId=${detail._id}`}>
                   <Plus className="mr-2 h-4 w-4" />
                   Crear caso
                 </Link>
               </Button>
               <Button variant="outline" className="w-full justify-start" asChild>
-                <Link href="/dashboard/citas">
+                <Link href={`/dashboard/citas?clienteId=${detail._id}`}>
                   <BadgeCheck className="mr-2 h-4 w-4" />
                   Programar cita
                 </Link>
               </Button>
-              <Button className="w-full justify-start" onClick={() => handleSyncPortal()} disabled={isSyncingPortal !== null}>
-                {isSyncingPortal === "all" ? (
+              <Button className="w-full justify-start" onClick={handleSyncPortal} disabled={isSyncingPortal}>
+                {isSyncingPortal ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Sincronizando...
@@ -311,61 +310,49 @@ export default function ClienteDetallePage() {
                 Portal del cliente
               </CardTitle>
               <CardDescription>
-                Comparte cada tipo de información por separado para que el cliente vea solo lo que necesitas publicar.
+                Abre la pantalla correcta para elegir el caso, documento, factura o cita que vas a compartir.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-2 sm:grid-cols-2">
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("cases")}
-                disabled={isSyncingPortal !== null}
+                asChild
               >
-                {isSyncingPortal === "cases" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
+                <Link href={`/dashboard/casos?clienteId=${detail._id}`}>
                   <Briefcase className="mr-2 h-4 w-4" />
-                )}
-                Compartir casos
+                  Compartir casos
+                </Link>
               </Button>
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("documents")}
-                disabled={isSyncingPortal !== null}
+                asChild
               >
-                {isSyncingPortal === "documents" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
+                <Link href={`/dashboard/documentos?clienteId=${detail._id}`}>
                   <FileText className="mr-2 h-4 w-4" />
-                )}
-                Compartir documentos
+                  Compartir documentos
+                </Link>
               </Button>
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("invoices")}
-                disabled={isSyncingPortal !== null}
+                asChild
               >
-                {isSyncingPortal === "invoices" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
+                <Link href={`/dashboard/facturacion?clienteId=${detail._id}`}>
                   <Wallet className="mr-2 h-4 w-4" />
-                )}
-                Compartir facturas
+                  Compartir facturas
+                </Link>
               </Button>
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("appointments")}
-                disabled={isSyncingPortal !== null}
+                asChild
               >
-                {isSyncingPortal === "appointments" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
+                <Link href={`/dashboard/citas?clienteId=${detail._id}`}>
                   <CalendarDays className="mr-2 h-4 w-4" />
-                )}
-                Compartir citas
+                  Compartir citas
+                </Link>
               </Button>
             </CardContent>
           </Card>

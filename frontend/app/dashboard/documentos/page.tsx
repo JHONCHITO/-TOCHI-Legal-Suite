@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,6 +37,7 @@ import {
 import { useDocuments, useCases, useClients } from "@/lib/hooks/use-data"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { getClientDisplayName } from "@/lib/utils/format"
 
 const categoriaColores: Record<string, string> = {
@@ -66,11 +67,17 @@ const plantillasBase = [
 ]
 
 export default function DocumentosPage() {
+  const searchParams = useSearchParams()
+  const clienteIdFilter = searchParams.get("clienteId") || ""
   const [searchTerm, setSearchTerm] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { documents, isLoading, mutate } = useDocuments()
-  const { cases } = useCases()
+  const { documents, isLoading, mutate } = useDocuments({
+    clienteId: clienteIdFilter || undefined,
+  })
+  const { cases } = useCases({
+    clienteId: clienteIdFilter || undefined,
+  })
   const { clients } = useClients()
   const { toast } = useToast()
 
@@ -83,6 +90,12 @@ export default function DocumentosPage() {
     contenido: "",
     estado: "borrador",
   })
+
+  useEffect(() => {
+    if (clienteIdFilter && !nuevoDocumento.clienteId) {
+      setNuevoDocumento((current) => ({ ...current, clienteId: clienteIdFilter }))
+    }
+  }, [clienteIdFilter, nuevoDocumento.clienteId])
 
   const filteredPlantillas = useMemo(() => {
     return plantillasBase.filter(
@@ -99,6 +112,11 @@ export default function DocumentosPage() {
       keywords: [client.email, client.cedula, client.nit].filter(Boolean) as string[],
     }))
   }, [clients])
+
+  const selectedClient = useMemo(() => {
+    if (!clienteIdFilter) return null
+    return (clients || []).find((client: any) => String(client._id) === clienteIdFilter) || null
+  }, [clients, clienteIdFilter])
 
   const caseOptions = useMemo(() => {
     return (cases || []).map((caso: any) => ({
@@ -379,6 +397,26 @@ export default function DocumentosPage() {
           </CardContent>
         </Card>
       </div>
+
+      {clienteIdFilter ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">
+                Mostrando documentos del cliente seleccionado
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {selectedClient
+                  ? getClientDisplayName(selectedClient)
+                  : "El filtro de cliente sigue activo en esta pantalla."}
+              </p>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/documentos">Ver todos</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Tabs defaultValue="plantillas" className="space-y-4">
         <TabsList>

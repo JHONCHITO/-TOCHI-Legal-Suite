@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { addDays, format, isSameDay, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { useSearchParams } from "next/navigation";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,6 +65,8 @@ export default function CitasPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const searchParams = useSearchParams();
+  const clienteIdFilter = searchParams.get("clienteId") || "";
 
   // Form state
   const [formData, setFormData] = useState({
@@ -77,8 +81,21 @@ export default function CitasPage() {
     descripcion: "",
   });
 
-  const { appointments, isLoading, mutate } = useAppointments();
+  const { appointments, isLoading, mutate } = useAppointments({
+    clienteId: clienteIdFilter || undefined,
+  });
   const { clients } = useClients();
+
+  useEffect(() => {
+    if (clienteIdFilter && !formData.clienteId) {
+      setFormData((current) => ({ ...current, clienteId: clienteIdFilter }));
+    }
+  }, [clienteIdFilter, formData.clienteId]);
+
+  const selectedClient = useMemo(() => {
+    if (!clienteIdFilter) return null;
+    return clients.find((client: { _id: string }) => String(client._id) === clienteIdFilter) || null;
+  }, [clienteIdFilter, clients]);
 
   const appointmentsWithDates = useMemo(
     () =>
@@ -321,6 +338,24 @@ export default function CitasPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {clienteIdFilter ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">Mostrando citas del cliente seleccionado</p>
+              <p className="text-sm text-muted-foreground">
+                {selectedClient
+                  ? getClientDisplayName(selectedClient)
+                  : "El filtro de cliente sigue activo en esta pantalla."}
+              </p>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/citas">Ver todas</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card>

@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -61,10 +63,21 @@ const formatCurrency = (value: number) => {
 export default function FacturacionPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { invoices, isLoading, mutate } = useInvoices()
+  const searchParams = useSearchParams()
+  const clienteIdFilter = searchParams.get("clienteId") || ""
+  const { invoices, isLoading, mutate } = useInvoices({
+    clienteId: clienteIdFilter || undefined,
+  })
   const { clients } = useClients()
-  const { cases } = useCases()
+  const { cases } = useCases({
+    clienteId: clienteIdFilter || undefined,
+  })
   const { toast } = useToast()
+
+  const selectedClient = useMemo(() => {
+    if (!clienteIdFilter) return null
+    return clients.find((client: any) => String(client._id) === clienteIdFilter) || null
+  }, [clienteIdFilter, clients])
 
   const clientOptions = clients.map((client: any) => ({
     value: String(client._id),
@@ -92,6 +105,12 @@ export default function FacturacionPage() {
     fechaVencimiento: "",
     notas: "",
   })
+
+  useEffect(() => {
+    if (clienteIdFilter && !nuevaFactura.clienteId) {
+      setNuevaFactura((current) => ({ ...current, clienteId: clienteIdFilter }))
+    }
+  }, [clienteIdFilter, nuevaFactura.clienteId])
 
   const calcularTotales = (items: FacturaItem[], ivaPorcentaje: number) => {
     const subtotal = items.reduce(
@@ -481,6 +500,24 @@ export default function FacturacionPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {clienteIdFilter ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">Mostrando facturas del cliente seleccionado</p>
+              <p className="text-sm text-muted-foreground">
+                {selectedClient
+                  ? getClientDisplayName(selectedClient)
+                  : "El filtro de cliente sigue activo en esta pantalla."}
+              </p>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/facturacion">Ver todas</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>

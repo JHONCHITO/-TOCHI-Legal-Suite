@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +62,8 @@ import {
 import { toast } from "sonner";
 
 export default function CasosPage() {
+  const searchParams = useSearchParams();
+  const clienteIdFilter = searchParams.get("clienteId") || undefined;
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [filterEstado, setFilterEstado] = useState<string>("todos");
@@ -71,6 +74,7 @@ export default function CasosPage() {
     search: searchQuery || undefined,
     tipo: filterTipo !== "todos" ? filterTipo : undefined,
     estado: filterEstado !== "todos" ? filterEstado : undefined,
+    clienteId: clienteIdFilter,
   });
 
   const stats = useMemo(() => {
@@ -197,6 +201,22 @@ export default function CasosPage() {
           </div>
         </CardContent>
       </Card>
+
+      {clienteIdFilter ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex items-center justify-between gap-3 p-4">
+            <div>
+              <p className="font-medium">Mostrando casos del cliente seleccionado</p>
+              <p className="text-sm text-muted-foreground">
+                Usa esta vista para abrir o editar solo los expedientes vinculados a ese cliente.
+              </p>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/casos">Ver todos</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

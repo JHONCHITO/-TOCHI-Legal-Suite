@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,8 @@ import { toast } from "sonner";
 
 export default function NuevoCasoPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const clienteIdFilter = searchParams.get("clienteId") || "";
   const { clients, isLoading: loadingClients } = useClients();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const clientOptions = useMemo(
@@ -45,6 +47,10 @@ export default function NuevoCasoPage() {
     [clients]
   );
   const noClientsAvailable = !loadingClients && clientOptions.length === 0;
+  const selectedClient = useMemo(() => {
+    if (!clienteIdFilter) return null;
+    return clients.find((client: { _id: string }) => String(client._id) === clienteIdFilter) || null;
+  }, [clienteIdFilter, clients]);
 
   const [formData, setFormData] = useState({
     titulo: "",
@@ -65,6 +71,13 @@ export default function NuevoCasoPage() {
     honorarios: "",
     notas: "",
   });
+
+  useEffect(() => {
+    if (clienteIdFilter && !formData.clienteId) {
+      setFormData((current) => ({ ...current, clienteId: clienteIdFilter }));
+    }
+  }, [clienteIdFilter, formData.clienteId]);
+
   const missingRequiredFields = [
     !formData.titulo.trim() ? { id: "titulo-caso", label: "Titulo del caso" } : null,
     !formData.tipo ? { id: "tipo-caso", label: "Tipo de caso" } : null,
@@ -138,6 +151,24 @@ export default function NuevoCasoPage() {
           </Button>
         </div>
       </div>
+
+      {clienteIdFilter ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">Caso preparado para el cliente seleccionado</p>
+              <p className="text-sm text-muted-foreground">
+                {selectedClient
+                  ? getClientDisplayName(selectedClient)
+                  : "El cliente quedó preseleccionado desde la ficha."}
+              </p>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/casos">Ver todos los casos</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <Card>

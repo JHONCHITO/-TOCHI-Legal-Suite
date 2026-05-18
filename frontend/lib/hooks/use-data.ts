@@ -31,11 +31,12 @@ export function useDashboard() {
 }
 
 // Casos
-export function useCases(filters?: { estado?: string; tipo?: string; search?: string }) {
+export function useCases(filters?: { estado?: string; tipo?: string; search?: string; clienteId?: string }) {
   const params = new URLSearchParams()
   if (filters?.estado) params.set("estado", filters.estado)
   if (filters?.tipo) params.set("tipo", filters.tipo)
   if (filters?.search) params.set("search", filters.search)
+  if (filters?.clienteId) params.set("clienteId", filters.clienteId)
   
   const url = `/api/cases${params.toString() ? `?${params.toString()}` : ""}`
   const { data, error, isLoading, mutate } = useSWR(url, fetcher)
@@ -93,11 +94,12 @@ export function useClient(id: string | null) {
 }
 
 // Citas
-export function useAppointments(filters?: { fecha?: string; tipo?: string; estado?: string }) {
+export function useAppointments(filters?: { fecha?: string; tipo?: string; estado?: string; clienteId?: string }) {
   const params = new URLSearchParams()
   if (filters?.fecha) params.set("fecha", filters.fecha)
   if (filters?.tipo) params.set("tipo", filters.tipo)
   if (filters?.estado) params.set("estado", filters.estado)
+  if (filters?.clienteId) params.set("clienteId", filters.clienteId)
   
   const url = `/api/appointments${params.toString() ? `?${params.toString()}` : ""}`
   const { data, error, isLoading, mutate } = useSWR(url, fetcher)
