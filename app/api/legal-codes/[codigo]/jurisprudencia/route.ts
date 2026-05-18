@@ -40,9 +40,54 @@ type JurisprudenceSource = {
   source?: string;
 };
 
+function formatSourceTitle(url: string, title?: string) {
+  const cleanTitle = typeof title === "string" ? title.trim() : "";
+  const cleanUrl = typeof url === "string" ? url.trim() : "";
+
+  if (
+    cleanTitle &&
+    cleanTitle !== cleanUrl &&
+    !/^https?:\/\//i.test(cleanTitle) &&
+    !cleanTitle.includes("?") &&
+    !cleanTitle.includes("=") &&
+    !/%[0-9a-f]{2}/i.test(cleanTitle)
+  ) {
+    return cleanTitle;
+  }
+
+  try {
+    const parsed = new URL(cleanUrl, "https://tochi.local");
+    const pathname = parsed.pathname.toLowerCase();
+    const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+    const hostLabels: Record<string, string> = {
+      "suin-juriscol.gov.co": "SUIN-Juriscol",
+      "secretariasenado.gov.co": "Secretaria del Senado",
+      "jurisprudencia.ramajudicial.gov.co": "Rama Judicial",
+      "ramajudicial.gov.co": "Rama Judicial",
+      "corteconstitucional.gov.co": "Corte Constitucional",
+    };
+
+    if (pathname.startsWith("/dashboard/busqueda")) {
+      return "Busqueda interna";
+    }
+
+    if (pathname.startsWith("/dashboard/leyes/")) {
+      return "Ficha normativa";
+    }
+
+    if (pathname.startsWith("/dashboard/")) {
+      return "Referencia interna";
+    }
+
+    return hostLabels[host] || "Fuente oficial";
+  } catch {
+    return "Fuente oficial";
+  }
+}
+
 function toJurisprudenceSources(items: Array<{ title: string; url: string; source?: string }>) {
   return items.map((item) => ({
-    title: item.title,
+    title: formatSourceTitle(item.url, item.title),
     url: item.url,
     source: item.source,
   }));
@@ -109,7 +154,7 @@ function extractSources(payload: any) {
           if (source?.url && !seen.has(source.url)) {
             seen.add(source.url);
             sources.push({
-              title: source.title || source.url,
+              title: formatSourceTitle(source.url, source.title),
               url: source.url,
               source: source.title || "web_search",
             });
@@ -125,7 +170,7 @@ function extractSources(payload: any) {
           if (annotation?.type === "url_citation" && annotation?.url && !seen.has(annotation.url)) {
             seen.add(annotation.url);
             sources.push({
-              title: annotation.title || annotation.url,
+              title: formatSourceTitle(annotation.url, annotation.title),
               url: annotation.url,
               source: annotation.title || "url_citation",
             });
