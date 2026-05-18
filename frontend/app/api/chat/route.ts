@@ -1,5 +1,6 @@
 import { CODIGOS_COLOMBIANOS } from "@/lib/types";
 import { getFallbackLegalUpdates } from "@/lib/legal-updates";
+import { sanitizeLegalAiResponse } from "@/lib/ai-response";
 
 export const maxDuration = 60;
 
@@ -26,6 +27,7 @@ REGLAS:
 - No inventes articulos, sentencias ni datos.
 - Si no hay certeza suficiente, dilo con precision y explica que extremo requiere verificacion adicional.
 - No uses cierres genericos para publico general.
+- No cierres con frases como "consulte con un abogado" o equivalentes.
 - Cierra con una recomendacion util para el despacho, por ejemplo: teoria del caso, matriz de pruebas, estrategia procesal, escrito sugerido, riesgo principal o accion inmediata.
 - Si la respuesta requiere alguna precision adicional, formula una pregunta corta y relevante al final.
 
@@ -181,7 +183,7 @@ Cuando uses informacion de actualidad, devuelve tambien referencias claras a las
     }
 
     const payload = await response.json();
-    const message = extractResponseText(payload);
+    const message = sanitizeLegalAiResponse(extractResponseText(payload));
     const sources = extractSources(payload);
 
     return Response.json({

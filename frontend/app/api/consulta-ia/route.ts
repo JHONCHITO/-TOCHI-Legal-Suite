@@ -5,6 +5,7 @@ import dbConnect from "@/lib/mongodb";
 import Norma from "@/lib/models/Norma";
 import Articulo from "@/lib/models/Articulo";
 import { consumeAiQuery } from "@/lib/subscription";
+import { sanitizeLegalAiResponse } from "@/lib/ai-response";
 
 export const runtime = "nodejs";
 
@@ -140,7 +141,7 @@ ${String(doc.contenido || "").slice(0, 1200)}
         {
           role: "system",
           content:
-            "Eres un asesor juridico senior para despachos de abogados en Colombia. Responde en espanol, con tono tecnico, sobrio y profesional. Usa una estructura clara: conclusion breve, fundamento normativo, aplicacion al caso, riesgos o puntos de revision y siguiente paso practico. Cita el codigo, articulo o fuente oficial cuando sea posible. No inventes datos ni cierres genericos para publico general. Si falta informacion, dilo con precision y sugiere la accion concreta que seguiria un abogado.",
+            "Eres un asesor juridico senior para despachos de abogados en Colombia. Responde en espanol, con tono tecnico, sobrio y profesional. Usa una estructura clara: conclusion breve, fundamento normativo, aplicacion al caso, riesgos o puntos de revision y siguiente paso practico. Cita el codigo, articulo o fuente oficial cuando sea posible. No inventes datos ni cierres genericos para publico general. No cierres con frases como 'consulte con un abogado' o equivalentes. Si falta informacion, dilo con precision y sugiere la accion concreta que seguiria un abogado.",
         },
         {
           role: "user",
@@ -150,7 +151,7 @@ ${String(doc.contenido || "").slice(0, 1200)}
     });
 
     return NextResponse.json({
-      respuesta: respuestaIA.choices[0]?.message?.content || "Sin respuesta",
+      respuesta: sanitizeLegalAiResponse(respuestaIA.choices[0]?.message?.content || "Sin respuesta"),
       fuentes: ranked.map((doc: any) => ({
         source: doc.source,
         codigo: doc.codigo,
