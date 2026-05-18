@@ -2,6 +2,7 @@ import { CODIGOS_COLOMBIANOS } from "@/lib/types";
 import { getFallbackLegalUpdates } from "@/lib/legal-updates";
 import { buildLegalAssistantFallback } from "@/lib/services/legal-assistant-fallback";
 import { findExactLegalArticle } from "@/lib/services/legal-catalog";
+import { sanitizeLegalAiResponse } from "@/lib/ai-response";
 
 export const maxDuration = 60;
 
@@ -21,12 +22,15 @@ const LEGAL_SYSTEM_PROMPT = `Eres TOCHI Legal Assistant, un asistente legal espe
 
 REGLAS:
 - Responde siempre en espanol.
-- Usa lenguaje claro y profesional.
-- Cuando cites normas o sentencias, menciona la fuente oficial.
+- Usa lenguaje tecnico, sobrio y profesional, propio de un despacho juridico.
+- Estructura la respuesta con orden claro: conclusion breve, fundamento normativo, aplicacion al caso, riesgos o puntos de revision y siguiente paso practico.
+- Cuando cites normas o sentencias, menciona la fuente oficial cuando sea posible.
 - Si la pregunta implica actualidad, jurisprudencia reciente, normas nuevas o cambios recientes, prioriza informacion actual con fuentes oficiales colombianas.
 - No inventes articulos ni sentencias.
-- Si no hay certeza suficiente, dilo claramente.
-- Al final de respuestas juridicas complejas agrega: "Esta informacion es orientativa. Para casos especificos, consulte con un abogado."
+- Si no hay certeza suficiente, dilo con precision y explica que extremo requiere verificacion adicional.
+- No cierres con frases como "consulte con un abogado" o equivalentes.
+- Si la respuesta lo permite, termina con una recomendacion util para el despacho: teoria del caso, matriz de pruebas, estrategia procesal, escrito sugerido, riesgo principal o accion inmediata.
+- Si hace falta una precision adicional, formula una pregunta corta y relevante al final.
 
 CODIGOS DISPONIBLES EN LA APP:
 ${CODIGOS_COLOMBIANOS.map((c) => `- ${c.nombre} (${c.nombreCorto})`).join("\n")}
@@ -112,17 +116,17 @@ export async function POST(req: Request) {
 
     const exactArticle = await findExactLegalArticle(latestUserMessage.content);
     if (exactArticle) {
-      const message = [
+      const message = sanitizeLegalAiResponse([
         `${exactArticle.nombre} - Articulo ${exactArticle.articulo}`,
         exactArticle.titulo ? `Titulo: ${exactArticle.titulo}` : null,
         "",
         exactArticle.contenido,
         "",
-        "Esta respuesta muestra el texto completo que la base cargada tiene disponible para este articulo.",
-        "Si necesitas una version oficial ampliada, revisa las fuentes enlazadas.",
+        "La consulta se resolvio con el texto completo cargado en TOCHI.",
+        "Siguiente paso sugerido: contrastar el texto con la fuente oficial enlazada y, si aplica, revisar jurisprudencia asociada.",
       ]
         .filter(Boolean)
-        .join("\n");
+        .join("\n"));
 
       return Response.json({
         message,
@@ -141,8 +145,8 @@ export async function POST(req: Request) {
     if (!process.env.OPENAI_API_KEY) {
       const fallback = await buildLegalAssistantFallback(latestUserMessage.content);
       return Response.json({
-        message: fallback.message,
-        respuesta: fallback.message,
+        message: sanitizeLegalAiResponse(fallback.message),
+        respuesta: sanitizeLegalAiResponse(fallback.message),
         sources: fallback.references,
         usedWebSearch: false,
         model: fallback.model,
@@ -200,8 +204,8 @@ Cuando uses informacion de actualidad, devuelve tambien referencias claras a las
     if (!response.ok) {
       const fallback = await buildLegalAssistantFallback(latestUserMessage.content);
       return Response.json({
-        message: fallback.message,
-        respuesta: fallback.message,
+        message: sanitizeLegalAiResponse(fallback.message),
+        respuesta: sanitizeLegalAiResponse(fallback.message),
         sources: fallback.references,
         usedWebSearch: false,
         model: fallback.model,
@@ -216,8 +220,8 @@ Cuando uses informacion de actualidad, devuelve tambien referencias claras a las
     if (!message) {
       const fallback = await buildLegalAssistantFallback(latestUserMessage.content);
       return Response.json({
-        message: fallback.message,
-        respuesta: fallback.message,
+        message: sanitizeLegalAiResponse(fallback.message),
+        respuesta: sanitizeLegalAiResponse(fallback.message),
         sources: fallback.references,
         usedWebSearch: false,
         model: fallback.model,
@@ -225,9 +229,11 @@ Cuando uses informacion de actualidad, devuelve tambien referencias claras a las
       });
     }
 
+    const sanitizedMessage = sanitizeLegalAiResponse(message);
+
     return Response.json({
-      message,
-      respuesta: message,
+      message: sanitizedMessage,
+      respuesta: sanitizedMessage,
       sources,
       usedWebSearch: shouldSearchWeb,
       model: process.env.OPENAI_MODEL || "gpt-4.1-mini",

@@ -3,6 +3,7 @@ import { CODIGOS_COLOMBIANOS } from "@/lib/types";
 import { getFallbackLegalUpdates, type LegalAreaKey } from "@/lib/legal-updates";
 import { getLegalCodeContent, getOfficialLegalResources, toLegalSlug } from "@/lib/legal-library";
 import { searchSemanticLegalContent, type VectorHit } from "@/lib/services/legal-vector-search";
+import { sanitizeLegalAiResponse } from "@/lib/ai-response";
 
 export interface LegalAssistantReference {
   title: string;
@@ -275,18 +276,19 @@ function buildMessage(question: string, references: LegalAssistantReference[]) {
       .map((reference) => `- ${reference.title}\n  ${reference.url}`)
       .join("\n");
 
-    return [
-      "No pude conectar con OpenAI, pero sigo con la base local de TOCHI.",
+    return sanitizeLegalAiResponse([
+      "Modo local de respaldo activado.",
       "",
       monitoring.summary,
       "",
       "No encontré una coincidencia exacta en la base local.",
       lines ? `\nFuentes oficiales:\n${lines}` : "",
       "",
-      "Esta información es orientativa. Para casos específicos, consulte con un abogado.",
+      "Siguiente paso sugerido: contrastar la referencia oficial elegida con la fuente primaria y, si aplica, convertirla en estrategia procesal, matriz de pruebas o escrito.",
     ]
       .filter(Boolean)
-      .join("\n");
+      .join("\n")
+    );
   }
 
   const lines = references.slice(0, 5).map((reference, index) => {
@@ -302,18 +304,19 @@ function buildMessage(question: string, references: LegalAssistantReference[]) {
     ? `\n\nPara actualidad reciente, revisa tambien el resumen de seguimiento:\n${monitoring.summary}`
     : "";
 
-  return [
-    "No pude conectar con OpenAI, pero sigo con la base local de TOCHI.",
+  return sanitizeLegalAiResponse([
+    "Modo local de respaldo activado.",
     "",
     `Encontré ${references.length} referencia${references.length === 1 ? "" : "s"} relevante${references.length === 1 ? "" : "s"}:`,
     "",
     lines.join("\n\n"),
     recentNote,
     "",
-    "Esta información es orientativa. Para casos específicos, consulte con un abogado.",
+    "Siguiente paso sugerido: contrastar estas referencias con la fuente oficial y estructurar el argumento, la prueba o el escrito correspondiente.",
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\n")
+  );
 }
 
 function collectTopCodes(references: LegalAssistantReference[]) {
