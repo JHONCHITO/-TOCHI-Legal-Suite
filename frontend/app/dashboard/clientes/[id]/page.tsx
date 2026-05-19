@@ -34,6 +34,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const clientId = params?.id ?? null;
@@ -94,10 +98,21 @@ export default function ClienteDetallePage() {
       return;
     }
 
+    if (targetPortalEmail && !isValidEmail(targetPortalEmail)) {
+      toast.error("Escribe un correo completo y valido para el portal antes de compartir");
+      return;
+    }
+
     setIsSyncingPortal(scope);
     try {
       const result = await syncClientPortal(clientId, scope, targetPortalEmail);
       const sharedCounts = (result as Record<string, any>).sharedCounts || {};
+      const emailDelivery = (result as Record<string, any>).emailDelivery || {};
+      const recipientEmail =
+        typeof (result as Record<string, any>).recipientEmail === "string"
+          ? String((result as Record<string, any>).recipientEmail)
+          : "";
+      const portalLinked = Boolean((result as Record<string, any>).portalLinked);
       const scopeLabel =
         scope === "cases"
           ? "casos"
@@ -119,11 +134,22 @@ export default function ClienteDetallePage() {
             ].join(", ")
           : `${sharedCounts[scope] || 0} ${scopeLabel}`;
 
+      const emailSuffix = emailDelivery.sent
+        ? recipientEmail
+          ? ` y se envio un correo a ${recipientEmail}`
+          : " y se envio un correo de respaldo"
+        : emailDelivery.skipped && recipientEmail
+          ? " (el correo de respaldo no se envio porque falta configurar el servicio)"
+          : "";
+
       toast.success(
         scope === "all"
-          ? `Portal actualizado: ${publishSummary}.`
-          : `Se publicaron ${publishSummary} en el portal.`
+          ? `Portal actualizado: ${publishSummary}.${emailSuffix}`
+          : `Se publicaron ${publishSummary} en el portal.${emailSuffix}`
       );
+      if (!portalLinked && emailDelivery.sent) {
+        toast.info("Todavia no quedo vinculado un portal de acceso, pero ya se envio el correo de respaldo.");
+      }
       await mutate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo sincronizar el portal");
@@ -358,6 +384,8 @@ export default function ClienteDetallePage() {
               </CardTitle>
               <CardDescription>
                 Publica al portal del cliente la informacion que quieres mostrarle desde el despacho.
+                Si el portal aun no esta vinculado, tambien se enviara un correo de respaldo al
+                cliente.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

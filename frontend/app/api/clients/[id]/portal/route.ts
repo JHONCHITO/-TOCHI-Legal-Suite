@@ -8,6 +8,7 @@ import Document from "@/lib/models/Document";
 import Invoice from "@/lib/models/Invoice";
 import Appointment from "@/lib/models/Appointment";
 import Communication from "@/lib/models/Communication";
+import { sendClientPortalShareEmail } from "@/lib/services/client-portal-email";
 import { notifyClientByClientId } from "@/lib/services/client-notifications";
 
 type SessionLike = {
@@ -22,6 +23,10 @@ type PortalShareScope = "all" | "cases" | "documents" | "invoices" | "appointmen
 
 function normalizeEmail(email?: string | null) {
   return String(email || "").toLowerCase().trim();
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function normalizeScope(scope: unknown): PortalShareScope {
@@ -187,8 +192,14 @@ export async function POST(
     }
 
     const normalizedEmail = normalizeEmail((client as { email?: string }).email);
-    const portalEmail =
+    const requestedPortalEmail =
       typeof body.portalEmail === "string" ? normalizeEmail(body.portalEmail) : "";
+    if (requestedPortalEmail && !isValidEmail(requestedPortalEmail)) {
+      return NextResponse.json(
+        { error: "El correo del portal no es valido" },
+        { status: 400 }
+      );
+    }
     const linkedUser =
       (client as { userId?: unknown }).userId
         ? await User.findById((client as { userId?: unknown }).userId)
@@ -198,22 +209,13 @@ export async function POST(
 
     let portalUser: { _id: unknown } | null = null;
 
-    if (portalEmail) {
+    if (requestedPortalEmail) {
       portalUser = await User.findOne({
-        email: portalEmail,
+        email: requestedPortalEmail,
         rol: "cliente",
       })
         .select("_id email nombre apellido rol activo")
         .lean();
-
-      if (!portalUser) {
-        return NextResponse.json(
-          {
-            error: "No existe una cuenta de cliente con ese correo. Verifica el correo del portal antes de sincronizar.",
-          },
-          { status: 404 }
-        );
-      }
     } else {
       const userByClientEmail =
         normalizedEmail
@@ -228,23 +230,32 @@ export async function POST(
       portalUser = linkedUser || userByClientEmail;
     }
 
-    if (!portalUser) {
+    const portalRecipientEmail =
+      requestedPortalEmail ||
+      normalizeEmail((portalUser as { email?: string } | null)?.email) ||
+      normalizedEmail;
+
+    if (!portalRecipientEmail) {
       return NextResponse.json(
         {
-          error: "No existe una cuenta de cliente vinculada a este correo. Crea o corrige la cuenta del portal antes de sincronizar.",
+          error: "No encontramos un correo valido para enviar la publicacion del portal.",
         },
-        { status: 404 }
+        { status: 400 }
       );
+    }
+
+    const updatePayload: Record<string, unknown> = {
+      portalUltimaSincronizacion: new Date(),
+    };
+    if (portalUser) {
+      updatePayload.userId = (portalUser as { _id: unknown })._id;
+      updatePayload.tieneAccesoPortal = true;
     }
 
     const updatedClient = await Client.findByIdAndUpdate(
       id,
       {
-        $set: {
-          userId: (portalUser as { _id: unknown })._id,
-          tieneAccesoPortal: true,
-          portalUltimaSincronizacion: new Date(),
-        },
+        $set: updatePayload,
       },
       { new: true, runValidators: true }
     )
@@ -266,6 +277,29 @@ export async function POST(
       Communication.countDocuments({ clienteId: id }),
       publishPortalScope(id, scope, publishedAt),
     ]);
+
+    const clientName =
+      (client as { nombre?: string; apellido?: string; razonSocial?: string }).razonSocial ||
+      [String((client as { nombre?: string }).nombre || "").trim(), String((client as { apellido?: string }).apellido || "").trim()]
+        .filter(Boolean)
+        .join(" ") ||
+      "cliente";
+
+    const portalUrl = new URL("/portal", new URL(request.url).origin).toString();
+    const emailDelivery = await sendClientPortalShareEmail({
+      to: portalRecipientEmail,
+      clientName,
+      scope,
+      counts: {
+        cases: casesCount,
+        documents: documentsCount,
+        invoices: invoicesCount,
+        appointments: appointmentsCount,
+        communications: communicationsCount,
+      },
+      portalUrl,
+      portalLinked: Boolean(portalUser),
+    });
 
     const config = scopeConfig(scope);
     const countByScope = {
@@ -323,6 +357,9 @@ export async function POST(
         appointments: appointmentsCount,
         communications: communicationsCount,
       },
+      portalLinked: Boolean(portalUser),
+      emailDelivery,
+      recipientEmail: portalRecipientEmail,
       message: "Portal del cliente sincronizado correctamente",
     });
   } catch (error) {

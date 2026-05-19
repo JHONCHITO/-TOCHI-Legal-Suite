@@ -1,0 +1,158 @@
+import { Resend } from "resend";
+
+export type PortalShareScope = "all" | "cases" | "documents" | "invoices" | "appointments";
+
+export type PortalShareCounts = {
+  cases: number;
+  documents: number;
+  invoices: number;
+  appointments: number;
+  communications?: number;
+};
+
+export type PortalShareEmailInput = {
+  to: string;
+  clientName: string;
+  scope: PortalShareScope;
+  counts: PortalShareCounts;
+  portalUrl: string;
+  portalLinked: boolean;
+};
+
+type PortalShareEmailResult =
+  | {
+      sent: true;
+      skipped: false;
+      recipientEmail: string;
+    }
+  | {
+      sent: false;
+      skipped: true;
+      recipientEmail: string;
+      reason: "missing_recipient" | "missing_resend" | "send_failed";
+      error?: string;
+    };
+
+function scopeTitle(scope: PortalShareScope) {
+  switch (scope) {
+    case "cases":
+      return "casos";
+    case "documents":
+      return "documentos";
+    case "invoices":
+      return "facturas";
+    case "appointments":
+      return "citas";
+    case "all":
+    default:
+      return "actualizacion del portal";
+  }
+}
+
+function buildSummary(counts: PortalShareCounts, scope: PortalShareScope) {
+  if (scope === "all") {
+    const parts = [
+      `${counts.cases || 0} casos`,
+      `${counts.documents || 0} documentos`,
+      `${counts.invoices || 0} facturas`,
+      `${counts.appointments || 0} citas`,
+    ];
+    return `Tu abogado actualizo tu portal con ${parts.join(", ")}.`;
+  }
+
+  const value =
+    scope === "cases"
+      ? counts.cases || 0
+      : scope === "documents"
+        ? counts.documents || 0
+        : scope === "invoices"
+          ? counts.invoices || 0
+          : counts.appointments || 0;
+
+  const label = scopeTitle(scope);
+  return value > 0
+    ? `Tu abogado compartio ${value} ${label} con tu portal.`
+    : `Tu abogado actualizo la seccion de ${label} en tu portal.`;
+}
+
+export async function sendClientPortalShareEmail(input: PortalShareEmailInput): Promise<PortalShareEmailResult> {
+  const recipientEmail = String(input.to || "").toLowerCase().trim();
+  if (!recipientEmail) {
+    return {
+      sent: false,
+      skipped: true,
+      recipientEmail,
+      reason: "missing_recipient",
+    };
+  }
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    return {
+      sent: false,
+      skipped: true,
+      recipientEmail,
+      reason: "missing_resend",
+    };
+  }
+
+  try {
+    const resend = new Resend(resendApiKey);
+    const from = process.env.MAIL_FROM || "TOCHI Legal Suite <no-reply@tochi.legal>";
+    const scopeLabel = scopeTitle(input.scope);
+    const summary = buildSummary(input.counts, input.scope);
+    const portalState = input.portalLinked
+      ? "Tu cuenta de portal ya esta vinculada y puedes entrar con normalidad."
+      : "Tu portal aun no esta vinculado; este correo funciona como respaldo mientras el despacho termina la configuracion.";
+
+    await resend.emails.send({
+      from,
+      to: recipientEmail,
+      subject:
+        input.scope === "all"
+          ? "TOCHI Legal Suite: portal actualizado"
+          : `TOCHI Legal Suite: ${scopeLabel} compartidos`,
+      text: [
+        `Hola ${input.clientName || "cliente"},`,
+        "",
+        summary,
+        portalState,
+        "",
+        `Puedes revisar tu portal aqui: ${input.portalUrl}`,
+        "",
+        "Este mensaje incluye solo un aviso operativo y no reemplaza el acceso completo al portal.",
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
+          <h2 style="margin:0 0 12px 0">Portal del cliente actualizado</h2>
+          <p style="margin:0 0 12px 0">Hola ${input.clientName || "cliente"},</p>
+          <p style="margin:0 0 12px 0">${summary}</p>
+          <p style="margin:0 0 16px 0">${portalState}</p>
+          <p style="margin:0 0 16px 0">
+            <a href="${input.portalUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#0b5cab;color:#ffffff;text-decoration:none">
+              Abrir portal
+            </a>
+          </p>
+          <p style="margin:0;color:#6b7280;font-size:12px">
+            Este mensaje incluye solo un aviso operativo y no reemplaza el acceso completo al portal.
+          </p>
+        </div>
+      `,
+    });
+
+    return {
+      sent: true,
+      skipped: false,
+      recipientEmail,
+    };
+  } catch (error) {
+    console.error("Error sending client portal email:", error);
+    return {
+      sent: false,
+      skipped: true,
+      recipientEmail,
+      reason: "send_failed",
+      error: error instanceof Error ? error.message : "No se pudo enviar el correo",
+    };
+  }
+}
