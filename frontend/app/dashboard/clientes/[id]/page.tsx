@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useClient } from "@/lib/hooks/use-data";
+import { sendClientShareEmail, useClient } from "@/lib/hooks/use-data";
 import { formatDate, getClientDisplayName, getInitials } from "@/lib/utils/format";
 import { toast } from "sonner";
 
@@ -34,50 +34,12 @@ function isValidEmail(value: string) {
 
 type EmailScope = "all" | "cases" | "documents" | "invoices" | "appointments";
 
-function scopeLabel(scope: EmailScope) {
-  switch (scope) {
-    case "cases":
-      return "casos";
-    case "documents":
-      return "documentos";
-    case "invoices":
-      return "facturas";
-    case "appointments":
-      return "citas";
-    case "all":
-    default:
-      return "actualizacion completa";
-  }
-}
-
-function buildMailtoHref(email: string, name: string, scope: EmailScope) {
-  const label = scopeLabel(scope);
-  const subject =
-    scope === "all"
-      ? `TOCHI Legal Suite - Actualizacion de expediente`
-      : `TOCHI Legal Suite - ${label}`;
-  const bodyLines = [
-    `Hola ${name || "cliente"},`,
-    "",
-    scope === "all"
-      ? "Te compartimos una actualizacion completa del expediente."
-      : `Te compartimos la informacion de ${label} asociada a tu expediente.`,
-    "",
-    "Si necesitas ampliar detalles, responde a este correo.",
-    "",
-    "Saludos,",
-    "TOCHI Legal Suite",
-  ];
-  return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
-    bodyLines.join("\n")
-  )}`;
-}
-
 export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const clientId = params?.id ?? null;
   const { client, isLoading, isError, mutate } = useClient(clientId);
   const [recipientEmail, setRecipientEmail] = useState("");
+  const [sendingScope, setSendingScope] = useState<EmailScope | null>(null);
 
   useEffect(() => {
     if (!client) {
@@ -127,19 +89,43 @@ export default function ClienteDetallePage() {
   const cases = Array.isArray(detail.casos) ? detail.casos : [];
   const displayName = getClientDisplayName(detail as { tipo: string; nombre?: string; apellido?: string; razonSocial?: string });
 
-  const handleOpenEmail = (scope: EmailScope = "all", targetEmail?: string) => {
+  const handleSendEmail = async (scope: EmailScope = "all", targetEmail?: string) => {
     if (!clientId) {
       return;
     }
 
     const email = String(targetEmail || recipientEmail || "").trim();
     if (!email || !isValidEmail(email)) {
-      toast.error("Escribe un correo completo y valido para abrir el correo");
+      toast.error("Escribe un correo completo y valido para enviar el correo");
       return;
     }
 
-    const mailtoHref = buildMailtoHref(email, displayName, scope);
-    window.location.href = mailtoHref;
+    setSendingScope(scope);
+    try {
+      const result = (await sendClientShareEmail(clientId, scope, email)) as Record<string, any>;
+      const delivery = result?.emailDelivery as { sent?: boolean; skipped?: boolean; reason?: string } | undefined;
+      const recipient = String(result?.recipientEmail || email).trim();
+
+      if (delivery?.sent) {
+        toast.success(`Correo enviado a ${recipient}`);
+      } else if (delivery?.skipped) {
+        const reason =
+          delivery.reason === "missing_resend"
+            ? "falta configurar RESEND_API_KEY en la VM"
+            : delivery.reason === "send_failed"
+              ? "no se pudo completar el envio"
+              : "no se pudo completar el envio";
+        toast.warning(`La actualizacion quedo registrada, pero ${reason}.`);
+      } else {
+        toast.success(String(result?.message || "Actualizacion enviada correctamente"));
+      }
+
+      await mutate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo enviar el correo");
+    } finally {
+      setSendingScope(null);
+    }
   };
 
   return (
@@ -324,9 +310,13 @@ export default function ClienteDetallePage() {
                   Programar cita
                 </Link>
               </Button>
-              <Button className="w-full justify-start" onClick={() => handleOpenEmail("all", recipientEmail)}>
+              <Button
+                className="w-full justify-start"
+                onClick={() => handleSendEmail("all", recipientEmail)}
+                disabled={sendingScope !== null}
+              >
                 <Mail className="mr-2 h-4 w-4" />
-                Abrir correo completo
+                {sendingScope === "all" ? "Enviando correo..." : "Enviar correo completo"}
               </Button>
             </CardContent>
           </Card>
@@ -359,9 +349,13 @@ export default function ClienteDetallePage() {
                     placeholder="cliente@correo.com"
                     className="sm:flex-1"
                   />
-                  <Button className="justify-start sm:w-auto" onClick={() => handleOpenEmail("all", recipientEmail)}>
+                  <Button
+                    className="justify-start sm:w-auto"
+                    onClick={() => handleSendEmail("all", recipientEmail)}
+                    disabled={sendingScope !== null}
+                  >
                     <Mail className="mr-2 h-4 w-4" />
-                    Abrir correo
+                    {sendingScope === "all" ? "Enviando..." : "Enviar correo"}
                   </Button>
                 </div>
               </div>
@@ -370,34 +364,38 @@ export default function ClienteDetallePage() {
                 <Button
                   variant="outline"
                   className="justify-start"
-                  onClick={() => handleOpenEmail("cases", recipientEmail)}
+                  onClick={() => handleSendEmail("cases", recipientEmail)}
+                  disabled={sendingScope !== null}
                 >
                   <Briefcase className="mr-2 h-4 w-4" />
-                  Abrir correo de casos
+                  {sendingScope === "cases" ? "Enviando..." : "Enviar correo de casos"}
                 </Button>
                 <Button
                   variant="outline"
                   className="justify-start"
-                  onClick={() => handleOpenEmail("documents", recipientEmail)}
+                  onClick={() => handleSendEmail("documents", recipientEmail)}
+                  disabled={sendingScope !== null}
                 >
                   <FileText className="mr-2 h-4 w-4" />
-                  Abrir correo de documentos
+                  {sendingScope === "documents" ? "Enviando..." : "Enviar correo de documentos"}
                 </Button>
                 <Button
                   variant="outline"
                   className="justify-start"
-                  onClick={() => handleOpenEmail("invoices", recipientEmail)}
+                  onClick={() => handleSendEmail("invoices", recipientEmail)}
+                  disabled={sendingScope !== null}
                 >
                   <Wallet className="mr-2 h-4 w-4" />
-                  Abrir correo de facturas
+                  {sendingScope === "invoices" ? "Enviando..." : "Enviar correo de facturas"}
                 </Button>
                 <Button
                   variant="outline"
                   className="justify-start"
-                  onClick={() => handleOpenEmail("appointments", recipientEmail)}
+                  onClick={() => handleSendEmail("appointments", recipientEmail)}
+                  disabled={sendingScope !== null}
                 >
                   <CalendarDays className="mr-2 h-4 w-4" />
-                  Abrir correo de citas
+                  {sendingScope === "appointments" ? "Enviando..." : "Enviar correo de citas"}
                 </Button>
               </div>
             </CardContent>
