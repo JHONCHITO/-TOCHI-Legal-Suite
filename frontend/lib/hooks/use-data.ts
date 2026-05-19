@@ -93,6 +93,17 @@ export function useClient(id: string | null) {
   }
 }
 
+export function useClientMe() {
+  const { data, error, isLoading, mutate } = useSWR("/api/clients/me", fetcher)
+
+  return {
+    client: data,
+    isLoading,
+    isError: error,
+    mutate,
+  }
+}
+
 // Citas
 export function useAppointments(filters?: { fecha?: string; tipo?: string; estado?: string; clienteId?: string }) {
   const params = new URLSearchParams()

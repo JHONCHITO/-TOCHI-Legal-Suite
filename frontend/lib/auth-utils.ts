@@ -67,6 +67,10 @@ export function isInternalUser(role: UserRole): boolean {
 }
 
 export function getRoleLandingPath(role: UserRole): string {
+  if (role === "superadmin") {
+    return "/dashboard/admin";
+  }
+
   return isClient(role) ? "/portal" : "/dashboard";
 }
 

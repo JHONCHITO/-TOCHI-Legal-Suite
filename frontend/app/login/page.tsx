@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { getSession as getClientSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field";
 import { Scale, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { getRoleLandingPath, type UserRole } from "@/lib/auth-utils";
 
 const OWNER_BOOTSTRAP_EMAIL = "jhonrique@gmail.com";
-const OWNER_BOOTSTRAP_PASSWORD = "Rick0066@#0066";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,9 +26,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const isBootstrapAdmin =
-        email.toLowerCase().trim() === OWNER_BOOTSTRAP_EMAIL &&
-        password === OWNER_BOOTSTRAP_PASSWORD;
+      const isBootstrapAdmin = email.toLowerCase().trim() === OWNER_BOOTSTRAP_EMAIL;
 
       const result = await signIn("credentials", {
         email,
@@ -39,7 +37,16 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Credenciales invalidas. Verifica tu email y contrasena.");
       } else {
-        router.push(isBootstrapAdmin ? "/dashboard/admin" : "/dashboard");
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        const session = await getClientSession();
+        const role = (session?.user?.role as UserRole | undefined) || "abogado";
+        const landingPath = session?.user?.role
+          ? getRoleLandingPath(role)
+          : isBootstrapAdmin
+            ? "/dashboard/admin"
+            : "/dashboard";
+
+        router.replace(landingPath);
         router.refresh();
       }
     } catch (submitError) {

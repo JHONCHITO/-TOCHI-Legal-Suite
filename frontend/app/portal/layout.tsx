@@ -10,6 +10,7 @@ export const metadata = {
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { getRoleLandingPath, type UserRole } from "@/lib/auth-utils";
 
 export default async function PortalLayout({
   children: _children,
@@ -22,5 +23,10 @@ export default async function PortalLayout({
     redirect("/login");
   }
 
-  redirect("/dashboard");
+  const userRole = (session.user.role as UserRole | undefined) || "abogado";
+  if (userRole !== "cliente") {
+    redirect(getRoleLandingPath(userRole));
+  }
+
+  return <>{_children}</>;
 }

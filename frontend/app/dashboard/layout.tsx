@@ -11,6 +11,7 @@ export const metadata = {
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getEffectiveSubscription, isSubscriptionAccessExpired } from "@/lib/subscription";
+import { getRoleLandingPath, type UserRole } from "@/lib/auth-utils";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Header } from "@/components/dashboard/header";
 import { SessionProvider } from "@/components/providers/session-provider";
@@ -24,6 +25,11 @@ export default async function DashboardLayout({
 
   if (!session?.user?.id) {
     redirect("/login");
+  }
+
+  const userRole = (session.user.role as UserRole | undefined) || "abogado";
+  if (userRole === "cliente") {
+    redirect(getRoleLandingPath(userRole));
   }
 
   const effectiveSubscription = await getEffectiveSubscription(session.user.id);
