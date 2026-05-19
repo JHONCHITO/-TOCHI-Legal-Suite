@@ -47,7 +47,7 @@ if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
 
 const AUTH_COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || "").trim();
 
-const DEFAULT_ADMIN_EMAIL = "jhonrique@gmail.com";
+const DEFAULT_ADMIN_EMAIL = "jhonrique1@gmail.com";
 const DEFAULT_ADMIN_PASSWORD = "Rick0066@#0066";
 const DEFAULT_ADMIN_NAME = "Jhon Rique";
 const DEFAULT_ADMIN_LASTNAME = "Chito Ruiz";

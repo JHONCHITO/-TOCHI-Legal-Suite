@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 
-const DEFAULT_ADMIN_EMAIL = "jhonrique@gmail.com";
+const DEFAULT_ADMIN_EMAIL = "jhonrique1@gmail.com";
 const DEFAULT_ADMIN_PASSWORD = "Rick0066@#0066";
 const DEFAULT_ADMIN_NOMBRE = "Jhon Rique";
 const DEFAULT_ADMIN_APELLIDO = "Chito Ruiz";

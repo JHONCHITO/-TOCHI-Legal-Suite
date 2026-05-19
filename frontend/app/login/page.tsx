@@ -11,7 +11,7 @@ import { Scale, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getRoleLandingPath, type UserRole } from "@/lib/role-routing";
 
-const OWNER_BOOTSTRAP_EMAIL = "jhonrique@gmail.com";
+const OWNER_BOOTSTRAP_EMAIL = "jhonrique1@gmail.com";
 const OWNER_BOOTSTRAP_PASSWORD = "Rick0066@#0066";
 
 export default function LoginPage() {
