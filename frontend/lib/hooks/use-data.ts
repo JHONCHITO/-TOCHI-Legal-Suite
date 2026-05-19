@@ -267,7 +267,8 @@ export async function updateClient(id: string, data: Record<string, unknown>) {
   return res.json()
 }
 
-export type ClientPortalShareScope = "all" | "cases" | "documents" | "invoices" | "appointments"
+export type ClientShareScope = "all" | "cases" | "documents" | "invoices" | "appointments"
+export type ClientPortalShareScope = ClientShareScope
 
 export async function syncClientPortal(
   id: string,
@@ -289,6 +290,14 @@ export async function syncClientPortal(
     throw new Error(error.error || "Error al sincronizar el portal del cliente")
   }
   return res.json()
+}
+
+export async function sendClientShareEmail(
+  id: string,
+  scope: ClientShareScope = "all",
+  recipientEmail?: string
+) {
+  return syncClientPortal(id, scope, recipientEmail)
 }
 
 export async function deleteClient(id: string) {

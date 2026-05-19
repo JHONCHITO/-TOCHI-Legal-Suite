@@ -15,8 +15,6 @@ import {
   MapPin,
   Phone,
   Plus,
-  RefreshCw,
-  Share2,
   Wallet,
   Users,
 } from "lucide-react";
@@ -26,13 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { syncClientPortal, useClient, type ClientPortalShareScope } from "@/lib/hooks/use-data";
+import { sendClientShareEmail, useClient, type ClientShareScope } from "@/lib/hooks/use-data";
 import { formatDate, getClientDisplayName, getInitials } from "@/lib/utils/format";
 import { toast } from "sonner";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -42,8 +36,8 @@ export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const clientId = params?.id ?? null;
   const { client, isLoading, isError, mutate } = useClient(clientId);
-  const [isSyncingPortal, setIsSyncingPortal] = useState<ClientPortalShareScope | null>(null);
-  const [portalEmail, setPortalEmail] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState<ClientShareScope | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState("");
 
   useEffect(() => {
     if (!client) {
@@ -51,12 +45,12 @@ export default function ClienteDetallePage() {
     }
 
     const detail = client as Record<string, any>;
-    const linkedPortalEmail =
-      isRecord(detail.userId) && typeof detail.userId.email === "string"
+    const fallbackEmail = typeof detail.email === "string" ? detail.email : "";
+    const linkedEmail =
+      detail.userId && typeof detail.userId === "object" && typeof detail.userId.email === "string"
         ? String(detail.userId.email)
         : "";
-    const fallbackEmail = typeof detail.email === "string" ? detail.email : "";
-    setPortalEmail(linkedPortalEmail || fallbackEmail);
+    setRecipientEmail(fallbackEmail || linkedEmail);
   }, [client]);
 
   if (isLoading) {
@@ -93,26 +87,25 @@ export default function ClienteDetallePage() {
   const cases = Array.isArray(detail.casos) ? detail.casos : [];
   const displayName = getClientDisplayName(detail as { tipo: string; nombre?: string; apellido?: string; razonSocial?: string });
 
-  const handleSyncPortal = async (scope: ClientPortalShareScope = "all", targetPortalEmail?: string) => {
+  const handleSendEmail = async (scope: ClientShareScope = "all", targetEmail?: string) => {
     if (!clientId) {
       return;
     }
 
-    if (targetPortalEmail && !isValidEmail(targetPortalEmail)) {
-      toast.error("Escribe un correo completo y valido para el portal antes de compartir");
+    if (targetEmail && !isValidEmail(targetEmail)) {
+      toast.error("Escribe un correo completo y valido para enviar la informacion");
       return;
     }
 
-    setIsSyncingPortal(scope);
+    setIsSendingEmail(scope);
     try {
-      const result = await syncClientPortal(clientId, scope, targetPortalEmail);
+      const result = await sendClientShareEmail(clientId, scope, targetEmail);
       const sharedCounts = (result as Record<string, any>).sharedCounts || {};
       const emailDelivery = (result as Record<string, any>).emailDelivery || {};
       const recipientEmail =
         typeof (result as Record<string, any>).recipientEmail === "string"
           ? String((result as Record<string, any>).recipientEmail)
           : "";
-      const portalLinked = Boolean((result as Record<string, any>).portalLinked);
       const scopeLabel =
         scope === "cases"
           ? "casos"
@@ -138,23 +131,23 @@ export default function ClienteDetallePage() {
         ? recipientEmail
           ? ` y se envio un correo a ${recipientEmail}`
           : " y se envio un correo de respaldo"
-        : emailDelivery.skipped && recipientEmail
-          ? " (el correo de respaldo no se envio porque falta configurar el servicio)"
+        : emailDelivery.skipped && emailDelivery.reason === "missing_resend"
+          ? " (falta configurar RESEND_API_KEY y MAIL_FROM en el servidor)"
           : "";
 
       toast.success(
         scope === "all"
-          ? `Portal actualizado: ${publishSummary}.${emailSuffix}`
-          : `Se publicaron ${publishSummary} en el portal.${emailSuffix}`
+          ? `Se envio la actualizacion completa.${emailSuffix}`
+          : `Se enviaron ${publishSummary}.${emailSuffix}`
       );
-      if (!portalLinked && emailDelivery.sent) {
-        toast.info("Todavia no quedo vinculado un portal de acceso, pero ya se envio el correo de respaldo.");
+      if (emailDelivery.skipped && emailDelivery.reason === "missing_resend") {
+        toast.error("El sistema de correo no esta configurado en el servidor.");
       }
       await mutate();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo sincronizar el portal");
+      toast.error(error instanceof Error ? error.message : "No se pudo enviar el correo");
     } finally {
-      setIsSyncingPortal(null);
+      setIsSendingEmail(null);
     }
   };
 
@@ -236,27 +229,11 @@ export default function ClienteDetallePage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Portal cliente</p>
-                <p className="font-medium">
-                  {detail.tieneAccesoPortal ? "Habilitado" : "No habilitado"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Ultima sincronizacion</p>
+                <p className="text-sm text-muted-foreground">Ultimo envio</p>
                 <p className="font-medium">
                   {detail.portalUltimaSincronizacion
                     ? formatDate(detail.portalUltimaSincronizacion)
                     : "Pendiente"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Usuario vinculado</p>
-                <p className="font-medium">
-                  {isRecord(detail.userId)
-                    ? `${String(detail.userId.email || "Vinculado")}`
-                    : detail.userId
-                      ? "Vinculado"
-                      : "Sin usuario vinculado"}
                 </p>
               </div>
             </CardContent>
@@ -356,20 +333,16 @@ export default function ClienteDetallePage() {
                   Programar cita
                 </Link>
               </Button>
-              <Button
-                className="w-full justify-start"
-                onClick={() => handleSyncPortal("all", portalEmail)}
-                disabled={isSyncingPortal !== null}
-              >
-                {isSyncingPortal === "all" ? (
+              <Button className="w-full justify-start" onClick={() => handleSendEmail("all", recipientEmail)} disabled={isSendingEmail !== null}>
+                {isSendingEmail === "all" ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sincronizando...
+                    Enviando...
                   </>
                 ) : (
                   <>
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    {detail.tieneAccesoPortal ? "Sincronizar portal completo" : "Activar portal completo"}
+                    <Mail className="mr-2 h-4 w-4" />
+                    Enviar correo completo
                   </>
                 )}
               </Button>
@@ -379,43 +352,42 @@ export default function ClienteDetallePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Share2 className="h-4 w-4 text-primary" />
-                Portal del cliente
+                <Mail className="h-4 w-4 text-primary" />
+                Enviar al cliente por correo
               </CardTitle>
               <CardDescription>
-                Publica al portal del cliente la informacion que quieres mostrarle desde el despacho.
-                Si el portal aun no esta vinculado, tambien se enviara un correo de respaldo al
-                cliente.
+                Elige el correo del cliente y envia por email la informacion que quieras compartir
+                desde el despacho. Ya no depende de una plataforma extra.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4">
-                <Label htmlFor="portalEmail" className="text-sm font-medium">
-                  Correo del portal
+                <Label htmlFor="recipientEmail" className="text-sm font-medium">
+                  Correo del cliente
                 </Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Si el cliente entra con un correo distinto al del CRM, escríbelo aquí para vincularlo antes de compartir.
+                  Si el cliente usa otro correo, escribelo aqui antes de enviar la informacion.
                 </p>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <Input
-                    id="portalEmail"
+                    id="recipientEmail"
                     type="email"
-                    value={portalEmail}
-                    onChange={(event) => setPortalEmail(event.target.value)}
+                    value={recipientEmail}
+                    onChange={(event) => setRecipientEmail(event.target.value)}
                     placeholder="cliente@correo.com"
                     className="sm:flex-1"
                   />
                   <Button
                     className="justify-start sm:w-auto"
-                    onClick={() => handleSyncPortal("all", portalEmail)}
-                    disabled={isSyncingPortal !== null}
+                    onClick={() => handleSendEmail("all", recipientEmail)}
+                    disabled={isSendingEmail !== null}
                   >
-                    {isSyncingPortal === "all" ? (
+                    {isSendingEmail === "all" ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
+                      <Mail className="mr-2 h-4 w-4" />
                     )}
-                    Vincular portal
+                    Enviar correo
                   </Button>
                 </div>
               </div>
@@ -424,54 +396,54 @@ export default function ClienteDetallePage() {
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("cases", portalEmail)}
-                disabled={isSyncingPortal !== null}
+                onClick={() => handleSendEmail("cases", recipientEmail)}
+                disabled={isSendingEmail !== null}
               >
-                {isSyncingPortal === "cases" ? (
+                {isSendingEmail === "cases" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Briefcase className="mr-2 h-4 w-4" />
                 )}
-                Compartir casos
+                Enviar casos
               </Button>
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("documents", portalEmail)}
-                disabled={isSyncingPortal !== null}
+                onClick={() => handleSendEmail("documents", recipientEmail)}
+                disabled={isSendingEmail !== null}
               >
-                {isSyncingPortal === "documents" ? (
+                {isSendingEmail === "documents" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <FileText className="mr-2 h-4 w-4" />
                 )}
-                Compartir documentos
+                Enviar documentos
               </Button>
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("invoices", portalEmail)}
-                disabled={isSyncingPortal !== null}
+                onClick={() => handleSendEmail("invoices", recipientEmail)}
+                disabled={isSendingEmail !== null}
               >
-                {isSyncingPortal === "invoices" ? (
+                {isSendingEmail === "invoices" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Wallet className="mr-2 h-4 w-4" />
                 )}
-                Compartir facturas
+                Enviar facturas
               </Button>
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("appointments", portalEmail)}
-                disabled={isSyncingPortal !== null}
+                onClick={() => handleSendEmail("appointments", recipientEmail)}
+                disabled={isSendingEmail !== null}
               >
-                {isSyncingPortal === "appointments" ? (
+                {isSendingEmail === "appointments" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <CalendarDays className="mr-2 h-4 w-4" />
                 )}
-                Compartir citas
+                Enviar citas
               </Button>
               </div>
             </CardContent>
@@ -481,3 +453,4 @@ export default function ClienteDetallePage() {
     </div>
   );
 }
+

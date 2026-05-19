@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import Client from "@/lib/models/Client";
@@ -41,38 +41,38 @@ function scopeConfig(scope: PortalShareScope) {
   switch (scope) {
     case "cases":
       return {
-        title: "Casos compartidos al portal",
+        title: "Casos enviados por correo",
         label: "casos",
-        link: "/portal#casos",
+        link: "/dashboard#casos",
         tipo: "caso_actualizado" as const,
       };
     case "documents":
       return {
-        title: "Documentos compartidos al portal",
+        title: "Documentos enviados por correo",
         label: "documentos",
-        link: "/portal#documentos",
+        link: "/dashboard#documentos",
         tipo: "documento_nuevo" as const,
       };
     case "invoices":
       return {
-        title: "Facturas compartidas al portal",
+        title: "Facturas enviadas por correo",
         label: "facturas",
-        link: "/portal#facturas",
+        link: "/dashboard#facturas",
         tipo: "sistema" as const,
       };
     case "appointments":
       return {
-        title: "Citas compartidas al portal",
+        title: "Citas enviadas por correo",
         label: "citas",
-        link: "/portal#agenda",
+        link: "/dashboard#agenda",
         tipo: "cita_proxima" as const,
       };
     case "all":
     default:
       return {
-        title: "Portal actualizado por tu abogado",
-        label: "contenido del portal",
-        link: "/portal",
+        title: "Actualizacion enviada por tu abogado",
+        label: "contenido enviado",
+        link: "/dashboard",
         tipo: "sistema" as const,
       };
   }
@@ -196,7 +196,7 @@ export async function POST(
       typeof body.portalEmail === "string" ? normalizeEmail(body.portalEmail) : "";
     if (requestedPortalEmail && !isValidEmail(requestedPortalEmail)) {
       return NextResponse.json(
-        { error: "El correo del portal no es valido" },
+        { error: "El correo no es valido" },
         { status: 400 }
       );
     }
@@ -238,7 +238,7 @@ export async function POST(
     if (!portalRecipientEmail) {
       return NextResponse.json(
         {
-          error: "No encontramos un correo valido para enviar la publicacion del portal.",
+          error: "No encontramos un correo valido para enviar la actualizacion.",
         },
         { status: 400 }
       );
@@ -338,10 +338,10 @@ export async function POST(
       titulo: config.title,
       mensaje:
         scope === "all"
-          ? `Tu abogado sincronizó tu portal. Ahora puedes revisar ${casesCount} casos, ${documentsCount} documentos, ${appointmentsCount} citas, ${invoicesCount} facturas y ${communicationsCount} comunicaciones.`
+          ? `Tu abogado envio una actualizacion con ${casesCount} casos, ${documentsCount} documentos, ${appointmentsCount} citas, ${invoicesCount} facturas y ${communicationsCount} comunicaciones.`
           : selectedCount > 0
-            ? `Tu abogado compartió ${selectedCount} ${selectedCount === 1 ? singularLabel : pluralLabel} con tu portal.`
-            : `Tu portal quedó listo para ${pluralLabel}, pero todavía no hay ${pluralLabel} para mostrar.`,
+            ? `Tu abogado compartio ${selectedCount} ${selectedCount === 1 ? singularLabel : pluralLabel} por correo.`
+            : `El correo quedo listo para ${pluralLabel}, pero todavia no hay ${pluralLabel} para mostrar.`,
       enlace: config.link,
     });
 
@@ -360,10 +360,11 @@ export async function POST(
       portalLinked: Boolean(portalUser),
       emailDelivery,
       recipientEmail: portalRecipientEmail,
-      message: "Portal del cliente sincronizado correctamente",
+      message: "Actualizacion enviada correctamente",
     });
   } catch (error) {
-    console.error("Error syncing client portal:", error);
-    return NextResponse.json({ error: "No se pudo sincronizar el portal del cliente" }, { status: 500 });
+    console.error("Error sending client update:", error);
+    return NextResponse.json({ error: "No se pudo enviar la actualizacion" }, { status: 500 });
   }
 }
+

@@ -45,7 +45,7 @@ function scopeTitle(scope: PortalShareScope) {
       return "citas";
     case "all":
     default:
-      return "actualizacion del portal";
+      return "actualizacion del expediente";
   }
 }
 
@@ -57,7 +57,7 @@ function buildSummary(counts: PortalShareCounts, scope: PortalShareScope) {
       `${counts.invoices || 0} facturas`,
       `${counts.appointments || 0} citas`,
     ];
-    return `Tu abogado actualizo tu portal con ${parts.join(", ")}.`;
+    return `Tu abogado actualizo tu expediente con ${parts.join(", ")}.`;
   }
 
   const value =
@@ -71,8 +71,8 @@ function buildSummary(counts: PortalShareCounts, scope: PortalShareScope) {
 
   const label = scopeTitle(scope);
   return value > 0
-    ? `Tu abogado compartio ${value} ${label} con tu portal.`
-    : `Tu abogado actualizo la seccion de ${label} en tu portal.`;
+    ? `Tu abogado compartio ${value} ${label} contigo por correo.`
+    : `Tu abogado actualizo la seccion de ${label} y la envio por correo.`;
 }
 
 export async function sendClientPortalShareEmail(input: PortalShareEmailInput): Promise<PortalShareEmailResult> {
@@ -101,40 +101,36 @@ export async function sendClientPortalShareEmail(input: PortalShareEmailInput): 
     const from = process.env.MAIL_FROM || "TOCHI Legal Suite <no-reply@tochi.legal>";
     const scopeLabel = scopeTitle(input.scope);
     const summary = buildSummary(input.counts, input.scope);
-    const portalState = input.portalLinked
-      ? "Tu cuenta de portal ya esta vinculada y puedes entrar con normalidad."
-      : "Tu portal aun no esta vinculado; este correo funciona como respaldo mientras el despacho termina la configuracion.";
+    const deliveryState = input.portalLinked
+      ? "Tu correo principal ya coincide con el expediente del despacho."
+      : "Tu abogado envio este correo como respaldo para mantenerte informado.";
 
     await resend.emails.send({
       from,
       to: recipientEmail,
       subject:
         input.scope === "all"
-          ? "TOCHI Legal Suite: portal actualizado"
+          ? "TOCHI Legal Suite: actualizacion del expediente"
           : `TOCHI Legal Suite: ${scopeLabel} compartidos`,
       text: [
         `Hola ${input.clientName || "cliente"},`,
         "",
         summary,
-        portalState,
+        deliveryState,
         "",
-        `Puedes revisar tu portal aqui: ${input.portalUrl}`,
+        "Si necesitas ampliar detalles, responde a este correo o contacta al despacho.",
         "",
-        "Este mensaje incluye solo un aviso operativo y no reemplaza el acceso completo al portal.",
+        "Este mensaje contiene un aviso operativo del despacho.",
       ].join("\n"),
       html: `
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
-          <h2 style="margin:0 0 12px 0">Portal del cliente actualizado</h2>
+          <h2 style="margin:0 0 12px 0">Actualizacion del expediente</h2>
           <p style="margin:0 0 12px 0">Hola ${input.clientName || "cliente"},</p>
           <p style="margin:0 0 12px 0">${summary}</p>
-          <p style="margin:0 0 16px 0">${portalState}</p>
-          <p style="margin:0 0 16px 0">
-            <a href="${input.portalUrl}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#0b5cab;color:#ffffff;text-decoration:none">
-              Abrir portal
-            </a>
-          </p>
+          <p style="margin:0 0 16px 0">${deliveryState}</p>
+          <p style="margin:0 0 16px 0">Si necesitas ampliar detalles, responde a este correo o contacta al despacho.</p>
           <p style="margin:0;color:#6b7280;font-size:12px">
-            Este mensaje incluye solo un aviso operativo y no reemplaza el acceso completo al portal.
+            Este mensaje contiene un aviso operativo del despacho.
           </p>
         </div>
       `,
@@ -146,7 +142,7 @@ export async function sendClientPortalShareEmail(input: PortalShareEmailInput): 
       recipientEmail,
     };
   } catch (error) {
-    console.error("Error sending client portal email:", error);
+    console.error("Error sending client update email:", error);
     return {
       sent: false,
       skipped: true,
