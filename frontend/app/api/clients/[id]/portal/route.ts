@@ -8,7 +8,10 @@ import Document from "@/lib/models/Document";
 import Invoice from "@/lib/models/Invoice";
 import Appointment from "@/lib/models/Appointment";
 import Communication from "@/lib/models/Communication";
-import { sendClientPortalShareEmail } from "@/lib/services/client-portal-email";
+import {
+  buildClientPortalShareEmailDraft,
+  sendClientPortalShareEmail,
+} from "@/lib/services/client-portal-email";
 import { notifyClientByClientId } from "@/lib/services/client-notifications";
 
 type SessionLike = {
@@ -76,6 +79,75 @@ function scopeConfig(scope: PortalShareScope) {
         tipo: "sistema" as const,
       };
   }
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+}
+
+function buildHighlights(
+  scope: PortalShareScope,
+  payload: {
+    cases: Array<Record<string, unknown>>;
+    documents: Array<Record<string, unknown>>;
+    invoices: Array<Record<string, unknown>>;
+    appointments: Array<Record<string, unknown>>;
+  }
+) {
+  const caseLines = payload.cases.map((item) => {
+    const numero = String(item.numeroInterno || item.numeroRadicado || "").trim();
+    const titulo = String(item.titulo || "Caso sin titulo").trim();
+    const estado = String(item.estado || "").trim();
+    return `Caso ${numero ? `${numero} - ` : ""}${titulo}${estado ? ` (${estado})` : ""}`.trim();
+  });
+
+  const documentLines = payload.documents.map((item) => {
+    const nombre = String(item.nombre || "Documento sin titulo").trim();
+    const tipo = String(item.tipo || "").trim();
+    const estado = String(item.estado || "").trim();
+    return `Documento ${nombre}${tipo ? ` - ${tipo}` : ""}${estado ? ` (${estado})` : ""}`.trim();
+  });
+
+  const invoiceLines = payload.invoices.map((item) => {
+    const numero = String(item.numero || "Factura sin numero").trim();
+    const total = Number(item.total || 0);
+    const estado = String(item.estado || "").trim();
+    return `Factura ${numero} - ${formatCurrency(total)}${estado ? ` (${estado})` : ""}`.trim();
+  });
+
+  const appointmentLines = payload.appointments.map((item) => {
+    const titulo = String(item.titulo || "Cita sin titulo").trim();
+    const fechaInicio = item.fechaInicio ? new Date(String(item.fechaInicio)) : null;
+    const fecha = fechaInicio && !Number.isNaN(fechaInicio.getTime())
+      ? fechaInicio.toLocaleDateString("es-CO")
+      : "";
+    const estado = String(item.estado || "").trim();
+    return `Cita ${titulo}${fecha ? ` - ${fecha}` : ""}${estado ? ` (${estado})` : ""}`.trim();
+  });
+
+  if (scope === "cases") {
+    return caseLines.slice(0, 5);
+  }
+  if (scope === "documents") {
+    return documentLines.slice(0, 5);
+  }
+  if (scope === "invoices") {
+    return invoiceLines.slice(0, 5);
+  }
+  if (scope === "appointments") {
+    return appointmentLines.slice(0, 5);
+  }
+
+  return [
+    ...caseLines.slice(0, 2),
+    ...documentLines.slice(0, 2),
+    ...invoiceLines.slice(0, 2),
+    ...appointmentLines.slice(0, 2),
+  ];
 }
 
 async function publishPortalScope(clientId: string, scope: PortalShareScope, publishedAt: Date) {
@@ -278,6 +350,33 @@ export async function POST(
       publishPortalScope(id, scope, publishedAt),
     ]);
 
+    const [
+      recentCases,
+      recentDocuments,
+      recentInvoices,
+      recentAppointments,
+    ] = await Promise.all([
+      scope === "all" || scope === "cases"
+        ? Case.find({ clienteId: id }).sort({ updatedAt: -1 }).limit(3).select("titulo numeroInterno numeroRadicado estado").lean()
+        : Promise.resolve([]),
+      scope === "all" || scope === "documents"
+        ? Document.find({ clienteId: id }).sort({ updatedAt: -1 }).limit(3).select("nombre tipo estado").lean()
+        : Promise.resolve([]),
+      scope === "all" || scope === "invoices"
+        ? Invoice.find({ clienteId: id }).sort({ updatedAt: -1 }).limit(3).select("numero total estado").lean()
+        : Promise.resolve([]),
+      scope === "all" || scope === "appointments"
+        ? Appointment.find({ clienteId: id }).sort({ updatedAt: -1 }).limit(3).select("titulo fechaInicio estado").lean()
+        : Promise.resolve([]),
+    ]);
+
+    const highlights = buildHighlights(scope, {
+      cases: recentCases as Array<Record<string, unknown>>,
+      documents: recentDocuments as Array<Record<string, unknown>>,
+      invoices: recentInvoices as Array<Record<string, unknown>>,
+      appointments: recentAppointments as Array<Record<string, unknown>>,
+    });
+
     const clientName =
       (client as { nombre?: string; apellido?: string; razonSocial?: string }).razonSocial ||
       [String((client as { nombre?: string }).nombre || "").trim(), String((client as { apellido?: string }).apellido || "").trim()]
@@ -286,6 +385,21 @@ export async function POST(
       "cliente";
 
     const portalUrl = new URL("/portal", new URL(request.url).origin).toString();
+    const emailDraft = buildClientPortalShareEmailDraft({
+      to: portalRecipientEmail,
+      clientName,
+      scope,
+      counts: {
+        cases: casesCount,
+        documents: documentsCount,
+        invoices: invoicesCount,
+        appointments: appointmentsCount,
+        communications: communicationsCount,
+      },
+      portalUrl,
+      portalLinked: Boolean(portalUser),
+      highlights,
+    });
     const emailDelivery = await sendClientPortalShareEmail({
       to: portalRecipientEmail,
       clientName,
@@ -299,6 +413,7 @@ export async function POST(
       },
       portalUrl,
       portalLinked: Boolean(portalUser),
+      highlights,
     });
 
     const config = scopeConfig(scope);
@@ -359,6 +474,7 @@ export async function POST(
       },
       portalLinked: Boolean(portalUser),
       emailDelivery,
+      emailDraft,
       recipientEmail: portalRecipientEmail,
       message: "Actualizacion enviada correctamente",
     });

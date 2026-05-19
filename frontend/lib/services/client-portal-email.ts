@@ -17,6 +17,14 @@ export type PortalShareEmailInput = {
   counts: PortalShareCounts;
   portalUrl: string;
   portalLinked: boolean;
+  highlights?: string[];
+};
+
+export type PortalShareEmailDraft = {
+  subject: string;
+  text: string;
+  html: string;
+  recipientEmail: string;
 };
 
 type PortalShareEmailResult =
@@ -75,6 +83,89 @@ function buildSummary(counts: PortalShareCounts, scope: PortalShareScope) {
     : `Tu abogado actualizo la seccion de ${label} y la envio por correo.`;
 }
 
+function buildSubject(scope: PortalShareScope) {
+  return scope === "all"
+    ? "TOCHI Legal Suite: actualizacion del expediente"
+    : `TOCHI Legal Suite: ${scopeTitle(scope)} compartidos`;
+}
+
+function buildHighlightsBlock(highlights: string[]) {
+  const trimmed = highlights.map((item) => String(item || "").trim()).filter(Boolean);
+  if (!trimmed.length) {
+    return {
+      text: "",
+      html: "",
+    };
+  }
+
+  return {
+    text: [
+      "Elementos incluidos:",
+      ...trimmed.map((item) => `- ${item}`),
+    ].join("\n"),
+    html: `
+      <div style="margin:0 0 16px 0">
+        <p style="margin:0 0 8px 0;font-weight:600">Elementos incluidos</p>
+        <ul style="margin:0;padding-left:18px">
+          ${trimmed.map((item) => `<li style="margin:0 0 6px 0">${item}</li>`).join("")}
+        </ul>
+      </div>
+    `,
+  };
+}
+
+export function buildClientPortalShareEmailDraft(input: PortalShareEmailInput): PortalShareEmailDraft {
+  const recipientEmail = String(input.to || "").toLowerCase().trim();
+  const subject = buildSubject(input.scope);
+  const summary = buildSummary(input.counts, input.scope);
+  const deliveryState = input.portalLinked
+    ? "Tu correo principal ya coincide con el expediente del despacho."
+    : "Tu abogado envio este correo como respaldo para mantenerte informado.";
+  const highlights = buildHighlightsBlock(input.highlights || []);
+  const portalLine = input.portalUrl ? `Accede al portal: ${input.portalUrl}` : "";
+  const text = [
+    `Hola ${input.clientName || "cliente"},`,
+    "",
+    summary,
+    deliveryState,
+    "",
+    highlights.text,
+    portalLine,
+    "",
+    "Si necesitas ampliar detalles, responde a este correo o contacta al despacho.",
+    "",
+    "Este mensaje contiene un aviso operativo del despacho.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
+      <h2 style="margin:0 0 12px 0">Actualizacion del expediente</h2>
+      <p style="margin:0 0 12px 0">Hola ${input.clientName || "cliente"},</p>
+      <p style="margin:0 0 12px 0">${summary}</p>
+      <p style="margin:0 0 16px 0">${deliveryState}</p>
+      ${highlights.html}
+      ${
+        portalLine
+          ? `<p style="margin:0 0 16px 0">Accede al portal: <a href="${input.portalUrl}" style="color:#1d4ed8">${input.portalUrl}</a></p>`
+          : ""
+      }
+      <p style="margin:0 0 16px 0">Si necesitas ampliar detalles, responde a este correo o contacta al despacho.</p>
+      <p style="margin:0;color:#6b7280;font-size:12px">
+        Este mensaje contiene un aviso operativo del despacho.
+      </p>
+    </div>
+  `;
+
+  return {
+    recipientEmail,
+    subject,
+    text,
+    html,
+  };
+}
+
 export async function sendClientPortalShareEmail(input: PortalShareEmailInput): Promise<PortalShareEmailResult> {
   const recipientEmail = String(input.to || "").toLowerCase().trim();
   if (!recipientEmail) {
@@ -99,41 +190,14 @@ export async function sendClientPortalShareEmail(input: PortalShareEmailInput): 
   try {
     const resend = new Resend(resendApiKey);
     const from = process.env.MAIL_FROM || "TOCHI Legal Suite <no-reply@tochi.legal>";
-    const scopeLabel = scopeTitle(input.scope);
-    const summary = buildSummary(input.counts, input.scope);
-    const deliveryState = input.portalLinked
-      ? "Tu correo principal ya coincide con el expediente del despacho."
-      : "Tu abogado envio este correo como respaldo para mantenerte informado.";
+    const draft = buildClientPortalShareEmailDraft(input);
 
     await resend.emails.send({
       from,
       to: recipientEmail,
-      subject:
-        input.scope === "all"
-          ? "TOCHI Legal Suite: actualizacion del expediente"
-          : `TOCHI Legal Suite: ${scopeLabel} compartidos`,
-      text: [
-        `Hola ${input.clientName || "cliente"},`,
-        "",
-        summary,
-        deliveryState,
-        "",
-        "Si necesitas ampliar detalles, responde a este correo o contacta al despacho.",
-        "",
-        "Este mensaje contiene un aviso operativo del despacho.",
-      ].join("\n"),
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
-          <h2 style="margin:0 0 12px 0">Actualizacion del expediente</h2>
-          <p style="margin:0 0 12px 0">Hola ${input.clientName || "cliente"},</p>
-          <p style="margin:0 0 12px 0">${summary}</p>
-          <p style="margin:0 0 16px 0">${deliveryState}</p>
-          <p style="margin:0 0 16px 0">Si necesitas ampliar detalles, responde a este correo o contacta al despacho.</p>
-          <p style="margin:0;color:#6b7280;font-size:12px">
-            Este mensaje contiene un aviso operativo del despacho.
-          </p>
-        </div>
-      `,
+      subject: draft.subject,
+      text: draft.text,
+      html: draft.html,
     });
 
     return {

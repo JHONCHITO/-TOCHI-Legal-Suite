@@ -34,6 +34,45 @@ function isValidEmail(value: string) {
 
 type EmailScope = "all" | "cases" | "documents" | "invoices" | "appointments";
 
+function scopeLabel(scope: EmailScope) {
+  switch (scope) {
+    case "cases":
+      return "casos";
+    case "documents":
+      return "documentos";
+    case "invoices":
+      return "facturas";
+    case "appointments":
+      return "citas";
+    case "all":
+    default:
+      return "actualizacion del expediente";
+  }
+}
+
+function buildFallbackDraft(scope: EmailScope, clientName: string, recipientEmail: string, draft?: Record<string, any>) {
+  const subject = String(draft?.subject || `TOCHI Legal Suite - ${scopeLabel(scope)}`);
+  const text =
+    String(draft?.text || "") ||
+    [
+      `Hola ${clientName || "cliente"},`,
+      "",
+      `Te compartimos ${scope === "all" ? "una actualizacion completa del expediente" : `la informacion de ${scopeLabel(scope)}`}.`,
+      "",
+      "Si necesitas ampliar detalles, responde a este correo.",
+      "",
+      "Saludos,",
+      "TOCHI Legal Suite",
+    ].join("\n");
+
+  const gmailComposeUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipientEmail)}&su=${encodeURIComponent(
+    subject
+  )}&body=${encodeURIComponent(text)}`;
+  const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+
+  return { gmailComposeUrl, mailtoUrl };
+}
+
 export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const clientId = params?.id ?? null;
@@ -100,13 +139,18 @@ export default function ClienteDetallePage() {
       return;
     }
 
+    const draftWindow = window.open("about:blank", "_blank");
     setSendingScope(scope);
     try {
       const result = (await sendClientShareEmail(clientId, scope, email)) as Record<string, any>;
       const delivery = result?.emailDelivery as { sent?: boolean; skipped?: boolean; reason?: string } | undefined;
       const recipient = String(result?.recipientEmail || email).trim();
+      const emailDraft = result?.emailDraft as Record<string, any> | undefined;
 
       if (delivery?.sent) {
+        if (draftWindow) {
+          draftWindow.close();
+        }
         toast.success(`Correo enviado a ${recipient}`);
       } else if (delivery?.skipped) {
         const reason =
@@ -115,13 +159,34 @@ export default function ClienteDetallePage() {
             : delivery.reason === "send_failed"
               ? "no se pudo completar el envio"
               : "no se pudo completar el envio";
-        toast.warning(`La actualizacion quedo registrada, pero ${reason}.`);
+        const fallback = buildFallbackDraft(scope, displayName, recipient, emailDraft);
+        if (draftWindow) {
+          draftWindow.location.href = fallback.gmailComposeUrl;
+          draftWindow.focus();
+        } else {
+          window.location.href = fallback.gmailComposeUrl;
+        }
+        toast.warning(`La actualizacion quedo registrada, pero ${reason}. Se abrio el borrador del correo.`);
       } else {
-        toast.success(String(result?.message || "Actualizacion enviada correctamente"));
+        const fallback = buildFallbackDraft(scope, displayName, recipient, emailDraft);
+        if (draftWindow) {
+          draftWindow.location.href = fallback.gmailComposeUrl;
+          draftWindow.focus();
+        } else {
+          window.location.href = fallback.gmailComposeUrl;
+        }
+        toast.success(String(result?.message || "Se abrio el borrador del correo"));
       }
 
       await mutate();
     } catch (error) {
+      const fallback = buildFallbackDraft(scope, displayName, email);
+      if (draftWindow) {
+        draftWindow.location.href = fallback.gmailComposeUrl;
+        draftWindow.focus();
+      } else {
+        window.location.href = fallback.gmailComposeUrl;
+      }
       toast.error(error instanceof Error ? error.message : "No se pudo enviar el correo");
     } finally {
       setSendingScope(null);
@@ -322,16 +387,16 @@ export default function ClienteDetallePage() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Mail className="h-4 w-4 text-primary" />
-                Enviar al cliente por correo
-              </CardTitle>
-              <CardDescription>
-                Elige el correo del cliente y envia por email la informacion que quieras compartir
-                desde el despacho. Ya no depende de una plataforma extra.
-              </CardDescription>
-            </CardHeader>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Mail className="h-4 w-4 text-primary" />
+                  Enviar al cliente por correo
+                </CardTitle>
+                <CardDescription>
+                Elige el correo del cliente y envia la informacion del expediente.
+                Si el envio automatico no esta configurado, se abrira el borrador de Gmail con el contenido listo.
+                </CardDescription>
+              </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4">
                 <Label htmlFor="recipientEmail" className="text-sm font-medium">
@@ -339,6 +404,7 @@ export default function ClienteDetallePage() {
                 </Label>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Si el cliente usa otro correo, escribelo aqui antes de enviar la informacion.
+                  Si no hay envio automatico, se abrira Gmail con el borrador listo.
                 </p>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <Input
