@@ -142,9 +142,11 @@ export default function ClienteDetallePage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Portal cliente</p>
+                <p className="text-sm text-muted-foreground">Ultimo correo enviado</p>
                 <p className="font-medium">
-                  {detail.tieneAccesoPortal ? "Habilitado" : "No habilitado"}
+                  {detail.portalUltimaSincronizacion
+                    ? formatDate(detail.portalUltimaSincronizacion)
+                    : "Pendiente"}
                 </p>
               </div>
             </CardContent>

@@ -384,7 +384,6 @@ export async function POST(
         .join(" ") ||
       "cliente";
 
-    const portalUrl = new URL("/portal", new URL(request.url).origin).toString();
     const emailDraft = buildClientPortalShareEmailDraft({
       to: portalRecipientEmail,
       clientName,
@@ -396,7 +395,6 @@ export async function POST(
         appointments: appointmentsCount,
         communications: communicationsCount,
       },
-      portalUrl,
       portalLinked: Boolean(portalUser),
       highlights,
     });
@@ -411,7 +409,6 @@ export async function POST(
         appointments: appointmentsCount,
         communications: communicationsCount,
       },
-      portalUrl,
       portalLinked: Boolean(portalUser),
       highlights,
     });

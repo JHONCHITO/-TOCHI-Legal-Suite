@@ -15,8 +15,8 @@ export type PortalShareEmailInput = {
   clientName: string;
   scope: PortalShareScope;
   counts: PortalShareCounts;
-  portalUrl: string;
-  portalLinked: boolean;
+  portalUrl?: string;
+  portalLinked?: boolean;
   highlights?: string[];
 };
 
@@ -118,11 +118,8 @@ export function buildClientPortalShareEmailDraft(input: PortalShareEmailInput): 
   const recipientEmail = String(input.to || "").toLowerCase().trim();
   const subject = buildSubject(input.scope);
   const summary = buildSummary(input.counts, input.scope);
-  const deliveryState = input.portalLinked
-    ? "Tu correo principal ya coincide con el expediente del despacho."
-    : "Tu abogado envio este correo como respaldo para mantenerte informado.";
+  const deliveryState = "Tu despacho envio esta actualizacion por correo.";
   const highlights = buildHighlightsBlock(input.highlights || []);
-  const portalLine = input.portalUrl ? `Accede al portal: ${input.portalUrl}` : "";
   const text = [
     `Hola ${input.clientName || "cliente"},`,
     "",
@@ -130,7 +127,6 @@ export function buildClientPortalShareEmailDraft(input: PortalShareEmailInput): 
     deliveryState,
     "",
     highlights.text,
-    portalLine,
     "",
     "Si necesitas ampliar detalles, responde a este correo o contacta al despacho.",
     "",
@@ -146,11 +142,6 @@ export function buildClientPortalShareEmailDraft(input: PortalShareEmailInput): 
       <p style="margin:0 0 12px 0">${summary}</p>
       <p style="margin:0 0 16px 0">${deliveryState}</p>
       ${highlights.html}
-      ${
-        portalLine
-          ? `<p style="margin:0 0 16px 0">Accede al portal: <a href="${input.portalUrl}" style="color:#1d4ed8">${input.portalUrl}</a></p>`
-          : ""
-      }
       <p style="margin:0 0 16px 0">Si necesitas ampliar detalles, responde a este correo o contacta al despacho.</p>
       <p style="margin:0;color:#6b7280;font-size:12px">
         Este mensaje contiene un aviso operativo del despacho.

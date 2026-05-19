@@ -4,8 +4,6 @@ import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import { ensureSubscriptionForUser } from "@/lib/subscription";
 import { getPlanById } from "@/lib/products";
-import { findOrCreateClientForUser } from "@/lib/services/client-profile";
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -17,12 +15,10 @@ export async function POST(request: Request) {
       telefono,
       tarjetaProfesional,
       especialidades,
-      rol,
       planId,
     } = body;
 
-    const allowedRoles = new Set(["abogado", "cliente"]);
-    const requestedRole = allowedRoles.has(String(rol)) ? String(rol) : "abogado";
+    const requestedRole = "abogado";
 
     if (!nombre || !apellido || !email || !password) {
       return NextResponse.json(
@@ -87,23 +83,6 @@ export async function POST(request: Request) {
         "No se pudo crear la suscripcion inicial del usuario, se mantiene el registro:",
         subscriptionError instanceof Error ? subscriptionError.message : subscriptionError
       );
-    }
-
-    if (requestedRole === "cliente") {
-      try {
-        await findOrCreateClientForUser({
-          _id: String(user._id),
-          email: user.email,
-          nombre: user.nombre,
-          apellido: user.apellido,
-          telefono: user.telefono,
-        });
-      } catch (clientError) {
-        console.warn(
-          "No se pudo crear o enlazar la ficha de cliente desde el registro:",
-          clientError instanceof Error ? clientError.message : clientError
-        );
-      }
     }
 
     const userResponse = {

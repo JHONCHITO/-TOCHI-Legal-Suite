@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
         prioridad: "media",
         titulo: data.asunto ? `Nuevo mensaje: ${data.asunto}` : "Nuevo mensaje del despacho",
         mensaje: data.mensaje,
-        enlace: "/portal#mensajes",
+        enlace: "/dashboard/comunicacion",
         casoId: data.casoId,
       })
     }

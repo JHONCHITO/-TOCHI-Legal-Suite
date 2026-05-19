@@ -198,7 +198,7 @@ export async function PATCH(
             currency: "COP",
             maximumFractionDigits: 0,
           })} sobre la factura ${invoice.numero}.`,
-          enlace: "/portal#facturas",
+          enlace: "/dashboard/facturacion",
           casoId: invoice.casoId,
         })
       }

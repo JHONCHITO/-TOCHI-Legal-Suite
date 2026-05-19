@@ -110,6 +110,7 @@ export async function PUT(
         : caseClientId
 
     if (notificationClientId) {
+      const updatedCaseId = (updatedCase as { _id?: unknown })._id
       const caseLabel =
         (updatedCase as { numeroInterno?: string; titulo?: string }).numeroInterno ||
         (updatedCase as { numeroInterno?: string; titulo?: string }).titulo ||
@@ -124,8 +125,8 @@ export async function PUT(
           body.actuacion
             ? `Se registró una nueva actuación en ${caseLabel}.`
             : `Se actualizaron los datos del expediente ${caseLabel}.`,
-        enlace: "/portal#casos",
-        casoId: (updatedCase as { _id?: unknown })._id,
+        enlace: `/dashboard/casos/${updatedCaseId}`,
+        casoId: updatedCaseId,
       })
     }
 
@@ -218,6 +219,7 @@ export async function PATCH(
           : caseClientId
 
       if (notificationClientId) {
+        const updatedCaseId = (updatedCase as { _id?: unknown })._id
         const caseLabel =
           (updatedCase as { numeroInterno?: string; titulo?: string }).numeroInterno ||
           (updatedCase as { numeroInterno?: string; titulo?: string }).titulo ||
@@ -231,8 +233,8 @@ export async function PATCH(
           mensaje: body.actuacion?.descripcion
             ? `${body.actuacion.tipo || "Actuación"}: ${body.actuacion.descripcion}`
             : `Se registró una nueva actuación en ${caseLabel}.`,
-          enlace: "/portal#actuaciones",
-          casoId: (updatedCase as { _id?: unknown })._id,
+          enlace: `/dashboard/casos/${updatedCaseId}`,
+          casoId: updatedCaseId,
         })
       }
 

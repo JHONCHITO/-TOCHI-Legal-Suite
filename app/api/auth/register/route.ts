@@ -5,8 +5,6 @@ import User from "@/lib/models/User";
 import { ensureSubscriptionForUser } from "@/lib/subscription";
 import { getPlanById } from "@/lib/products";
 
-type RegisterableRole = "abogado" | "cliente";
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -18,14 +16,10 @@ export async function POST(request: Request) {
       telefono,
       tarjetaProfesional,
       especialidades,
-      rol,
       planId,
     } = body;
 
-    const allowedRoles = new Set<RegisterableRole>(["abogado", "cliente"]);
-    const requestedRole: RegisterableRole = allowedRoles.has(String(rol) as RegisterableRole)
-      ? (String(rol) as RegisterableRole)
-      : "abogado";
+    const requestedRole = "abogado";
 
     // Validaciones
     if (!nombre || !apellido || !email || !password) {

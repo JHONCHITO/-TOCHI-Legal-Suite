@@ -6,8 +6,6 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
-  Briefcase,
-  CalendarDays,
   Edit,
   FileText,
   Loader2,
@@ -15,7 +13,6 @@ import {
   MapPin,
   Phone,
   Plus,
-  Wallet,
   Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -271,7 +268,7 @@ export default function ClienteDetallePage() {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Ultimo envio</p>
+                <p className="text-sm text-muted-foreground">Ultimo correo enviado</p>
                 <p className="font-medium">
                   {detail.portalUltimaSincronizacion
                     ? formatDate(detail.portalUltimaSincronizacion)
@@ -375,14 +372,6 @@ export default function ClienteDetallePage() {
                   Programar cita
                 </Link>
               </Button>
-              <Button
-                className="w-full justify-start"
-                onClick={() => handleSendEmail("all", recipientEmail)}
-                disabled={sendingScope !== null}
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                {sendingScope === "all" ? "Enviando correo..." : "Enviar correo completo"}
-              </Button>
             </CardContent>
           </Card>
 
@@ -424,45 +413,6 @@ export default function ClienteDetallePage() {
                     {sendingScope === "all" ? "Enviando..." : "Enviar correo"}
                   </Button>
                 </div>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Button
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => handleSendEmail("cases", recipientEmail)}
-                  disabled={sendingScope !== null}
-                >
-                  <Briefcase className="mr-2 h-4 w-4" />
-                  {sendingScope === "cases" ? "Enviando..." : "Enviar correo de casos"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => handleSendEmail("documents", recipientEmail)}
-                  disabled={sendingScope !== null}
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  {sendingScope === "documents" ? "Enviando..." : "Enviar correo de documentos"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => handleSendEmail("invoices", recipientEmail)}
-                  disabled={sendingScope !== null}
-                >
-                  <Wallet className="mr-2 h-4 w-4" />
-                  {sendingScope === "invoices" ? "Enviando..." : "Enviar correo de facturas"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="justify-start"
-                  onClick={() => handleSendEmail("appointments", recipientEmail)}
-                  disabled={sendingScope !== null}
-                >
-                  <CalendarDays className="mr-2 h-4 w-4" />
-                  {sendingScope === "appointments" ? "Enviando..." : "Enviar correo de citas"}
-                </Button>
               </div>
             </CardContent>
           </Card>

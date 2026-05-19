@@ -122,7 +122,7 @@ export async function PUT(
         prioridad: "media",
         titulo: `Cita actualizada: ${appointmentLabel}`,
         mensaje: `La cita ${appointmentLabel} fue actualizada por el despacho.`,
-        enlace: "/portal#agenda",
+        enlace: "/dashboard/citas",
         casoId: (updatedAppointment as { casoId?: unknown }).casoId,
         citaId: (updatedAppointment as { _id?: unknown })._id,
       })

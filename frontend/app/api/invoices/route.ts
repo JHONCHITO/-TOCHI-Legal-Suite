@@ -167,7 +167,7 @@ export async function POST(request: Request) {
           "es-CO",
           { style: "currency", currency: "COP", maximumFractionDigits: 0 }
         )}.`,
-        enlace: "/portal#facturas",
+        enlace: "/dashboard/facturacion",
         casoId: body.casoId,
       })
     }

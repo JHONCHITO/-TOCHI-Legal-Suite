@@ -44,7 +44,6 @@ const modules = [
   { title: "Documentos", description: "Plantillas, escritos y generador asistido por IA.", href: "/dashboard/documentos", icon: FileText },
   { title: "Clientes", description: "CRM legal y relacion comercial centralizada.", href: "/dashboard/clientes", icon: Users },
   { title: "Facturacion", description: "Honorarios, pagos, cartera y recaudo.", href: "/dashboard/facturacion", icon: CreditCard },
-  { title: "Portal cliente", description: "Vista privada para casos, facturas y documentos.", href: "/dashboard/portal", icon: Shield },
   { title: "Comunicacion", description: "WhatsApp, correo y seguimiento operativo.", href: "/dashboard/comunicacion", icon: MessageSquare },
   { title: "Reportes", description: "Indicadores, cumplimiento y salud del despacho.", href: "/dashboard/reportes", icon: BarChart3 },
   { title: "Seguridad", description: "Accesos, permisos y proteccion de datos.", href: "/dashboard/seguridad", icon: Shield },

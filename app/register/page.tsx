@@ -21,7 +21,6 @@ export default function RegisterPage() {
     telefono: "",
     tarjetaProfesional: "",
     especialidad: "",
-    rol: "abogado",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -54,7 +53,7 @@ export default function RegisterPage() {
           telefono: formData.telefono,
           tarjetaProfesional: formData.tarjetaProfesional,
           especialidades: formData.especialidad ? [formData.especialidad] : [],
-          rol: formData.rol,
+          rol: "abogado",
         }),
       });
 
@@ -148,24 +147,9 @@ export default function RegisterPage() {
                   />
                 </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="rol">Tipo de cuenta</FieldLabel>
-                  <Select
-                    value={formData.rol}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, rol: value })
-                    }
-                    disabled={loading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona el tipo de cuenta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="abogado">Abogado</SelectItem>
-                      <SelectItem value="cliente">Cliente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
+                <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  Esta cuenta se crea como <span className="font-medium text-foreground">Abogado</span>.
+                </div>
 
                 <Field>
                   <FieldLabel htmlFor="telefono">Telefono</FieldLabel>

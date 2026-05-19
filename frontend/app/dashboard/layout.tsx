@@ -25,10 +25,6 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  if (session.user.role === "cliente") {
-    redirect("/portal");
-  }
-
   return (
     <SessionProvider>
       <div className="min-h-screen bg-background">

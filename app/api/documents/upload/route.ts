@@ -164,7 +164,7 @@ export async function POST(request: Request) {
         mensaje: linkedCase
           ? `El cliente subio un archivo para el expediente ${(linkedCase as PortalCaseRecord).numeroInterno || (linkedCase as PortalCaseRecord).titulo}.`
           : "El cliente subio un archivo desde el portal.",
-        enlace: linkedCaseId ? `/dashboard/casos/${linkedCaseId}` : "/dashboard/portal",
+        enlace: linkedCaseId ? `/dashboard/casos/${linkedCaseId}` : "/dashboard/documentos",
         casoId: linkedCaseId || undefined,
         documentoId: newDocument._id,
       });

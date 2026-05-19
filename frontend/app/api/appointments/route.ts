@@ -157,7 +157,7 @@ export async function POST(request: Request) {
         mensaje: `Tu cita ${newAppointment.titulo} fue programada para ${new Date(
           newAppointment.fechaInicio
         ).toLocaleString("es-CO")}.`,
-        enlace: "/portal#agenda",
+        enlace: "/dashboard/citas",
         casoId: body.casoId,
         citaId: newAppointment._id,
       })

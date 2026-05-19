@@ -144,7 +144,7 @@ export async function POST(request: Request) {
         mensaje: body.requiereAprobacion
           ? `Se compartió el documento ${body.nombre} para revisión en ${caseLabel}.`
           : `Se compartió el documento ${body.nombre} en ${caseLabel}.`,
-        enlace: "/portal#documentos",
+        enlace: "/dashboard/documentos",
         casoId: body.casoId,
         documentoId: (populatedDocument as { _id?: unknown } | null)?._id || newDocument._id,
       })
