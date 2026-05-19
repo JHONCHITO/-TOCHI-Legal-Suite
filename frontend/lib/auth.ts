@@ -30,7 +30,7 @@ if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
   process.env.NEXTAUTH_URL = "http://localhost:3000";
 }
 
-const DEFAULT_ADMIN_EMAIL = "jhonrique1@gmail.com";
+const DEFAULT_ADMIN_EMAILS = ["jhonrique1@gmail.com", "jhonrique@gmail.com"];
 const DEFAULT_ADMIN_PASSWORD = "Rick0066@#0066";
 const DEFAULT_ADMIN_NAME = "Jhon Rique";
 const DEFAULT_ADMIN_LASTNAME = "Chito Ruiz";
@@ -80,7 +80,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           const email = String(credentials.email).toLowerCase().trim();
           const password = String(credentials.password);
-          const isBootstrapCredentials = email === DEFAULT_ADMIN_EMAIL && password === DEFAULT_ADMIN_PASSWORD;
+          const isBootstrapCredentials =
+            DEFAULT_ADMIN_EMAILS.includes(email) && password === DEFAULT_ADMIN_PASSWORD;
           const user = await User.findOne({
             email,
           });

@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 
-const DEFAULT_ADMIN_EMAIL = "jhonrique1@gmail.com";
+const DEFAULT_ADMIN_EMAILS = ["jhonrique1@gmail.com", "jhonrique@gmail.com"];
 const DEFAULT_ADMIN_PASSWORD = "Rick0066@#0066";
 const DEFAULT_ADMIN_NOMBRE = "Jhon Rique";
 const DEFAULT_ADMIN_APELLIDO = "Chito Ruiz";
@@ -12,7 +12,7 @@ const DEFAULT_ADMIN_APELLIDO = "Chito Ruiz";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const email = String(body.email || DEFAULT_ADMIN_EMAIL).toLowerCase().trim();
+    const email = String(body.email || DEFAULT_ADMIN_EMAILS[0]).toLowerCase().trim();
     const password = String(body.password || DEFAULT_ADMIN_PASSWORD);
     const nombre = String(body.nombre || DEFAULT_ADMIN_NOMBRE).trim();
     const apellido = String(body.apellido || DEFAULT_ADMIN_APELLIDO).trim();
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     const isDefaultBootstrap =
-      email === DEFAULT_ADMIN_EMAIL.toLowerCase() && password === DEFAULT_ADMIN_PASSWORD;
+      DEFAULT_ADMIN_EMAILS.includes(email) && password === DEFAULT_ADMIN_PASSWORD;
 
     if (!isDefaultBootstrap && secretKey !== process.env.AUTH_SECRET) {
       return NextResponse.json({ error: "Clave secreta invalida" }, { status: 403 });
@@ -95,7 +95,7 @@ export async function GET() {
   try {
     await dbConnect();
     const existingAdmin = await User.findOne({
-      email: DEFAULT_ADMIN_EMAIL.toLowerCase(),
+      email: DEFAULT_ADMIN_EMAILS[0],
     })
       .select("email nombre apellido rol")
       .lean();

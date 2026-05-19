@@ -11,7 +11,7 @@ import { Scale, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getRoleLandingPath, type UserRole } from "@/lib/role-routing";
 
-const OWNER_BOOTSTRAP_EMAIL = "jhonrique1@gmail.com";
+const OWNER_BOOTSTRAP_EMAILS = ["jhonrique1@gmail.com", "jhonrique@gmail.com"];
 const OWNER_BOOTSTRAP_PASSWORD = "Rick0066@#0066";
 
 export default function LoginPage() {
@@ -28,7 +28,7 @@ export default function LoginPage() {
     try {
       const normalizedEmail = loginEmail.toLowerCase().trim();
       const isBootstrapAdmin =
-        normalizedEmail === OWNER_BOOTSTRAP_EMAIL &&
+        OWNER_BOOTSTRAP_EMAILS.includes(normalizedEmail) &&
         loginPassword === OWNER_BOOTSTRAP_PASSWORD;
 
       const result = await signIn("credentials", {
@@ -68,9 +68,9 @@ export default function LoginPage() {
   };
 
   const handleAdminAccess = async () => {
-    setEmail(OWNER_BOOTSTRAP_EMAIL);
+    setEmail(OWNER_BOOTSTRAP_EMAILS[0]);
     setPassword(OWNER_BOOTSTRAP_PASSWORD);
-    await submitLogin(OWNER_BOOTSTRAP_EMAIL, OWNER_BOOTSTRAP_PASSWORD);
+    await submitLogin(OWNER_BOOTSTRAP_EMAILS[0], OWNER_BOOTSTRAP_PASSWORD);
   };
 
   return (
