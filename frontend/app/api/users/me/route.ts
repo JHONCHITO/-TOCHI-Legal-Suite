@@ -57,19 +57,40 @@ export async function PUT(request: Request) {
     await dbConnect()
 
     // Campos que el usuario puede actualizar de si mismo
-    const allowedFields = ["nombre", "apellido", "telefono", "avatar"]
+    const allowedFields = [
+      "nombre",
+      "apellido",
+      "telefono",
+      "avatar",
+      "firma",
+      "tarjetaProfesional",
+      "especialidades",
+      "notificationPreferences",
+      "securityPreferences",
+    ]
     const updateData: Record<string, unknown> = {}
     
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        updateData[field] = body[field]
+        if (field === "especialidades") {
+          if (Array.isArray(body[field])) {
+            updateData[field] = body[field]
+          } else if (typeof body[field] === "string") {
+            updateData[field] = String(body[field])
+              .split(",")
+              .map((item) => item.trim())
+              .filter(Boolean)
+          }
+        } else {
+          updateData[field] = body[field]
+        }
       }
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       session.user.id,
       { $set: updateData },
-      { new: true }
+      { new: true, runValidators: true }
     ).select("-password -resetPasswordToken -resetPasswordExpires")
 
     return NextResponse.json(updatedUser)

@@ -12,6 +12,22 @@ export interface IUser extends Document {
   firma?: string;
   tarjetaProfesional?: string;
   especialidades?: string[];
+  notificationPreferences?: {
+    recordatoriosJudiciales?: boolean;
+    cambiosNormativos?: boolean;
+    resumenDiario?: boolean;
+    carteraVencida?: boolean;
+    email?: boolean;
+    push?: boolean;
+  };
+  securityPreferences?: {
+    autenticacionReforzada?: boolean;
+    bloqueoInactividad?: boolean;
+    registroAccesos?: boolean;
+    alertasSesion?: boolean;
+    respaldosCifrados?: boolean;
+    consentimientoHabeasData?: boolean;
+  };
   activo: boolean;
   emailVerified?: Date;
   resetPasswordToken?: string;
@@ -56,6 +72,22 @@ const UserSchema = new Schema<IUser>(
     firma: String,
     tarjetaProfesional: String,
     especialidades: [String],
+    notificationPreferences: {
+      recordatoriosJudiciales: { type: Boolean, default: true },
+      cambiosNormativos: { type: Boolean, default: true },
+      resumenDiario: { type: Boolean, default: true },
+      carteraVencida: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+      push: { type: Boolean, default: false },
+    },
+    securityPreferences: {
+      autenticacionReforzada: { type: Boolean, default: true },
+      bloqueoInactividad: { type: Boolean, default: true },
+      registroAccesos: { type: Boolean, default: true },
+      alertasSesion: { type: Boolean, default: true },
+      respaldosCifrados: { type: Boolean, default: false },
+      consentimientoHabeasData: { type: Boolean, default: true },
+    },
     activo: {
       type: Boolean,
       default: true,

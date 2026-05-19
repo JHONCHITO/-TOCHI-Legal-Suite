@@ -72,13 +72,15 @@ export async function PUT(request: Request) {
     
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        if (field === "especialidades" && !Array.isArray(body[field])) {
-          updateData[field] = typeof body[field] === "string"
-            ? String(body[field])
-                .split(",")
-                .map((item: string) => item.trim())
-                .filter(Boolean)
-            : []
+        if (field === "especialidades") {
+          if (Array.isArray(body[field])) {
+            updateData[field] = body[field]
+          } else if (typeof body[field] === "string") {
+            updateData[field] = String(body[field])
+              .split(",")
+              .map((item: string) => item.trim())
+              .filter(Boolean)
+          }
         } else {
           updateData[field] = body[field]
         }
@@ -88,7 +90,7 @@ export async function PUT(request: Request) {
     const updatedUser = await User.findByIdAndUpdate(
       session.user.id,
       { $set: updateData },
-      { new: true }
+      { new: true, runValidators: true }
     ).select("-password -resetPasswordToken -resetPasswordExpires")
 
     return NextResponse.json(updatedUser)
