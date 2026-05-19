@@ -12,36 +12,6 @@ import Link from "next/link";
 
 const OWNER_BOOTSTRAP_EMAIL = "jhonrique@gmail.com";
 const OWNER_BOOTSTRAP_PASSWORD = "Rick0066@#0066";
-const OWNER_BOOTSTRAP_NAME = "Jhon Rique";
-const OWNER_BOOTSTRAP_LASTNAME = "Chito Ruiz";
-
-async function ensureBootstrapAdminAccount(email: string, password: string) {
-  const normalizedEmail = email.toLowerCase().trim();
-  if (
-    normalizedEmail !== OWNER_BOOTSTRAP_EMAIL ||
-    password !== OWNER_BOOTSTRAP_PASSWORD
-  ) {
-    return false;
-  }
-
-  const response = await fetch("/api/auth/setup-admin", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: OWNER_BOOTSTRAP_EMAIL,
-      password: OWNER_BOOTSTRAP_PASSWORD,
-      nombre: OWNER_BOOTSTRAP_NAME,
-      apellido: OWNER_BOOTSTRAP_LASTNAME,
-    }),
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.error || "No se pudo preparar el acceso de administrador");
-  }
-
-  return true;
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -60,24 +30,11 @@ export default function LoginPage() {
         email.toLowerCase().trim() === OWNER_BOOTSTRAP_EMAIL &&
         password === OWNER_BOOTSTRAP_PASSWORD;
 
-      if (isBootstrapAdmin) {
-        await ensureBootstrapAdminAccount(email, password);
-      }
-
-      let result = await signIn("credentials", {
+      const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
-
-      if (result?.error && isBootstrapAdmin) {
-        await ensureBootstrapAdminAccount(email, password);
-        result = await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-        });
-      }
 
       if (result?.error) {
         setError("Credenciales invalidas. Verifica tu email y contrasena.");
