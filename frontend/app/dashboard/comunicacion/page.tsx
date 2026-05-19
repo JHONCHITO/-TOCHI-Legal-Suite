@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Mail, MessageSquare, Phone, Send, Plus } from "lucide-react";
-import { useCases, useClients } from "@/lib/hooks/use-data";
+import { sendWhatsAppCommunication, useCases, useClients, useWhatsAppStatus } from "@/lib/hooks/use-data";
 import { useToast } from "@/hooks/use-toast";
 import { getClientDisplayName } from "@/lib/utils/format";
 
@@ -37,6 +37,9 @@ type CommunicationRecord = {
   mensaje: string;
   estado: string;
   fecha?: string;
+  whatsappStatus?: string;
+  whatsappFallbackUrl?: string;
+  whatsappMessageId?: string;
 };
 
 const canalLabels: Record<string, string> = {
@@ -46,7 +49,7 @@ const canalLabels: Record<string, string> = {
   reunion: "Reunion",
   sms: "SMS",
   otro: "Otro",
-  Nota: "Nota",
+  nota: "Nota",
 };
 
 function getCommunicationDate(value: unknown) {
@@ -64,6 +67,7 @@ export default function ComunicacionPage() {
   const [isLoadingCommunications, setIsLoadingCommunications] = useState(true);
   const { clients } = useClients();
   const { cases } = useCases();
+  const { whatsappStatus } = useWhatsAppStatus();
   const { toast } = useToast();
 
   const [nuevaComunicacion, setNuevaComunicacion] = useState({
@@ -123,7 +127,7 @@ export default function ComunicacionPage() {
 
     const newComm: CommunicationRecord = {
       id: `comm-${Date.now()}`,
-      canal: "Nota",
+      canal: "nota",
       clienteId: "",
       mensaje: quickMessage,
       estado: "Registrado",
@@ -150,29 +154,60 @@ export default function ComunicacionPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/communications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...nuevaComunicacion,
-          tipo: "salida",
-          prioridad: "media",
-          fecha: new Date().toISOString(),
-        }),
-      });
+      const selectedCase = cases?.find(
+        (caso: { _id: string; numeroInterno?: string; titulo?: string }) => caso._id === nuevaComunicacion.casoId
+      );
+      const caseLabel = selectedCase ? `${selectedCase.numeroInterno || ""} ${selectedCase.titulo || ""}`.trim() : undefined;
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error || "No se pudo registrar la comunicacion");
+      if (nuevaComunicacion.canal === "whatsapp") {
+        const result = await sendWhatsAppCommunication({
+          clienteId: nuevaComunicacion.clienteId,
+          casoId: nuevaComunicacion.casoId || undefined,
+          mensaje: nuevaComunicacion.mensaje,
+          asunto: "WhatsApp",
+          prioridad: "media",
+          caseLabel,
+        });
+
+        const saved = result.communication as CommunicationRecord;
+        setCommunications((current) => [saved, ...current]);
+
+        if (result.whatsapp?.fallbackUrl) {
+          window.open(result.whatsapp.fallbackUrl, "_blank", "noopener,noreferrer");
+        }
+
+        toast({
+          title: result.whatsapp?.sent ? "WhatsApp enviado" : "WhatsApp preparado",
+          description: result.whatsapp?.sent
+            ? "Se envio por la API oficial de WhatsApp."
+            : "Se abrio WhatsApp con el mensaje listo para enviar.",
+        });
+      } else {
+        const response = await fetch("/api/communications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...nuevaComunicacion,
+            tipo: "salida",
+            prioridad: "media",
+            fecha: new Date().toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || "No se pudo registrar la comunicacion");
+        }
+
+        const saved = (await response.json()) as CommunicationRecord;
+        setCommunications((current) => [saved, ...current]);
+
+        toast({
+          title: "Comunicacion registrada",
+          description: "El registro se guardo en MongoDB",
+        });
       }
 
-      const saved = (await response.json()) as CommunicationRecord;
-      setCommunications((current) => [saved, ...current]);
-
-      toast({
-        title: "Comunicacion registrada",
-        description: "El registro se guardo en MongoDB",
-      });
       setDialogOpen(false);
       setNuevaComunicacion({
         canal: "whatsapp",
@@ -217,9 +252,9 @@ export default function ComunicacionPage() {
   };
 
   const stats = useMemo(() => {
-    const mensajes = allCommunications.filter((item) => item.canal !== "Nota").length;
-    const correos = allCommunications.filter((item) => item.canal === "correo" || item.canal === "Correo").length;
-    const llamadas = allCommunications.filter((item) => item.canal === "llamada" || item.canal === "Llamada").length;
+    const mensajes = allCommunications.filter((item) => String(item.canal).toLowerCase() !== "nota").length;
+    const correos = allCommunications.filter((item) => String(item.canal).toLowerCase() === "correo").length;
+    const llamadas = allCommunications.filter((item) => String(item.canal).toLowerCase() === "llamada").length;
     return { mensajes, correos, llamadas };
   }, [allCommunications]);
 
@@ -230,6 +265,19 @@ export default function ComunicacionPage() {
         <p className="text-muted-foreground">
           Seguimiento por WhatsApp, correo y llamadas con trazabilidad para cada expediente.
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Badge variant={whatsappStatus?.configured ? "default" : "outline"}>
+            WhatsApp {whatsappStatus?.configured ? "API oficial" : "modo enlace"}
+          </Badge>
+          <Badge variant="secondary">
+            Fuente {whatsappStatus?.source === "env" ? "ENV" : "respaldo"}
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            {whatsappStatus?.configured
+              ? "Los envios pasan por la API oficial de WhatsApp y quedan guardados en historial."
+              : "Si no configuras la API, TOCHI abre WhatsApp con el mensaje listo y tambien guarda el registro."}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -390,7 +438,7 @@ export default function ComunicacionPage() {
                         Guardando...
                       </>
                     ) : (
-                      "Registrar"
+                      nuevaComunicacion.canal === "whatsapp" ? "Enviar WhatsApp" : "Registrar"
                     )}
                   </Button>
                 </DialogFooter>
@@ -403,26 +451,55 @@ export default function ComunicacionPage() {
               <div className="flex h-[160px] items-center justify-center">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
-            ) : communications.length === 0 ? (
+            ) : allCommunications.length === 0 ? (
               <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
                 No hay comunicaciones registradas todavia.
               </div>
             ) : (
-              allCommunications.map((conversation) => (
-                <div key={conversation._id || conversation.id} className="rounded-lg border p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{canalLabels[conversation.canal] || conversation.canal}</Badge>
-                      <p className="font-medium">{getClientName(conversation.clienteId)}</p>
+              allCommunications.map((conversation) => {
+                const canalKey = String(conversation.canal).toLowerCase();
+
+                return (
+                  <div key={conversation._id || conversation.id} className="rounded-lg border p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{canalLabels[canalKey] || conversation.canal}</Badge>
+                        <p className="font-medium">{getClientName(conversation.clienteId)}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {canalKey === "whatsapp" && conversation.whatsappStatus ? (
+                          <Badge
+                            variant={
+                              conversation.whatsappStatus === "sent" ||
+                              conversation.whatsappStatus === "delivered" ||
+                              conversation.whatsappStatus === "read"
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {conversation.whatsappStatus}
+                          </Badge>
+                        ) : null}
+                        <Badge variant="secondary">{conversation.estado}</Badge>
+                      </div>
                     </div>
-                    <Badge variant="secondary">{conversation.estado}</Badge>
+                    <p className="text-sm text-muted-foreground">{conversation.mensaje}</p>
+                    {conversation.whatsappFallbackUrl ? (
+                      <a
+                        href={conversation.whatsappFallbackUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex text-sm font-medium text-primary hover:underline"
+                      >
+                        Abrir WhatsApp de respaldo
+                      </a>
+                    ) : null}
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {conversation.fecha ? new Date(conversation.fecha).toLocaleString("es-CO") : "Sin fecha"}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground">{conversation.mensaje}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {conversation.fecha ? new Date(conversation.fecha).toLocaleString("es-CO") : "Sin fecha"}
-                  </p>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </CardContent>
