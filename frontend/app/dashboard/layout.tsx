@@ -11,10 +11,10 @@ export const metadata = {
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getEffectiveSubscription, isSubscriptionAccessExpired } from "@/lib/subscription";
-import { getRoleLandingPath, type UserRole } from "@/lib/auth-utils";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Header } from "@/components/dashboard/header";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { getRoleLandingPath, type UserRole } from "@/lib/role-routing";
 
 export default async function DashboardLayout({
   children,

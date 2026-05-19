@@ -10,8 +10,8 @@ export const metadata = {
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { getRoleLandingPath, type UserRole } from "@/lib/auth-utils";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { getRoleLandingPath, type UserRole } from "@/lib/role-routing";
 
 export default async function PortalLayout({
   children: _children,

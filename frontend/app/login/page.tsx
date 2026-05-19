@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FieldGroup, Field, FieldLabel } from "@/components/ui/field";
 import { Scale, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getRoleLandingPath, type UserRole } from "@/lib/auth-utils";
+import { getRoleLandingPath, type UserRole } from "@/lib/role-routing";
 
 const OWNER_BOOTSTRAP_EMAIL = "jhonrique@gmail.com";
 
@@ -39,9 +39,8 @@ export default function LoginPage() {
       } else {
         await new Promise((resolve) => setTimeout(resolve, 150));
         const session = await getClientSession();
-        const role = (session?.user?.role as UserRole | undefined) || "abogado";
         const landingPath = session?.user?.role
-          ? getRoleLandingPath(role)
+          ? getRoleLandingPath(session.user.role as UserRole)
           : isBootstrapAdmin
             ? "/dashboard/admin"
             : "/dashboard";
