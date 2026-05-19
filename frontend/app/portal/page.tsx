@@ -241,13 +241,23 @@ export default function ClientPortalPage() {
     return (
       <Card className="mx-auto max-w-2xl">
         <CardHeader>
-          <CardTitle>Sin perfil de cliente</CardTitle>
+          <CardTitle>Acceso de cliente no activado</CardTitle>
           <CardDescription>
-            Tu abogado todavía no ha sincronizado tu expediente al portal. Pidele que use el
-            boton "Enviar al portal" desde la ficha del cliente para vincular tu cuenta y
-            compartir tus casos, documentos, citas y facturas.
+            Tu cuenta todavia no tiene un expediente de cliente vinculado.
+            Cuando el despacho lo active, aqui podras revisar la informacion asociada a tu caso.
           </CardDescription>
         </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Por ahora, esta vista permanece desactivada.
+          </p>
+          <Button asChild variant="outline">
+            <Link href="/">
+              <ArrowUpRight className="mr-2 h-4 w-4" />
+              Volver al inicio
+            </Link>
+          </Button>
+        </CardContent>
       </Card>
     );
   }
@@ -408,7 +418,7 @@ export default function ClientPortalPage() {
                     <div className="space-y-1">
                       <p className="font-medium">{actuacion.tipo || "Actuacion"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {actuacion.caseNumber || "Caso"} · {actuacion.caseTitle || "Caso"}
+                        {actuacion.caseNumber || "Caso"} Â· {actuacion.caseTitle || "Caso"}
                       </p>
                       <p className="text-sm text-muted-foreground">{actuacion.descripcion || "Sin descripcion"}</p>
                     </div>
@@ -570,7 +580,7 @@ export default function ClientPortalPage() {
                     <div>
                       <p className="font-medium">{caso.titulo || "Caso"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {caso.numeroInterno || caso.numeroRadicado || "Sin numero"} ·{" "}
+                        {caso.numeroInterno || caso.numeroRadicado || "Sin numero"} Â·{" "}
                         {caseStatusLabels[caso.estado] || caso.estado || "Activo"}
                       </p>
                     </div>
@@ -601,7 +611,7 @@ export default function ClientPortalPage() {
                     <div className="space-y-1">
                       <p className="font-medium">{document.nombre || document.archivoNombre || "Documento"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {documentTypeLabels[document.tipo] || document.tipo || "Documento"} ·{" "}
+                        {documentTypeLabels[document.tipo] || document.tipo || "Documento"} Â·{" "}
                         {formatDateShort(document.createdAt)}
                       </p>
                       {document.descripcion ? (
@@ -629,7 +639,7 @@ export default function ClientPortalPage() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <div>
               <CardTitle className="text-lg">Agenda</CardTitle>
-              <CardDescription>Próximas citas y compromisos.</CardDescription>
+              <CardDescription>PrÃ³ximas citas y compromisos.</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -644,7 +654,7 @@ export default function ClientPortalPage() {
                     <div className="space-y-1">
                       <p className="font-medium">{appointment.titulo || "Cita"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {appointmentTypeLabels[appointment.tipo] || appointment.tipo || "Agenda"} ·{" "}
+                        {appointmentTypeLabels[appointment.tipo] || appointment.tipo || "Agenda"} Â·{" "}
                         {formatDateTime(appointment.fechaInicio)}
                       </p>
                     </div>
@@ -675,7 +685,7 @@ export default function ClientPortalPage() {
                     <div className="space-y-1">
                       <p className="font-medium">{invoice.numero || "Factura"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {invoiceStatusLabels[invoice.estado] || invoice.estado || "Pendiente"} ·{" "}
+                        {invoiceStatusLabels[invoice.estado] || invoice.estado || "Pendiente"} Â·{" "}
                         {formatCurrencyCop(Number(invoice.total || 0))}
                       </p>
                       {invoice.concepto ? <p className="text-sm text-muted-foreground">{invoice.concepto}</p> : null}

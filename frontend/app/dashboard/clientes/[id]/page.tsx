@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { sendClientShareEmail, useClient, type ClientShareScope } from "@/lib/hooks/use-data";
+import { useClient } from "@/lib/hooks/use-data";
 import { formatDate, getClientDisplayName, getInitials } from "@/lib/utils/format";
 import { toast } from "sonner";
 
@@ -32,11 +32,51 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+type EmailScope = "all" | "cases" | "documents" | "invoices" | "appointments";
+
+function scopeLabel(scope: EmailScope) {
+  switch (scope) {
+    case "cases":
+      return "casos";
+    case "documents":
+      return "documentos";
+    case "invoices":
+      return "facturas";
+    case "appointments":
+      return "citas";
+    case "all":
+    default:
+      return "actualizacion completa";
+  }
+}
+
+function buildMailtoHref(email: string, name: string, scope: EmailScope) {
+  const label = scopeLabel(scope);
+  const subject =
+    scope === "all"
+      ? `TOCHI Legal Suite - Actualizacion de expediente`
+      : `TOCHI Legal Suite - ${label}`;
+  const bodyLines = [
+    `Hola ${name || "cliente"},`,
+    "",
+    scope === "all"
+      ? "Te compartimos una actualizacion completa del expediente."
+      : `Te compartimos la informacion de ${label} asociada a tu expediente.`,
+    "",
+    "Si necesitas ampliar detalles, responde a este correo.",
+    "",
+    "Saludos,",
+    "TOCHI Legal Suite",
+  ];
+  return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(
+    bodyLines.join("\n")
+  )}`;
+}
+
 export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const clientId = params?.id ?? null;
   const { client, isLoading, isError, mutate } = useClient(clientId);
-  const [isSendingEmail, setIsSendingEmail] = useState<ClientShareScope | null>(null);
   const [recipientEmail, setRecipientEmail] = useState("");
 
   useEffect(() => {
@@ -87,68 +127,19 @@ export default function ClienteDetallePage() {
   const cases = Array.isArray(detail.casos) ? detail.casos : [];
   const displayName = getClientDisplayName(detail as { tipo: string; nombre?: string; apellido?: string; razonSocial?: string });
 
-  const handleSendEmail = async (scope: ClientShareScope = "all", targetEmail?: string) => {
+  const handleOpenEmail = (scope: EmailScope = "all", targetEmail?: string) => {
     if (!clientId) {
       return;
     }
 
-    if (targetEmail && !isValidEmail(targetEmail)) {
-      toast.error("Escribe un correo completo y valido para enviar la informacion");
+    const email = String(targetEmail || recipientEmail || "").trim();
+    if (!email || !isValidEmail(email)) {
+      toast.error("Escribe un correo completo y valido para abrir el correo");
       return;
     }
 
-    setIsSendingEmail(scope);
-    try {
-      const result = await sendClientShareEmail(clientId, scope, targetEmail);
-      const sharedCounts = (result as Record<string, any>).sharedCounts || {};
-      const emailDelivery = (result as Record<string, any>).emailDelivery || {};
-      const recipientEmail =
-        typeof (result as Record<string, any>).recipientEmail === "string"
-          ? String((result as Record<string, any>).recipientEmail)
-          : "";
-      const scopeLabel =
-        scope === "cases"
-          ? "casos"
-          : scope === "documents"
-            ? "documentos"
-            : scope === "invoices"
-              ? "facturas"
-              : scope === "appointments"
-                ? "citas"
-                : "elementos";
-
-      const publishSummary =
-        scope === "all"
-          ? [
-              `${sharedCounts.cases || 0} casos`,
-              `${sharedCounts.documents || 0} documentos`,
-              `${sharedCounts.invoices || 0} facturas`,
-              `${sharedCounts.appointments || 0} citas`,
-            ].join(", ")
-          : `${sharedCounts[scope] || 0} ${scopeLabel}`;
-
-      const emailSuffix = emailDelivery.sent
-        ? recipientEmail
-          ? ` y se envio un correo a ${recipientEmail}`
-          : " y se envio un correo de respaldo"
-        : emailDelivery.skipped && emailDelivery.reason === "missing_resend"
-          ? " (falta configurar RESEND_API_KEY y MAIL_FROM en el servidor)"
-          : "";
-
-      toast.success(
-        scope === "all"
-          ? `Se envio la actualizacion completa.${emailSuffix}`
-          : `Se enviaron ${publishSummary}.${emailSuffix}`
-      );
-      if (emailDelivery.skipped && emailDelivery.reason === "missing_resend") {
-        toast.error("El sistema de correo no esta configurado en el servidor.");
-      }
-      await mutate();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "No se pudo enviar el correo");
-    } finally {
-      setIsSendingEmail(null);
-    }
+    const mailtoHref = buildMailtoHref(email, displayName, scope);
+    window.location.href = mailtoHref;
   };
 
   return (
@@ -333,18 +324,9 @@ export default function ClienteDetallePage() {
                   Programar cita
                 </Link>
               </Button>
-              <Button className="w-full justify-start" onClick={() => handleSendEmail("all", recipientEmail)} disabled={isSendingEmail !== null}>
-                {isSendingEmail === "all" ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Enviando...
-                  </>
-                ) : (
-                  <>
-                    <Mail className="mr-2 h-4 w-4" />
-                    Enviar correo completo
-                  </>
-                )}
+              <Button className="w-full justify-start" onClick={() => handleOpenEmail("all", recipientEmail)}>
+                <Mail className="mr-2 h-4 w-4" />
+                Abrir correo completo
               </Button>
             </CardContent>
           </Card>
@@ -377,74 +359,46 @@ export default function ClienteDetallePage() {
                     placeholder="cliente@correo.com"
                     className="sm:flex-1"
                   />
-                  <Button
-                    className="justify-start sm:w-auto"
-                    onClick={() => handleSendEmail("all", recipientEmail)}
-                    disabled={isSendingEmail !== null}
-                  >
-                    {isSendingEmail === "all" ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Mail className="mr-2 h-4 w-4" />
-                    )}
-                    Enviar correo
+                  <Button className="justify-start sm:w-auto" onClick={() => handleOpenEmail("all", recipientEmail)}>
+                    <Mail className="mr-2 h-4 w-4" />
+                    Abrir correo
                   </Button>
                 </div>
               </div>
 
               <div className="grid gap-2 sm:grid-cols-2">
-              <Button
-                variant="outline"
-                className="justify-start"
-                onClick={() => handleSendEmail("cases", recipientEmail)}
-                disabled={isSendingEmail !== null}
-              >
-                {isSendingEmail === "cases" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => handleOpenEmail("cases", recipientEmail)}
+                >
                   <Briefcase className="mr-2 h-4 w-4" />
-                )}
-                Enviar casos
-              </Button>
-              <Button
-                variant="outline"
-                className="justify-start"
-                onClick={() => handleSendEmail("documents", recipientEmail)}
-                disabled={isSendingEmail !== null}
-              >
-                {isSendingEmail === "documents" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
+                  Abrir correo de casos
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => handleOpenEmail("documents", recipientEmail)}
+                >
                   <FileText className="mr-2 h-4 w-4" />
-                )}
-                Enviar documentos
-              </Button>
-              <Button
-                variant="outline"
-                className="justify-start"
-                onClick={() => handleSendEmail("invoices", recipientEmail)}
-                disabled={isSendingEmail !== null}
-              >
-                {isSendingEmail === "invoices" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
+                  Abrir correo de documentos
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => handleOpenEmail("invoices", recipientEmail)}
+                >
                   <Wallet className="mr-2 h-4 w-4" />
-                )}
-                Enviar facturas
-              </Button>
-              <Button
-                variant="outline"
-                className="justify-start"
-                onClick={() => handleSendEmail("appointments", recipientEmail)}
-                disabled={isSendingEmail !== null}
-              >
-                {isSendingEmail === "appointments" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
+                  Abrir correo de facturas
+                </Button>
+                <Button
+                  variant="outline"
+                  className="justify-start"
+                  onClick={() => handleOpenEmail("appointments", recipientEmail)}
+                >
                   <CalendarDays className="mr-2 h-4 w-4" />
-                )}
-                Enviar citas
-              </Button>
+                  Abrir correo de citas
+                </Button>
               </div>
             </CardContent>
           </Card>
