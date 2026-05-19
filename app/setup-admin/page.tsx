@@ -10,8 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
 
-const DEFAULT_ADMIN_EMAIL = "rick6683rick@gmail.com";
-const DEFAULT_ADMIN_PASSWORD = "123456";
+const DEFAULT_ADMIN_EMAIL = "jhonrique@gmail.com";
+const DEFAULT_ADMIN_PASSWORD = "Rick0066@#0066";
 
 export default function SetupAdminPage() {
   const router = useRouter();
@@ -22,8 +22,8 @@ export default function SetupAdminPage() {
   const [existingAdmin, setExistingAdmin] = useState<{ nombre: string; email: string; rol?: string } | null>(null);
 
   const [formData, setFormData] = useState({
-    nombre: "Ricky",
-    apellido: "Tochi",
+    nombre: "Jhon Rique",
+    apellido: "Chito Ruiz",
     email: DEFAULT_ADMIN_EMAIL,
     password: DEFAULT_ADMIN_PASSWORD,
     confirmPassword: DEFAULT_ADMIN_PASSWORD,
@@ -122,14 +122,14 @@ export default function SetupAdminPage() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
               <AlertTriangle className="h-8 w-8 text-amber-600" />
             </div>
-            <CardTitle>Administrador ya existe</CardTitle>
+            <CardTitle>Superadmin ya existe</CardTitle>
             <CardDescription>
               Ya existe la cuenta principal configurada en el sistema
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
             <p className="mb-4 text-sm text-muted-foreground">
-              Administrador: <strong>{existingAdmin?.nombre}</strong> ({existingAdmin?.email})
+              Superadmin: <strong>{existingAdmin?.nombre}</strong> ({existingAdmin?.email})
             </p>
             <p className="text-sm text-muted-foreground">
               Si necesitas actualizar la cuenta, vuelve a ejecutar este formulario con los mismos datos.
@@ -154,7 +154,7 @@ export default function SetupAdminPage() {
           </div>
           <CardTitle>Configuracion Inicial</CardTitle>
           <CardDescription>
-            Crea o actualiza tu cuenta principal de administrador para TOCHI Legal Suite
+            Crea o actualiza tu cuenta principal de superadmin para TOCHI Legal Suite
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -235,7 +235,7 @@ export default function SetupAdminPage() {
               ) : (
                 <>
                   <ShieldCheck className="mr-2 h-4 w-4" />
-                  Guardar administrador
+                  Guardar superadmin
                 </>
               )}
             </Button>

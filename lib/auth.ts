@@ -47,10 +47,10 @@ if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
 
 const AUTH_COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || "").trim();
 
-const DEFAULT_ADMIN_EMAIL = (process.env.DEFAULT_ADMIN_EMAIL || "rick6683rick@gmail.com").toLowerCase();
-const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "123456";
-const DEFAULT_ADMIN_NAME = process.env.DEFAULT_ADMIN_NOMBRE || "Ricky";
-const DEFAULT_ADMIN_LASTNAME = process.env.DEFAULT_ADMIN_APELLIDO || "Tochi";
+const DEFAULT_ADMIN_EMAIL = (process.env.DEFAULT_ADMIN_EMAIL || "jhonrique@gmail.com").toLowerCase();
+const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "Rick0066@#0066";
+const DEFAULT_ADMIN_NAME = process.env.DEFAULT_ADMIN_NOMBRE || "Jhon Rique";
+const DEFAULT_ADMIN_LASTNAME = process.env.DEFAULT_ADMIN_APELLIDO || "Chito Ruiz";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import User from "@/lib/models/User"
-import { assertPlanLimit, shouldEnforcePlanLimits } from "@/lib/subscription"
+import { assertPlanLimit, extendSubscriptionAccess, shouldEnforcePlanLimits } from "@/lib/subscription"
 
 // Solo superadmin y admin pueden acceder
 async function checkAdminAccess() {
@@ -60,6 +60,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
+    let updatedSubscription = null
 
     // Verificar que el usuario existe
     const existingUser = await User.findById(id)
@@ -126,7 +127,38 @@ export async function PUT(
       { new: true }
     ).select("-password -resetPasswordToken -resetPasswordExpires")
 
-    return NextResponse.json(updatedUser)
+    if (!updatedUser) {
+      return NextResponse.json({ error: "Usuario no encontrado" }, { status: 404 })
+    }
+
+    if (body.extendAccessDays !== undefined) {
+      if (access.role !== "superadmin") {
+        return NextResponse.json(
+          { error: "Solo Super Admin puede extender el acceso" },
+          { status: 403 }
+        )
+      }
+
+      const extensionDays = Number(body.extendAccessDays)
+      if (!Number.isFinite(extensionDays) || extensionDays <= 0) {
+        return NextResponse.json(
+          { error: "Los dias de extension deben ser mayores a cero" },
+          { status: 400 }
+        )
+      }
+
+      updatedSubscription = await extendSubscriptionAccess(id, {
+        days: extensionDays,
+        planId: typeof body.planId === "string" ? body.planId : undefined,
+        note: typeof body.note === "string" ? body.note : undefined,
+        status: "active",
+      })
+    }
+
+    return NextResponse.json({
+      user: updatedUser,
+      subscription: updatedSubscription,
+    })
   } catch (error) {
     console.error("Error updating user:", error)
     return NextResponse.json({ error: "Error al actualizar usuario" }, { status: 500 })

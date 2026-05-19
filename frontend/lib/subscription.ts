@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { addDays } from "date-fns";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import Subscription, {
@@ -132,20 +133,15 @@ function applyLifecycle(subscription: ISubscription) {
   }
 
   if (subscription.status === "trialing" && subscription.trialEnd && now >= subscription.trialEnd) {
-    subscription.status = "active";
-    subscription.currentPeriodStart = new Date(subscription.trialEnd);
-    subscription.currentPeriodEnd = addMonths(subscription.currentPeriodStart, 1);
-    subscription.usage = createEmptyUsage();
+    subscription.status = "past_due";
+    subscription.lastSyncedAt = now;
     changed = true;
   }
 
   if (subscription.status === "active" && subscription.currentPeriodEnd && now >= subscription.currentPeriodEnd) {
-    while (subscription.currentPeriodEnd && now >= subscription.currentPeriodEnd) {
-      subscription.currentPeriodStart = new Date(subscription.currentPeriodEnd);
-      subscription.currentPeriodEnd = addMonths(subscription.currentPeriodStart, 1);
-      subscription.usage = createEmptyUsage();
-      changed = true;
-    }
+    subscription.status = "past_due";
+    subscription.lastSyncedAt = now;
+    changed = true;
   }
 
   if (changed) {
@@ -153,6 +149,37 @@ function applyLifecycle(subscription: ISubscription) {
   }
 
   return changed;
+}
+
+export function isSubscriptionAccessExpired(
+  subscription:
+    | {
+        status?: string;
+        trialEnd?: Date | string | null;
+        currentPeriodEnd?: Date | string | null;
+      }
+    | null
+    | undefined
+) {
+  if (!subscription) {
+    return false;
+  }
+
+  const now = new Date();
+
+  if (subscription.status === "canceled" || subscription.status === "past_due") {
+    return true;
+  }
+
+  if (subscription.status === "trialing") {
+    return !!subscription.trialEnd && now >= new Date(subscription.trialEnd);
+  }
+
+  if (subscription.status === "active") {
+    return !!subscription.currentPeriodEnd && now >= new Date(subscription.currentPeriodEnd);
+  }
+
+  return false;
 }
 
 export async function ensureSubscriptionForUser(
@@ -230,6 +257,79 @@ export async function ensureSubscriptionForUser(
   return subscription;
 }
 
+export async function extendSubscriptionAccess(
+  userId: string,
+  options: {
+    days: number;
+    planId?: string;
+    note?: string;
+    status?: SubscriptionStatus;
+  }
+) {
+  await dbConnect();
+
+  const user = await User.findById(userId).select("rol").lean();
+  if (!user) {
+    return null;
+  }
+
+  const normalizedDays = Math.max(1, Math.floor(Number(options.days) || 0));
+  const now = new Date();
+  const selectedPlanId = getPlanById(options.planId || DEFAULT_PLAN_ID)?.id || DEFAULT_PLAN_ID;
+  const selectedLimits = getPlanLimits(selectedPlanId);
+  let subscription = await Subscription.findOne({ userId });
+
+  if (!subscription) {
+    subscription = new Subscription({
+      userId,
+      planId: selectedPlanId,
+      status: options.status || "active",
+      trialStart: now,
+      trialEnd: addBusinessDays(now, TRIAL_BUSINESS_DAYS),
+      currentPeriodStart: now,
+      currentPeriodEnd: addDays(now, normalizedDays),
+      limits: selectedLimits,
+      usage: createEmptyUsage(),
+      lastSyncedAt: now,
+      notes: options.note?.trim() || undefined,
+    });
+  } else {
+    subscription.planId = selectedPlanId;
+    subscription.status = options.status || "active";
+    subscription.limits = selectedLimits;
+    subscription.currentPeriodStart = subscription.currentPeriodStart || now;
+
+    if (subscription.status === "trialing") {
+      const trialBase = subscription.trialEnd && new Date(subscription.trialEnd) > now
+        ? new Date(subscription.trialEnd)
+        : now;
+      subscription.trialEnd = addDays(trialBase, normalizedDays);
+      subscription.currentPeriodEnd = new Date(subscription.trialEnd);
+    } else {
+      const accessBase = subscription.currentPeriodEnd && new Date(subscription.currentPeriodEnd) > now
+        ? new Date(subscription.currentPeriodEnd)
+        : now;
+      subscription.currentPeriodEnd = addDays(accessBase, normalizedDays);
+    }
+
+    subscription.lastSyncedAt = now;
+    if (options.note?.trim()) {
+      subscription.notes = options.note.trim();
+    }
+  }
+
+  try {
+    await subscription.save();
+  } catch (error) {
+    console.warn(
+      "No se pudo extender el acceso de la suscripcion:",
+      error instanceof Error ? error.message : error
+    );
+  }
+
+  return subscription;
+}
+
 export async function getEffectiveSubscription(userId: string) {
   await dbConnect();
 
@@ -254,6 +354,20 @@ export async function getEffectiveSubscription(userId: string) {
     ? getPlanById(subscription.planId) || getPlanById(DEFAULT_PLAN_ID)
     : getPlanById(DEFAULT_PLAN_ID);
   const virtualSubscription = subscription || buildVirtualSubscription(userId, plan?.id || DEFAULT_PLAN_ID);
+
+  if (subscription) {
+    const changed = applyLifecycle(subscription);
+    if (changed) {
+      try {
+        await subscription.save();
+      } catch (error) {
+        console.warn(
+          "No se pudo sincronizar la suscripcion efectiva:",
+          error instanceof Error ? error.message : error
+        );
+      }
+    }
+  }
 
   return {
     user,
@@ -371,6 +485,10 @@ export async function consumeAiQuery(userId: string, amount = 1) {
   }
 
   const subscription = effective.subscription;
+  if (isSubscriptionAccessExpired(subscription)) {
+    throw new Error("Tu suscripcion ha vencido. Renueva tu plan para continuar.");
+  }
+
   const limit = subscription.limits?.aiQueries ?? getPlanLimits(subscription.planId).aiQueries;
 
   if ((subscription.usage.aiQueries || 0) + amount > limit) {
@@ -413,6 +531,10 @@ export async function assertPlanLimit(
   }
 
   const subscription = effective.subscription;
+  if (isSubscriptionAccessExpired(subscription)) {
+    throw new Error("Tu suscripcion ha vencido. Renueva tu plan para continuar.");
+  }
+
   const limit = subscription.limits?.[resource] ?? effective.limits?.[resource] ?? getPlanLimits(subscription.planId)[resource];
 
   if (currentCount + increment > limit) {

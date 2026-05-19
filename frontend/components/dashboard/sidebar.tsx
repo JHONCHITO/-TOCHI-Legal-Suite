@@ -51,7 +51,8 @@ const navItems: NavItem[] = [
   { href: "/dashboard/reportes", label: "Reportes", icon: BarChart3, roles: ["superadmin", "admin", "abogado"] },
   { href: "/dashboard/seguridad", label: "Seguridad", icon: Shield, roles: ["superadmin", "admin"] },
   { href: "/dashboard/herramientas", label: "Herramientas", icon: Wrench, roles: ["superadmin", "admin", "abogado", "asistente"] },
-  { href: "/dashboard/admin/usuarios", label: "Usuarios", icon: ShieldCheck, roles: ["superadmin", "admin"] },
+  { href: "/dashboard/admin", label: "Admin", icon: ShieldCheck, roles: ["superadmin"] },
+  { href: "/dashboard/admin/usuarios", label: "Usuarios", icon: ShieldCheck, roles: ["superadmin"] },
 ];
 
 const bottomItems: NavItem[] = [

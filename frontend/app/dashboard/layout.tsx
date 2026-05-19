@@ -10,6 +10,7 @@ export const metadata = {
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { getEffectiveSubscription, isSubscriptionAccessExpired } from "@/lib/subscription";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Header } from "@/components/dashboard/header";
 import { SessionProvider } from "@/components/providers/session-provider";
@@ -23,6 +24,15 @@ export default async function DashboardLayout({
 
   if (!session?.user?.id) {
     redirect("/login");
+  }
+
+  const effectiveSubscription = await getEffectiveSubscription(session.user.id);
+  if (!effectiveSubscription) {
+    redirect("/login");
+  }
+
+  if (!effectiveSubscription.isUnlimited && isSubscriptionAccessExpired(effectiveSubscription.subscription)) {
+    redirect("/precios");
   }
 
   return (

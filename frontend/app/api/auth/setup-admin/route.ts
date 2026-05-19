@@ -4,10 +4,10 @@ import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 import { ensureSubscriptionForUser } from "@/lib/subscription";
 
-const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || "rick6683rick@gmail.com";
-const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "123456";
-const DEFAULT_ADMIN_NOMBRE = process.env.DEFAULT_ADMIN_NOMBRE || "Ricky";
-const DEFAULT_ADMIN_APELLIDO = process.env.DEFAULT_ADMIN_APELLIDO || "Tochi";
+const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || "jhonrique@gmail.com";
+const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "Rick0066@#0066";
+const DEFAULT_ADMIN_NOMBRE = process.env.DEFAULT_ADMIN_NOMBRE || "Jhon Rique";
+const DEFAULT_ADMIN_APELLIDO = process.env.DEFAULT_ADMIN_APELLIDO || "Chito Ruiz";
 
 // Configura o actualiza la cuenta inicial del administrador principal.
 export async function POST(request: Request) {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const password = String(body.password || DEFAULT_ADMIN_PASSWORD);
     const nombre = String(body.nombre || DEFAULT_ADMIN_NOMBRE).trim();
     const apellido = String(body.apellido || DEFAULT_ADMIN_APELLIDO).trim();
-    const rol = body.rol === "superadmin" ? "superadmin" : "admin";
+    const rol = "superadmin";
     const secretKey = body.secretKey ? String(body.secretKey) : "";
 
     if (!email || !password || !nombre || !apellido) {
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: true,
-          message: "Administrador actualizado correctamente",
+          message: "Superadmin actualizado correctamente",
           user: {
             email: existingUser.email,
             nombre: existingUser.nombre,
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: true,
-        message: "Administrador creado exitosamente",
+        message: "Superadmin creado exitosamente",
         user: {
           email: admin.email,
           nombre: admin.nombre,
