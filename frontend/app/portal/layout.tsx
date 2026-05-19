@@ -11,6 +11,7 @@ export const metadata = {
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getRoleLandingPath, type UserRole } from "@/lib/auth-utils";
+import { SessionProvider } from "@/components/providers/session-provider";
 
 export default async function PortalLayout({
   children: _children,
@@ -28,5 +29,5 @@ export default async function PortalLayout({
     redirect(getRoleLandingPath(userRole));
   }
 
-  return <>{_children}</>;
+  return <SessionProvider>{_children}</SessionProvider>;
 }
