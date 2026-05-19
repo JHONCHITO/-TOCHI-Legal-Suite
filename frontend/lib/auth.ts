@@ -80,11 +80,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           const email = String(credentials.email).toLowerCase().trim();
           const password = String(credentials.password);
+          const isBootstrapCredentials = email === DEFAULT_ADMIN_EMAIL && password === DEFAULT_ADMIN_PASSWORD;
           const user = await User.findOne({
             email,
           });
 
-          if (!user && email === DEFAULT_ADMIN_EMAIL && password === DEFAULT_ADMIN_PASSWORD) {
+          if (!user && isBootstrapCredentials) {
             const hashedPassword = await bcrypt.hash(password, 12);
             const bootstrapUser = await User.create({
               email,
@@ -105,6 +106,42 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             };
           }
 
+          if (isBootstrapCredentials && user) {
+            let changed = false;
+
+            if (!user.activo) {
+              user.activo = true;
+              changed = true;
+            }
+
+            if (user.rol !== "superadmin") {
+              user.rol = "superadmin";
+              changed = true;
+            }
+
+            const passwordMatches = typeof user.password === "string" && user.password.trim()
+              ? await bcrypt.compare(password, user.password).catch(() => false)
+              : false;
+
+            if (!passwordMatches) {
+              user.password = await bcrypt.hash(password, 12);
+              changed = true;
+            }
+
+            if (changed) {
+              user.emailVerified = user.emailVerified || new Date();
+              await user.save();
+            }
+
+            return {
+              id: user._id.toString(),
+              email: user.email,
+              name: `${user.nombre} ${user.apellido}`,
+              role: "superadmin",
+              image: user.avatar,
+            };
+          }
+
           if (!user || !user.activo) {
             return null;
           }
@@ -115,16 +152,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               credentials.password as string,
               user.password
             );
-          }
-
-          if (!isPasswordValid && email === DEFAULT_ADMIN_EMAIL && password === DEFAULT_ADMIN_PASSWORD) {
-            return {
-              id: user._id.toString(),
-              email: user.email,
-              name: `${user.nombre} ${user.apellido}`,
-              role: "superadmin",
-              image: user.avatar,
-            };
           }
 
           if (!isPasswordValid) {
