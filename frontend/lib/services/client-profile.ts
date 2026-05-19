@@ -44,7 +44,10 @@ export async function findOrCreateClientForUser(user: ClientSourceUser) {
     return null;
   }
 
-  const userId = String(user._id);
+  const userId = String(user._id || "").trim();
+  if (!userId) {
+    return null;
+  }
   const emailPattern = new RegExp(`^${escapeRegex(email)}$`, "i");
 
   const existingClient =
@@ -56,7 +59,7 @@ export async function findOrCreateClientForUser(user: ClientSourceUser) {
     const updates: Record<string, unknown> = {};
 
     if (String(existingClient.userId || "") !== userId) {
-      updates.userId = user._id;
+      updates.userId = userId;
     }
     if (existingClient.email !== email) {
       updates.email = email;
@@ -103,7 +106,7 @@ export async function findOrCreateClientForUser(user: ClientSourceUser) {
     activo: true,
     notas: "Perfil creado automaticamente desde el portal de cliente.",
     tieneAccesoPortal: true,
-    userId: user._id,
+    userId,
     ...(abogadoAsignado ? { abogadoAsignado } : {}),
   });
 
@@ -116,15 +119,20 @@ export async function ensureClientProfileForSession(sessionUser: SessionUser) {
   }
 
   const user = await User.findById(sessionUser.id)
-    .select("email nombre apellido telefono")
+    .select("_id email nombre apellido telefono")
     .lean();
 
   if (!user) {
     return null;
   }
 
+  const normalizedId = String((user as { _id?: unknown })._id || "").trim();
+  if (!normalizedId) {
+    return null;
+  }
+
   return findOrCreateClientForUser({
-    _id: String((user as { _id: unknown })._id),
+    _id: normalizedId,
     email: normalizeEmail((user as { email?: string }).email || sessionUser.email),
     nombre: (user as { nombre?: string }).nombre,
     apellido: (user as { apellido?: string }).apellido,

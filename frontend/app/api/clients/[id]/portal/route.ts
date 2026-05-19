@@ -104,9 +104,9 @@ export async function POST(
     }
 
     const { id } = await params;
-    let body: { scope?: unknown } = {};
+    let body: { scope?: unknown; portalEmail?: unknown } = {};
     try {
-      body = (await request.json()) as { scope?: unknown };
+      body = (await request.json()) as { scope?: unknown; portalEmail?: unknown };
     } catch {
       body = {};
     }
@@ -124,6 +124,8 @@ export async function POST(
     }
 
     const normalizedEmail = normalizeEmail((client as { email?: string }).email);
+    const portalEmail =
+      typeof body.portalEmail === "string" ? normalizeEmail(body.portalEmail) : "";
     const linkedUser =
       (client as { userId?: unknown }).userId
         ? await User.findById((client as { userId?: unknown }).userId)
@@ -131,22 +133,34 @@ export async function POST(
             .lean()
         : null;
 
-    const portalUser =
-      linkedUser ||
-      (normalizedEmail
+    const userByPortalEmail =
+      portalEmail && !linkedUser
+        ? await User.findOne({
+            email: portalEmail,
+            rol: "cliente",
+          })
+            .select("_id email nombre apellido rol activo")
+            .lean()
+        : null;
+
+    const userByClientEmail =
+      !portalEmail && normalizedEmail
         ? await User.findOne({
             email: normalizedEmail,
             rol: "cliente",
           })
             .select("_id email nombre apellido rol activo")
             .lean()
-        : null);
+        : null;
+
+    const portalUser = linkedUser || userByPortalEmail || userByClientEmail;
 
     if (!portalUser) {
       return NextResponse.json(
         {
-          error:
-            "No existe una cuenta de cliente vinculada a este correo. Crea o corrige la cuenta del portal antes de sincronizar.",
+          error: portalEmail
+            ? "No existe una cuenta de cliente con ese correo. Verifica el correo del portal antes de sincronizar."
+            : "No existe una cuenta de cliente vinculada a este correo. Crea o corrige la cuenta del portal antes de sincronizar.",
         },
         { status: 404 }
       );

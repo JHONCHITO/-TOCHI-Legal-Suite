@@ -269,13 +269,20 @@ export async function updateClient(id: string, data: Record<string, unknown>) {
 
 export type ClientPortalShareScope = "all" | "cases" | "documents" | "invoices" | "appointments"
 
-export async function syncClientPortal(id: string, scope: ClientPortalShareScope = "all") {
+export async function syncClientPortal(
+  id: string,
+  scope: ClientPortalShareScope = "all",
+  portalEmail?: string
+) {
   const res = await fetch(`/api/clients/${id}/portal`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ scope }),
+    body: JSON.stringify({
+      scope,
+      ...(portalEmail?.trim() ? { portalEmail: portalEmail.trim() } : {}),
+    }),
   })
   if (!res.ok) {
     const error = await res.json()

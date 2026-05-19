@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -23,9 +24,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { syncClientPortal, useClient, type ClientPortalShareScope } from "@/lib/hooks/use-data";
 import { formatDate, getClientDisplayName, getInitials } from "@/lib/utils/format";
-import { useState } from "react";
 import { toast } from "sonner";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -37,6 +39,21 @@ export default function ClienteDetallePage() {
   const clientId = params?.id ?? null;
   const { client, isLoading, isError, mutate } = useClient(clientId);
   const [isSyncingPortal, setIsSyncingPortal] = useState<ClientPortalShareScope | null>(null);
+  const [portalEmail, setPortalEmail] = useState("");
+
+  useEffect(() => {
+    if (!client) {
+      return;
+    }
+
+    const detail = client as Record<string, any>;
+    const linkedPortalEmail =
+      isRecord(detail.userId) && typeof detail.userId.email === "string"
+        ? String(detail.userId.email)
+        : "";
+    const fallbackEmail = typeof detail.email === "string" ? detail.email : "";
+    setPortalEmail(linkedPortalEmail || fallbackEmail);
+  }, [client]);
 
   if (isLoading) {
     return (
@@ -72,14 +89,14 @@ export default function ClienteDetallePage() {
   const cases = Array.isArray(detail.casos) ? detail.casos : [];
   const displayName = getClientDisplayName(detail as { tipo: string; nombre?: string; apellido?: string; razonSocial?: string });
 
-  const handleSyncPortal = async (scope: ClientPortalShareScope = "all") => {
+  const handleSyncPortal = async (scope: ClientPortalShareScope = "all", targetPortalEmail?: string) => {
     if (!clientId) {
       return;
     }
 
     setIsSyncingPortal(scope);
     try {
-      const result = await syncClientPortal(clientId, scope);
+      const result = await syncClientPortal(clientId, scope, targetPortalEmail);
       toast.success(result.message || "Portal del cliente sincronizado");
       await mutate();
     } catch (error) {
@@ -287,7 +304,11 @@ export default function ClienteDetallePage() {
                   Programar cita
                 </Link>
               </Button>
-              <Button className="w-full justify-start" onClick={() => handleSyncPortal()} disabled={isSyncingPortal !== null}>
+              <Button
+                className="w-full justify-start"
+                onClick={() => handleSyncPortal("all", portalEmail)}
+                disabled={isSyncingPortal !== null}
+              >
                 {isSyncingPortal === "all" ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -313,11 +334,43 @@ export default function ClienteDetallePage() {
                 Publica al portal del cliente la informacion que quieres mostrarle desde el despacho.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-2 sm:grid-cols-2">
+            <CardContent className="space-y-4">
+              <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-4">
+                <Label htmlFor="portalEmail" className="text-sm font-medium">
+                  Correo del portal
+                </Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Si el cliente entra con un correo distinto al del CRM, escríbelo aquí para vincularlo antes de compartir.
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    id="portalEmail"
+                    type="email"
+                    value={portalEmail}
+                    onChange={(event) => setPortalEmail(event.target.value)}
+                    placeholder="cliente@correo.com"
+                    className="sm:flex-1"
+                  />
+                  <Button
+                    className="justify-start sm:w-auto"
+                    onClick={() => handleSyncPortal("all", portalEmail)}
+                    disabled={isSyncingPortal !== null}
+                  >
+                    {isSyncingPortal === "all" ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Vincular portal
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("cases")}
+                onClick={() => handleSyncPortal("cases", portalEmail)}
                 disabled={isSyncingPortal !== null}
               >
                 {isSyncingPortal === "cases" ? (
@@ -330,7 +383,7 @@ export default function ClienteDetallePage() {
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("documents")}
+                onClick={() => handleSyncPortal("documents", portalEmail)}
                 disabled={isSyncingPortal !== null}
               >
                 {isSyncingPortal === "documents" ? (
@@ -343,7 +396,7 @@ export default function ClienteDetallePage() {
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("invoices")}
+                onClick={() => handleSyncPortal("invoices", portalEmail)}
                 disabled={isSyncingPortal !== null}
               >
                 {isSyncingPortal === "invoices" ? (
@@ -356,7 +409,7 @@ export default function ClienteDetallePage() {
               <Button
                 variant="outline"
                 className="justify-start"
-                onClick={() => handleSyncPortal("appointments")}
+                onClick={() => handleSyncPortal("appointments", portalEmail)}
                 disabled={isSyncingPortal !== null}
               >
                 {isSyncingPortal === "appointments" ? (
@@ -366,6 +419,7 @@ export default function ClienteDetallePage() {
                 )}
                 Compartir citas
               </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
