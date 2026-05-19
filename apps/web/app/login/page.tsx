@@ -10,6 +10,39 @@ import { FieldGroup, Field, FieldLabel } from "@/components/ui/field";
 import { Scale, Loader2 } from "lucide-react";
 import Link from "next/link";
 
+const OWNER_BOOTSTRAP_EMAIL = "jhonrique@gmail.com";
+const OWNER_BOOTSTRAP_PASSWORD = "Rick0066@#0066";
+const OWNER_BOOTSTRAP_NAME = "Jhon Rique";
+const OWNER_BOOTSTRAP_LASTNAME = "Chito Ruiz";
+
+async function ensureBootstrapAdminAccount(email: string, password: string) {
+  const normalizedEmail = email.toLowerCase().trim();
+  if (
+    normalizedEmail !== OWNER_BOOTSTRAP_EMAIL ||
+    password !== OWNER_BOOTSTRAP_PASSWORD
+  ) {
+    return false;
+  }
+
+  const response = await fetch("/api/auth/setup-admin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: OWNER_BOOTSTRAP_EMAIL,
+      password: OWNER_BOOTSTRAP_PASSWORD,
+      nombre: OWNER_BOOTSTRAP_NAME,
+      apellido: OWNER_BOOTSTRAP_LASTNAME,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "No se pudo preparar el acceso de administrador");
+  }
+
+  return true;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -23,20 +56,41 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await signIn("credentials", {
+      const isBootstrapAdmin =
+        email.toLowerCase().trim() === OWNER_BOOTSTRAP_EMAIL &&
+        password === OWNER_BOOTSTRAP_PASSWORD;
+
+      if (isBootstrapAdmin) {
+        await ensureBootstrapAdminAccount(email, password);
+      }
+
+      let result = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
 
+      if (result?.error && isBootstrapAdmin) {
+        await ensureBootstrapAdminAccount(email, password);
+        result = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        });
+      }
+
       if (result?.error) {
         setError("Credenciales invalidas. Verifica tu email y contrasena.");
       } else {
-        router.push("/dashboard");
+        router.push(isBootstrapAdmin ? "/dashboard/admin" : "/dashboard");
         router.refresh();
       }
-    } catch {
-      setError("Ocurrio un error. Intenta de nuevo.");
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Ocurrio un error. Intenta de nuevo."
+      );
     } finally {
       setLoading(false);
     }
@@ -125,24 +179,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">O</span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => router.push("/dashboard")}
-            >
-              Entrar en Modo Demo
-            </Button>
-
             <div className="mt-6 text-center text-sm text-muted-foreground">
               No tienes cuenta?{" "}
               <Link href="/register" className="text-primary hover:underline">
@@ -152,12 +188,6 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        {/* Info */}
-        <div className="mt-4 p-4 rounded-lg bg-accent/10 border border-accent/20">
-          <p className="text-sm text-muted-foreground text-center">
-            <strong className="text-accent">Modo Demo:</strong> Explora todas las funciones sin necesidad de crear cuenta
-          </p>
-        </div>
       </div>
     </div>
   );
