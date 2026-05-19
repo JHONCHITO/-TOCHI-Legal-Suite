@@ -14,32 +14,6 @@ import { getRoleLandingPath, type UserRole } from "@/lib/role-routing";
 const OWNER_BOOTSTRAP_EMAIL = "jhonrique@gmail.com";
 const OWNER_BOOTSTRAP_PASSWORD = "Rick0066@#0066";
 
-async function ensureBootstrapAdmin(email: string, password: string) {
-  const response = await fetch("/api/auth/setup-admin", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email,
-      password,
-    }),
-  });
-
-  if (!response.ok) {
-    let message = "No se pudo preparar el acceso de administrador.";
-    try {
-      const data = await response.json();
-      if (data?.error) {
-        message = String(data.error);
-      }
-    } catch {
-      // Si el backend no devuelve JSON, mostramos el mensaje genérico.
-    }
-    throw new Error(message);
-  }
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -56,10 +30,6 @@ export default function LoginPage() {
       const isBootstrapAdmin =
         normalizedEmail === OWNER_BOOTSTRAP_EMAIL &&
         loginPassword === OWNER_BOOTSTRAP_PASSWORD;
-
-      if (isBootstrapAdmin) {
-        await ensureBootstrapAdmin(OWNER_BOOTSTRAP_EMAIL, OWNER_BOOTSTRAP_PASSWORD);
-      }
 
       const result = await signIn("credentials", {
         email: normalizedEmail,
