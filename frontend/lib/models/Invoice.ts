@@ -24,6 +24,9 @@ export interface IInvoice extends Document {
   clienteId: mongoose.Types.ObjectId;
   casoId?: mongoose.Types.ObjectId;
   abogadoId: mongoose.Types.ObjectId;
+  // Portal cliente
+  portalCompartido?: boolean;
+  portalCompartidoEn?: Date;
   // Fechas
   fechaEmision: Date;
   fechaVencimiento: Date;
@@ -74,6 +77,8 @@ const InvoiceSchema = new Schema<IInvoice>(
     clienteId: { type: Schema.Types.ObjectId, ref: "Client", required: true },
     casoId: { type: Schema.Types.ObjectId, ref: "Case" },
     abogadoId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    portalCompartido: { type: Boolean, default: false },
+    portalCompartidoEn: Date,
     fechaEmision: { type: Date, default: Date.now },
     fechaVencimiento: { type: Date, required: true },
     concepto: { type: String, required: true },

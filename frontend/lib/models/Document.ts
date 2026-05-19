@@ -32,6 +32,7 @@ export interface IDocument extends MongoDocument {
   archivoTamano?: number;
   // Portal cliente
   portalCompartido?: boolean;
+  portalCompartidoEn?: Date;
   requiereAprobacion?: boolean;
   aprobadoPorClienteId?: mongoose.Types.ObjectId;
   aprobadoPorClienteAt?: Date;
@@ -86,6 +87,7 @@ const DocumentSchema = new Schema<IDocument>(
     archivoTipo: String,
     archivoTamano: Number,
     portalCompartido: { type: Boolean, default: false },
+    portalCompartidoEn: Date,
     requiereAprobacion: { type: Boolean, default: false },
     aprobadoPorClienteId: { type: Schema.Types.ObjectId, ref: "Client" },
     aprobadoPorClienteAt: Date,

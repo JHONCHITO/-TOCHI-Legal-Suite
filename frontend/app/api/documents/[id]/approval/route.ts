@@ -113,6 +113,8 @@ export async function POST(
         $set: {
           estado: "aprobado",
           requiereAprobacion: false,
+          portalCompartido: true,
+          portalCompartidoEn: new Date(),
           aprobadoPorClienteId: clientId,
           aprobadoPorClienteAt: new Date(),
           fechaAprobacion: new Date(),

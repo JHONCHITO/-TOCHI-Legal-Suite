@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         name: session.user.name,
       })
       if (clientRecord) {
-        query = { clienteId: String((clientRecord as { _id: unknown })._id) }
+        query = { clienteId: String((clientRecord as { _id: unknown })._id), portalCompartido: true }
       } else {
         return NextResponse.json([]) // No tiene casos si no está registrado como cliente
       }
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
       query = { abogadoPrincipal: session.user.id }
     }
 
-    if (clienteId) {
+    if (clienteId && userRole !== "cliente") {
       query.clienteId = clienteId
     }
 
@@ -139,6 +139,8 @@ export async function POST(request: Request) {
       fechaInicio: body.fechaInicio || new Date(),
       actuaciones: [],
       documentos: [],
+      portalCompartido: Boolean(body.portalCompartido),
+      ...(body.portalCompartido ? { portalCompartidoEn: new Date() } : {}),
     })
 
     let savedCase = null

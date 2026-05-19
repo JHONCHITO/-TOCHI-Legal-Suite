@@ -63,6 +63,9 @@ export interface ICase extends Document {
   fechaRadicacion?: Date;
   fechaProximaActuacion?: Date;
   fechaCierre?: Date;
+  // Portal cliente
+  portalCompartido?: boolean;
+  portalCompartidoEn?: Date;
   // Equipo
   abogadoPrincipal: mongoose.Types.ObjectId;
   abogadosAsociados?: mongoose.Types.ObjectId[];
@@ -171,6 +174,8 @@ const CaseSchema = new Schema<ICase>(
     fechaRadicacion: Date,
     fechaProximaActuacion: Date,
     fechaCierre: Date,
+    portalCompartido: { type: Boolean, default: false },
+    portalCompartidoEn: Date,
     abogadoPrincipal: { type: Schema.Types.ObjectId, ref: "User", required: true },
     abogadosAsociados: [{ type: Schema.Types.ObjectId, ref: "User" }],
     cuantia: Number,

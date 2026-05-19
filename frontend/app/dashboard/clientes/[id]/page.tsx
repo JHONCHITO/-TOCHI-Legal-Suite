@@ -97,7 +97,33 @@ export default function ClienteDetallePage() {
     setIsSyncingPortal(scope);
     try {
       const result = await syncClientPortal(clientId, scope, targetPortalEmail);
-      toast.success(result.message || "Portal del cliente sincronizado");
+      const sharedCounts = (result as Record<string, any>).sharedCounts || {};
+      const scopeLabel =
+        scope === "cases"
+          ? "casos"
+          : scope === "documents"
+            ? "documentos"
+            : scope === "invoices"
+              ? "facturas"
+              : scope === "appointments"
+                ? "citas"
+                : "elementos";
+
+      const publishSummary =
+        scope === "all"
+          ? [
+              `${sharedCounts.cases || 0} casos`,
+              `${sharedCounts.documents || 0} documentos`,
+              `${sharedCounts.invoices || 0} facturas`,
+              `${sharedCounts.appointments || 0} citas`,
+            ].join(", ")
+          : `${sharedCounts[scope] || 0} ${scopeLabel}`;
+
+      toast.success(
+        scope === "all"
+          ? `Portal actualizado: ${publishSummary}.`
+          : `Se publicaron ${publishSummary} en el portal.`
+      );
       await mutate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo sincronizar el portal");

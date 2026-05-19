@@ -73,6 +73,69 @@ function scopeConfig(scope: PortalShareScope) {
   }
 }
 
+async function publishPortalScope(clientId: string, scope: PortalShareScope, publishedAt: Date) {
+  const sharedCounts = {
+    cases: 0,
+    documents: 0,
+    invoices: 0,
+    appointments: 0,
+  };
+
+  if (scope === "all" || scope === "cases") {
+    const result = await Case.updateMany(
+      { clienteId: clientId },
+      {
+        $set: {
+          portalCompartido: true,
+          portalCompartidoEn: publishedAt,
+        },
+      }
+    );
+    sharedCounts.cases = Number(result.matchedCount || result.modifiedCount || 0);
+  }
+
+  if (scope === "all" || scope === "documents") {
+    const result = await Document.updateMany(
+      { clienteId: clientId },
+      {
+        $set: {
+          portalCompartido: true,
+          portalCompartidoEn: publishedAt,
+        },
+      }
+    );
+    sharedCounts.documents = Number(result.matchedCount || result.modifiedCount || 0);
+  }
+
+  if (scope === "all" || scope === "invoices") {
+    const result = await Invoice.updateMany(
+      { clienteId: clientId },
+      {
+        $set: {
+          portalCompartido: true,
+          portalCompartidoEn: publishedAt,
+        },
+      }
+    );
+    sharedCounts.invoices = Number(result.matchedCount || result.modifiedCount || 0);
+  }
+
+  if (scope === "all" || scope === "appointments") {
+    const result = await Appointment.updateMany(
+      { clienteId: clientId },
+      {
+        $set: {
+          portalCompartido: true,
+          portalCompartidoEn: publishedAt,
+        },
+      }
+    );
+    sharedCounts.appointments = Number(result.matchedCount || result.modifiedCount || 0);
+  }
+
+  return sharedCounts;
+}
+
 async function canManageClient(session: SessionLike, clientId: string) {
   if (!session.user?.id) {
     return false;
@@ -133,34 +196,42 @@ export async function POST(
             .lean()
         : null;
 
-    const userByPortalEmail =
-      portalEmail && !linkedUser
-        ? await User.findOne({
-            email: portalEmail,
-            rol: "cliente",
-          })
-            .select("_id email nombre apellido rol activo")
-            .lean()
-        : null;
+    let portalUser: { _id: unknown } | null = null;
 
-    const userByClientEmail =
-      !portalEmail && normalizedEmail
-        ? await User.findOne({
-            email: normalizedEmail,
-            rol: "cliente",
-          })
-            .select("_id email nombre apellido rol activo")
-            .lean()
-        : null;
+    if (portalEmail) {
+      portalUser = await User.findOne({
+        email: portalEmail,
+        rol: "cliente",
+      })
+        .select("_id email nombre apellido rol activo")
+        .lean();
 
-    const portalUser = linkedUser || userByPortalEmail || userByClientEmail;
+      if (!portalUser) {
+        return NextResponse.json(
+          {
+            error: "No existe una cuenta de cliente con ese correo. Verifica el correo del portal antes de sincronizar.",
+          },
+          { status: 404 }
+        );
+      }
+    } else {
+      const userByClientEmail =
+        normalizedEmail
+          ? await User.findOne({
+              email: normalizedEmail,
+              rol: "cliente",
+            })
+              .select("_id email nombre apellido rol activo")
+              .lean()
+          : null;
+
+      portalUser = linkedUser || userByClientEmail;
+    }
 
     if (!portalUser) {
       return NextResponse.json(
         {
-          error: portalEmail
-            ? "No existe una cuenta de cliente con ese correo. Verifica el correo del portal antes de sincronizar."
-            : "No existe una cuenta de cliente vinculada a este correo. Crea o corrige la cuenta del portal antes de sincronizar.",
+          error: "No existe una cuenta de cliente vinculada a este correo. Crea o corrige la cuenta del portal antes de sincronizar.",
         },
         { status: 404 }
       );
@@ -185,15 +256,17 @@ export async function POST(
       return NextResponse.json({ error: "No se pudo actualizar el cliente" }, { status: 500 });
     }
 
-    const [casesCount, documentsCount, invoicesCount, appointmentsCount, communicationsCount] = await Promise.all([
+    const scope = normalizeScope(body.scope);
+    const publishedAt = new Date();
+    const [casesCount, documentsCount, invoicesCount, appointmentsCount, communicationsCount, sharedCounts] = await Promise.all([
       Case.countDocuments({ clienteId: id }),
       Document.countDocuments({ clienteId: id }),
       Invoice.countDocuments({ clienteId: id }),
       Appointment.countDocuments({ clienteId: id }),
       Communication.countDocuments({ clienteId: id }),
+      publishPortalScope(id, scope, publishedAt),
     ]);
 
-    const scope = normalizeScope(body.scope);
     const config = scopeConfig(scope);
     const countByScope = {
       all: casesCount + documentsCount + invoicesCount + appointmentsCount + communicationsCount,
@@ -241,6 +314,8 @@ export async function POST(
     return NextResponse.json({
       client: updatedClient,
       scope,
+      publishedAt,
+      sharedCounts,
       counts: {
         cases: casesCount,
         documents: documentsCount,

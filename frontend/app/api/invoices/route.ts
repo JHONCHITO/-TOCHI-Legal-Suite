@@ -39,7 +39,7 @@ export async function GET(request: Request) {
         name: session.user.name,
       })
       if (clientRecord) {
-        query = { clienteId: String((clientRecord as { _id: unknown })._id) }
+        query = { clienteId: String((clientRecord as { _id: unknown })._id), portalCompartido: true }
       } else {
         return NextResponse.json([])
       }
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
       query = { abogadoId: session.user.id }
     }
 
-    if (clienteId) query.clienteId = clienteId
+    if (clienteId && userRole !== "cliente") query.clienteId = clienteId
     if (casoId) query.casoId = casoId
     if (estado && estado !== "todos") query.estado = estado
 
@@ -131,6 +131,8 @@ export async function POST(request: Request) {
       numero: body.numero || generatedNumero,
       items,
       abogadoId: session.user.id,
+      portalCompartido: Boolean(body.portalCompartido),
+      ...(body.portalCompartido ? { portalCompartidoEn: new Date() } : {}),
       subtotal,
       ivaPorcentaje,
       impuestos,

@@ -35,6 +35,9 @@ export interface IAppointment extends Document {
   clienteId?: mongoose.Types.ObjectId;
   casoId?: mongoose.Types.ObjectId;
   abogadoId: mongoose.Types.ObjectId;
+  // Portal cliente
+  portalCompartido?: boolean;
+  portalCompartidoEn?: Date;
   // Detalles
   descripcion?: string;
   notas?: string;
@@ -90,6 +93,8 @@ const AppointmentSchema = new Schema<IAppointment>(
     clienteId: { type: Schema.Types.ObjectId, ref: "Client" },
     casoId: { type: Schema.Types.ObjectId, ref: "Case" },
     abogadoId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    portalCompartido: { type: Boolean, default: false },
+    portalCompartidoEn: Date,
     descripcion: String,
     notas: String,
     recordatorioEnviado: { type: Boolean, default: false },

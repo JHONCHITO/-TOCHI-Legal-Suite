@@ -40,7 +40,7 @@ export async function GET(request: Request) {
         name: session.user.name,
       })
       if (clientRecord) {
-        query = { clienteId: String((clientRecord as { _id: unknown })._id) }
+        query = { clienteId: String((clientRecord as { _id: unknown })._id), portalCompartido: true }
       } else {
         return NextResponse.json([])
       }
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       query = { abogadoId: session.user.id }
     }
 
-    if (clienteId) {
+    if (clienteId && userRole !== "cliente") {
       query.clienteId = clienteId
     }
 
@@ -125,6 +125,8 @@ export async function POST(request: Request) {
     const newAppointment = new Appointment({
       ...body,
       abogadoId: session.user.id,
+      portalCompartido: Boolean(body.portalCompartido),
+      ...(body.portalCompartido ? { portalCompartidoEn: new Date() } : {}),
       fechaInicio: new Date(body.fechaInicio),
       fechaFin: new Date(body.fechaFin),
       recordatorioEnviado: false,
