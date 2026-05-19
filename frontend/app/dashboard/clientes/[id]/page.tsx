@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -73,7 +74,12 @@ function buildFallbackDraft(scope: EmailScope, clientName: string, recipientEmai
 export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const clientId = params?.id ?? null;
-  const { client, isLoading, isError, mutate } = useClient(clientId);
+  const { data: session, status } = useSession();
+  const userRole = session?.user?.role;
+  const isPrivileged = userRole === "superadmin" || userRole === "admin";
+  const { client, isLoading, isError, mutate } = useClient(
+    status === "authenticated" && !isPrivileged ? clientId : null
+  );
   const [recipientEmail, setRecipientEmail] = useState("");
   const [sendingScope, setSendingScope] = useState<EmailScope | null>(null);
 
@@ -91,11 +97,34 @@ export default function ClienteDetallePage() {
     setRecipientEmail(fallbackEmail || linkedEmail);
   }, [client]);
 
-  if (isLoading) {
+  if (status === "loading") {
     return (
       <div className="flex h-[420px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
+    );
+  }
+
+  if (isPrivileged) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Vista protegida</CardTitle>
+          <CardDescription>
+            Los detalles de clientes estan separados por despacho y no se muestran en el panel
+            superadmin.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            El superadmin administra la plataforma y los usuarios internos. Para revisar datos del cliente,
+            entra con la cuenta del abogado asignado.
+          </p>
+          <Button asChild>
+            <Link href="/dashboard/admin">Ir al panel administrativo</Link>
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 

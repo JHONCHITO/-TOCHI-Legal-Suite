@@ -20,8 +20,11 @@ const fetcher = async (url: string) => {
 }
 
 // Dashboard
-export function useDashboard() {
-  const { data, error, isLoading, mutate } = useSWR("/api/dashboard", fetcher)
+export function useDashboard(options?: { enabled?: boolean }) {
+  const { data, error, isLoading, mutate } = useSWR(
+    options?.enabled === false ? null : "/api/dashboard",
+    fetcher
+  )
   return {
     data,
     isLoading,
@@ -63,14 +66,22 @@ export function useCase(id: string | null) {
 }
 
 // Clientes
-export function useClients(filters?: { search?: string; tipo?: string; activo?: string }) {
+export function useClients(filters?: {
+  search?: string
+  tipo?: string
+  activo?: string
+  enabled?: boolean
+}) {
   const params = new URLSearchParams()
   if (filters?.search) params.set("search", filters.search)
   if (filters?.tipo) params.set("tipo", filters.tipo)
   if (filters?.activo) params.set("activo", filters.activo)
   
   const url = `/api/clients${params.toString() ? `?${params.toString()}` : ""}`
-  const { data, error, isLoading, mutate } = useSWR(url, fetcher)
+  const { data, error, isLoading, mutate } = useSWR(
+    filters?.enabled === false ? null : url,
+    fetcher
+  )
   
   return {
     clients: data || [],

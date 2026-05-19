@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +33,12 @@ export default function EditarClientePage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
-  const { client, isLoading: isLoadingClient, isError } = useClient(id || null);
+  const { data: session, status } = useSession();
+  const userRole = session?.user?.role;
+  const isPrivileged = userRole === "superadmin" || userRole === "admin";
+  const { client, isLoading: isLoadingClient, isError } = useClient(
+    status === "authenticated" && !isPrivileged ? id || null : null
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -103,6 +109,28 @@ export default function EditarClientePage() {
       setIsSubmitting(false);
     }
   };
+
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isPrivileged) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <p className="text-lg font-medium">Vista protegida</p>
+        <p className="text-sm text-muted-foreground text-center max-w-xl">
+          La edicion de clientes pertenece al despacho asignado y no se muestra en el panel superadmin.
+        </p>
+        <Button asChild>
+          <Link href="/dashboard/admin">Ir al panel administrativo</Link>
+        </Button>
+      </div>
+    );
+  }
 
   if (isLoadingClient) {
     return (

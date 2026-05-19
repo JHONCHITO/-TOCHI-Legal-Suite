@@ -35,8 +35,7 @@ export async function GET(request: Request) {
     let query: Record<string, unknown> = {}
     
     if (userRole === "superadmin" || userRole === "admin") {
-      // SuperAdmin y Admin ven todos los clientes
-      query = {}
+      return NextResponse.json({ error: "Acceso restringido" }, { status: 403 })
     } else if (userRole === "cliente") {
       // Cliente solo ve su propio perfil
       query = {
@@ -87,6 +86,9 @@ export async function POST(request: Request) {
     await dbConnect()
     const user = await User.findById(session.user.id).select("rol").lean()
     const userRole = (user as any)?.rol || "abogado"
+    if (userRole === "superadmin" || userRole === "admin") {
+      return NextResponse.json({ error: "Acceso restringido" }, { status: 403 })
+    }
     const normalizedEmail = String(body.email || "").toLowerCase().trim()
     const linkedUser = await User.findOne({
       email: normalizedEmail,

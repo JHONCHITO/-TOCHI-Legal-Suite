@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,9 +46,13 @@ export default function ClientesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { data: session, status } = useSession();
+  const userRole = session?.user?.role;
+  const isPrivileged = userRole === "superadmin" || userRole === "admin";
 
   const { clients, isLoading, isError, mutate } = useClients({
     search: searchQuery || undefined,
+    enabled: status === "authenticated" && !isPrivileged,
   });
 
   const stats = useMemo(() => {
@@ -71,6 +76,39 @@ export default function ClientesPage() {
       setDeleteId(null);
     }
   };
+
+  if (status === "loading") {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isPrivileged) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle>Vista protegida</CardTitle>
+            <CardDescription>
+              Los registros de clientes pertenecen al espacio de cada abogado y no se muestran en el panel
+              superadmin.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              El superadmin administra usuarios internos, suscripciones y la plataforma. Los clientes, casos,
+              documentos y facturacion permanecen separados por despacho.
+            </p>
+            <Button asChild>
+              <Link href="/dashboard/admin">Ir al panel administrativo</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isError) {
     return (

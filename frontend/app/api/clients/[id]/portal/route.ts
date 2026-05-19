@@ -222,7 +222,7 @@ async function canManageClient(session: SessionLike, clientId: string) {
   const userRole = (user as { rol?: string } | null)?.rol || "abogado";
 
   if (userRole === "superadmin" || userRole === "admin") {
-    return true;
+    return false;
   }
 
   const client = await Client.findById(clientId).select("abogadoAsignado").lean();

@@ -14,7 +14,7 @@ async function getClientAccessFilter(session: { user?: { id?: string; email?: st
   const userRole = (user as { rol?: string } | null)?.rol || "abogado"
 
   if (userRole === "superadmin" || userRole === "admin") {
-    return {}
+    return null
   }
 
   if (userRole === "cliente") {

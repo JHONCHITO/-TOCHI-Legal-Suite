@@ -24,7 +24,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import useSWR from "swr";
 
@@ -33,11 +33,10 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   badge?: number;
-  roles?: string[]; // Si no se especifica, todos pueden ver
+  roles?: string[];
 }
 
-// Items de navegación con restricciones de rol
-const navItems: NavItem[] = [
+const lawyerNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/casos", label: "Casos", icon: Briefcase },
   { href: "/dashboard/clientes", label: "Clientes", icon: Users, roles: ["superadmin", "admin", "abogado", "asistente"] },
@@ -55,36 +54,39 @@ const navItems: NavItem[] = [
   { href: "/dashboard/admin/usuarios", label: "Usuarios", icon: ShieldCheck, roles: ["superadmin"] },
 ];
 
+const adminNavItems: NavItem[] = [
+  { href: "/dashboard/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/admin/usuarios", label: "Usuarios", icon: Users },
+];
+
 const bottomItems: NavItem[] = [
   { href: "/dashboard/notificaciones", label: "Notificaciones", icon: Bell },
   { href: "/precios", label: "Mi Suscripcion", icon: CreditCard },
   { href: "/dashboard/configuracion", label: "Configuracion", icon: Settings },
 ];
 
-const fetcher = (url: string) => fetch(url).then(res => res.json()).catch(() => null);
+const fetcher = (url: string) => fetch(url).then((res) => res.json()).catch(() => null);
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { data: session } = useSession();
-  
-  // Obtener el rol del usuario
-  const { data: userData } = useSWR(
-    session?.user?.id ? `/api/users/me` : null,
-    fetcher
-  );
-  
-  const userRole = userData?.rol || "abogado";
 
-  // Filtrar items según el rol del usuario
-  const filteredNavItems = navItems.filter(item => {
-    if (!item.roles) return true; // Sin restricción
-    return item.roles.includes(userRole);
-  });
+  const { data: userData } = useSWR(session?.user?.id ? `/api/users/me` : null, fetcher);
+  const userRole = session?.user?.role || userData?.rol || "abogado";
+  const isPrivileged = userRole === "superadmin" || userRole === "admin";
+
+  const filteredNavItems = isPrivileged
+    ? adminNavItems
+    : lawyerNavItems.filter((item) => {
+        if (!item.roles) {
+          return true;
+        }
+        return item.roles.includes(userRole);
+      });
 
   return (
     <>
-      {/* Mobile overlay */}
       <div
         className={cn(
           "fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity",
@@ -93,7 +95,6 @@ export function Sidebar() {
         onClick={() => setCollapsed(true)}
       />
 
-      {/* Mobile toggle button */}
       <Button
         variant="ghost"
         size="icon"
@@ -103,7 +104,6 @@ export function Sidebar() {
         <Menu className="h-5 w-5" />
       </Button>
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed left-0 top-0 z-40 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 flex flex-col",
@@ -111,7 +111,6 @@ export function Sidebar() {
           "lg:translate-x-0"
         )}
       >
-        {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-6 border-b border-sidebar-border">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-bold text-lg">
             T
@@ -119,9 +118,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="font-bold text-lg">TOCHI</span>
-              <span className="text-xs text-sidebar-foreground/70">
-                Legal Suite
-              </span>
+              <span className="text-xs text-sidebar-foreground/70">Legal Suite</span>
             </div>
           )}
           <Button
@@ -131,15 +128,11 @@ export function Sidebar() {
             onClick={() => setCollapsed(!collapsed)}
           >
             <ChevronLeft
-              className={cn(
-                "h-4 w-4 transition-transform",
-                collapsed && "rotate-180"
-              )}
+              className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")}
             />
           </Button>
         </div>
 
-        {/* Rol del usuario */}
         {!collapsed && (
           <div className="px-4 py-2 border-b border-sidebar-border">
             <p className="text-xs text-sidebar-foreground/60">Rol:</p>
@@ -149,13 +142,12 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {filteredNavItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
-                key={item.href}
+                key={`${item.href}-${item.label}`}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
@@ -176,13 +168,12 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Bottom navigation */}
         <div className="px-3 py-4 border-t border-sidebar-border space-y-1">
           {bottomItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
-                key={item.href}
+                key={`${item.href}-${item.label}`}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",

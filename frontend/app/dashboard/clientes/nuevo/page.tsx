@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,9 @@ const departamentos = [
 
 export default function NuevoClientePage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+  const userRole = session?.user?.role;
+  const isPrivileged = userRole === "superadmin" || userRole === "admin";
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -49,6 +53,28 @@ export default function NuevoClientePage() {
     tieneAccesoPortal: true,
     notas: "",
   });
+
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isPrivileged) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <p className="text-lg font-medium">Vista protegida</p>
+        <p className="text-sm text-muted-foreground text-center max-w-xl">
+          El registro de clientes pertenece al despacho asignado y no se habilita desde el panel superadmin.
+        </p>
+        <Button asChild>
+          <Link href="/dashboard/admin">Ir al panel administrativo</Link>
+        </Button>
+      </div>
+    );
+  }
 
   const handleSubmit = async () => {
     // Validacion basica

@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   ArrowRight,
   Bell,
@@ -48,7 +51,51 @@ const modules = [
 ];
 
 export default function DashboardPage() {
-  const { data, isLoading, isError, mutate } = useDashboard();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const userRole = session?.user?.role;
+  const isPrivileged = userRole === "superadmin" || userRole === "admin";
+  const { data, isLoading, isError, mutate } = useDashboard({
+    enabled: status === "authenticated" && !isPrivileged,
+  });
+
+  useEffect(() => {
+    if (isPrivileged && status === "authenticated") {
+      router.replace("/dashboard/admin");
+    }
+  }, [isPrivileged, router, status]);
+
+  if (status === "loading") {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isPrivileged) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Panel administrativo</CardTitle>
+            <CardDescription>
+              El dashboard operativo de abogados no muestra datos de clientes en la vista superadmin.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Usa el panel administrativo para gestionar usuarios internos, suscripciones y el estado general
+              de la plataforma.
+            </p>
+            <Button asChild>
+              <Link href="/dashboard/admin">Abrir panel administrativo</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isError) {
     return (
