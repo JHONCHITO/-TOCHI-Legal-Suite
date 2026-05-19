@@ -394,8 +394,8 @@ export default function AdminHomePage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle>Actividad reciente</CardTitle>
-              <CardDescription>Registro vivo de lo que ha pasado en la plataforma.</CardDescription>
+              <CardTitle>Actividad de cuentas y planes</CardTitle>
+              <CardDescription>Altas de usuarios y cambios de suscripcion, sin datos de clientes o casos.</CardDescription>
             </div>
             <Button asChild variant="ghost" size="sm">
               <Link href="/dashboard/admin/usuarios">
@@ -410,7 +410,7 @@ export default function AdminHomePage() {
                 <Clock3 className="mb-3 h-8 w-8 text-muted-foreground" />
                 <p className="font-medium">Aun no hay actividad para mostrar</p>
                 <p className="text-sm text-muted-foreground">
-                  Cuando se registren casos, documentos, citas o usuarios, apareceran aqui.
+                  Aqui solo veras altas de cuentas y cambios de suscripcion de la plataforma.
                 </p>
               </div>
             ) : (
@@ -477,8 +477,8 @@ export default function AdminHomePage() {
         <CardHeader>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle>Cuentas y accesos</CardTitle>
-              <CardDescription>Busca, extiende, desactiva o elimina usuarios del sistema.</CardDescription>
+              <CardTitle>Usuarios internos y accesos</CardTitle>
+              <CardDescription>Gestiona cuentas internas sin exponer datos de clientes o casos.</CardDescription>
             </div>
             <div className="relative w-full lg:w-80">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

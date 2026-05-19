@@ -11,21 +11,11 @@ import ProcessSearch from "@/lib/models/ProcessSearch";
 import Verification from "@/lib/models/Verification";
 import { getPlanById } from "@/lib/products";
 import { isSubscriptionAccessExpired } from "@/lib/subscription";
-import { formatCurrencyCop, formatDateShort, getClientDisplayName } from "@/lib/utils/format";
+import { formatDateShort } from "@/lib/utils/format";
 import { auth } from "@/lib/auth";
 
 export type AdminActivityTone = "neutral" | "success" | "warning" | "danger";
-export type AdminActivityType =
-  | "usuario"
-  | "cliente"
-  | "caso"
-  | "documento"
-  | "factura"
-  | "cita"
-  | "comunicacion"
-  | "busqueda"
-  | "verificacion"
-  | "suscripcion";
+export type AdminActivityType = "usuario" | "suscripcion";
 
 export type AdminActivity = {
   _id: string;
@@ -133,14 +123,6 @@ function normalizeActivity(activity: Omit<AdminActivity, "_id"> & { _id?: string
   };
 }
 
-function clip(value: string, limit = 120) {
-  const text = value.trim();
-  if (text.length <= limit) {
-    return text;
-  }
-  return `${text.slice(0, limit - 1).trimEnd()}...`;
-}
-
 async function checkSuperAdmin() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -153,7 +135,7 @@ async function checkSuperAdmin() {
     return { allowed: false, error: "Acceso denegado", status: 403 };
   }
 
-  return { allowed: true, userId: session.user.id };
+  return { allowed: true };
 }
 
 export function createEmptyAdminOverview(): AdminOverview {
@@ -211,14 +193,6 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
     totalCommunicationsResult,
     totalSearchesResult,
     totalVerificationsResult,
-    recentCasesResult,
-    recentClientsResult,
-    recentDocumentsResult,
-    recentInvoicesResult,
-    recentAppointmentsResult,
-    recentCommunicationsResult,
-    recentSearchesResult,
-    recentVerificationsResult,
   ] = await Promise.allSettled([
     User.find({})
       .select("-password -resetPasswordToken -resetPasswordExpires")
@@ -236,49 +210,6 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
     Communication.countDocuments({}),
     ProcessSearch.countDocuments({}),
     Verification.countDocuments({}),
-    Case.find({})
-      .populate("clienteId", "nombre apellido razonSocial tipo")
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .lean(),
-    Client.find({})
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .lean(),
-    Document.find({})
-      .populate("clienteId", "nombre apellido razonSocial tipo")
-      .populate("casoId", "titulo numeroInterno")
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .lean(),
-    Invoice.find({})
-      .populate("clienteId", "nombre apellido razonSocial tipo")
-      .populate("casoId", "titulo numeroInterno")
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .lean(),
-    Appointment.find({})
-      .populate("clienteId", "nombre apellido razonSocial tipo")
-      .populate("casoId", "titulo numeroInterno")
-      .sort({ fechaInicio: -1 })
-      .limit(6)
-      .lean(),
-    Communication.find({})
-      .populate("clienteId", "nombre apellido razonSocial tipo")
-      .populate("casoId", "titulo numeroInterno")
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .lean(),
-    ProcessSearch.find({})
-      .populate("userId", "nombre apellido email rol")
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .lean(),
-    Verification.find({})
-      .populate("userId", "nombre apellido email rol")
-      .sort({ createdAt: -1 })
-      .limit(6)
-      .lean(),
   ]);
 
   const users = usersResult.status === "fulfilled" ? usersResult.value : [];
@@ -291,14 +222,6 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
   const totalCommunications = totalCommunicationsResult.status === "fulfilled" ? totalCommunicationsResult.value : 0;
   const totalSearches = totalSearchesResult.status === "fulfilled" ? totalSearchesResult.value : 0;
   const totalVerifications = totalVerificationsResult.status === "fulfilled" ? totalVerificationsResult.value : 0;
-  const recentCases = recentCasesResult.status === "fulfilled" ? recentCasesResult.value : [];
-  const recentClients = recentClientsResult.status === "fulfilled" ? recentClientsResult.value : [];
-  const recentDocuments = recentDocumentsResult.status === "fulfilled" ? recentDocumentsResult.value : [];
-  const recentInvoices = recentInvoicesResult.status === "fulfilled" ? recentInvoicesResult.value : [];
-  const recentAppointments = recentAppointmentsResult.status === "fulfilled" ? recentAppointmentsResult.value : [];
-  const recentCommunications = recentCommunicationsResult.status === "fulfilled" ? recentCommunicationsResult.value : [];
-  const recentSearches = recentSearchesResult.status === "fulfilled" ? recentSearchesResult.value : [];
-  const recentVerifications = recentVerificationsResult.status === "fulfilled" ? recentVerificationsResult.value : [];
 
   const subscriptionMap = new Map<string, Record<string, any>>();
   subscriptions.forEach((subscription: Record<string, any>) => {
@@ -344,16 +267,18 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
     };
   });
 
-  const activeSubscriptions = subscriptions.filter((subscription: Record<string, any>) =>
-    !isSubscriptionAccessExpired(subscription) && subscription.status === "active"
+  const activeSubscriptions = subscriptions.filter(
+    (subscription: Record<string, any>) => !isSubscriptionAccessExpired(subscription) && subscription.status === "active"
   ).length;
-  const trialingSubscriptions = subscriptions.filter((subscription: Record<string, any>) =>
-    !isSubscriptionAccessExpired(subscription) && subscription.status === "trialing"
+  const trialingSubscriptions = subscriptions.filter(
+    (subscription: Record<string, any>) => !isSubscriptionAccessExpired(subscription) && subscription.status === "trialing"
   ).length;
-  const pastDueSubscriptions = subscriptions.filter((subscription: Record<string, any>) =>
-    isSubscriptionAccessExpired(subscription) || subscription.status === "past_due"
+  const pastDueSubscriptions = subscriptions.filter(
+    (subscription: Record<string, any>) => isSubscriptionAccessExpired(subscription) || subscription.status === "past_due"
   ).length;
-  const canceledSubscriptions = subscriptions.filter((subscription: Record<string, any>) => subscription.status === "canceled").length;
+  const canceledSubscriptions = subscriptions.filter(
+    (subscription: Record<string, any>) => subscription.status === "canceled"
+  ).length;
   const expiringSoonSubscriptions = subscriptions.filter((subscription: Record<string, any>) => {
     const accessEnd = getAccessEnd(subscription);
     if (!accessEnd) {
@@ -364,150 +289,38 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
     return remaining >= 0 && remaining <= 7;
   }).length;
 
-  const combinedActivities: AdminActivity[] = [];
+  const internalUsers = users.filter((user: Record<string, any>) => user.rol !== "cliente");
 
-  users.slice(0, 6).forEach((user: Record<string, any>) => {
-    combinedActivities.push(
+  const activities: AdminActivity[] = [
+    ...internalUsers.slice(0, 6).map((user: Record<string, any>) =>
       normalizeActivity({
         type: "usuario",
-        title: `${String(user.nombre || "Usuario")} ${String(user.apellido || "")}`.trim(),
-        description: `Se registro como ${String(user.rol || "abogado")}.`,
+        title: "Nueva cuenta registrada",
+        description: `Rol: ${String(user.rol || "abogado")} · ${user.activo ? "activa" : "inactiva"}`,
         date: safeIso(user.createdAt, now.toISOString()),
-        href: "/dashboard/admin",
-        tone: "neutral",
+        href: "/dashboard/admin/usuarios",
+        tone: user.activo ? "success" : "warning",
       })
-    );
-  });
+    ),
+    ...subscriptions.slice(0, 6).map((subscription: Record<string, any>) => {
+      const accessEnd = getAccessEnd(subscription);
+      const plan = getPlanById(String(subscription.planId || ""));
+      const effectiveStatus = isSubscriptionAccessExpired(subscription)
+        ? "past_due"
+        : String(subscription.status || "trialing");
 
-  recentClients.forEach((client: Record<string, any>) => {
-    combinedActivities.push(
-      normalizeActivity({
-        type: "cliente",
-        title: getClientDisplayName({
-          tipo: client.tipo || "persona_natural",
-          nombre: client.nombre,
-          apellido: client.apellido,
-          razonSocial: client.razonSocial,
-        }),
-        description: `Cliente creado con correo ${String(client.email || "")}.`,
-        date: safeIso(client.createdAt, now.toISOString()),
-        href: "/dashboard/clientes",
-        tone: client.activo ? "success" : "warning",
-      })
-    );
-  });
-
-  recentCases.forEach((caseRecord: Record<string, any>) => {
-    combinedActivities.push(
-      normalizeActivity({
-        type: "caso",
-        title: String(caseRecord.titulo || "Caso"),
-        description: `${String(caseRecord.numeroInterno || "")} · ${String(caseRecord.estado || "consulta")}`,
-        date: safeIso(caseRecord.createdAt, now.toISOString()),
-        href: `/dashboard/casos/${caseRecord._id}`,
-        tone: "neutral",
-      })
-    );
-  });
-
-  recentDocuments.forEach((document: Record<string, any>) => {
-    combinedActivities.push(
-      normalizeActivity({
-        type: "documento",
-        title: String(document.nombre || "Documento"),
-        description: `${String(document.tipo || "otro")} · ${String(document.estado || "borrador")}`,
-        date: safeIso(document.createdAt, now.toISOString()),
-        href: "/dashboard/documentos",
-        tone: document.portalCompartido ? "success" : "neutral",
-      })
-    );
-  });
-
-  recentInvoices.forEach((invoice: Record<string, any>) => {
-    combinedActivities.push(
-      normalizeActivity({
-        type: "factura",
-        title: `Factura ${String(invoice.numero || "")}`,
-        description: `${formatCurrencyCop(Number(invoice.total || 0))} · ${String(invoice.estado || "pendiente")}`,
-        date: safeIso(invoice.createdAt, now.toISOString()),
-        href: "/dashboard/facturacion",
-        tone: invoice.estado === "pagada" ? "success" : invoice.estado === "vencida" ? "danger" : "warning",
-      })
-    );
-  });
-
-  recentAppointments.forEach((appointment: Record<string, any>) => {
-    combinedActivities.push(
-      normalizeActivity({
-        type: "cita",
-        title: String(appointment.titulo || "Cita"),
-        description: `${String(appointment.tipo || "otro")} · ${safeShortDate(appointment.fechaInicio)}`,
-        date: safeIso(appointment.createdAt, now.toISOString()),
-        href: "/dashboard/citas",
-        tone: appointment.estado === "cancelada" ? "warning" : "neutral",
-      })
-    );
-  });
-
-  recentCommunications.forEach((communication: Record<string, any>) => {
-    combinedActivities.push(
-      normalizeActivity({
-        type: "comunicacion",
-        title: `${String(communication.canal || "nota").toUpperCase()} · ${String(communication.estado || "pendiente")}`,
-        description: clip(String(communication.mensaje || "Sin mensaje"), 120),
-        date: safeIso(communication.createdAt, now.toISOString()),
-        href: "/dashboard/comunicacion",
-        tone: communication.whatsappStatus === "failed" ? "danger" : "neutral",
-      })
-    );
-  });
-
-  recentSearches.forEach((search: Record<string, any>) => {
-    combinedActivities.push(
-      normalizeActivity({
-        type: "busqueda",
-        title: `Busqueda de ${String(search.searchType || "radicado")}`,
-        description: `${String(search.searchValue || "")} · ${Number(search.resultsCount || 0)} resultados`,
-        date: safeIso(search.createdAt, now.toISOString()),
-        href: "/dashboard/herramientas/consulta-procesos",
-        tone: Number(search.resultsCount || 0) > 0 ? "success" : "warning",
-      })
-    );
-  });
-
-  recentVerifications.forEach((verification: Record<string, any>) => {
-    combinedActivities.push(
-      normalizeActivity({
-        type: "verificacion",
-        title: `Verificacion ${String(verification.tipoDocumento || "")}`,
-        description: `${String(verification.numeroDocumento || "")} · ${String(verification.estado || "")}`,
-        date: safeIso(verification.createdAt, now.toISOString()),
-        href: "/dashboard/herramientas/verificador",
-        tone: verification.estado === "valido" ? "success" : verification.estado === "invalido" ? "danger" : "warning",
-      })
-    );
-  });
-
-  subscriptions.slice(0, 6).forEach((subscription: Record<string, any>) => {
-    const accessEnd = getAccessEnd(subscription);
-    const plan = getPlanById(String(subscription.planId || ""));
-    const effectiveStatus = isSubscriptionAccessExpired(subscription)
-      ? "past_due"
-      : String(subscription.status || "trialing");
-
-    combinedActivities.push(
-      normalizeActivity({
+      return normalizeActivity({
         type: "suscripcion",
-        title: `${String(subscription.userId?.nombre || "Cuenta")} ${String(subscription.userId?.apellido || "")}`.trim(),
-        description: `${plan?.name || subscription.planId || "Plan"} · ${effectiveStatus === "past_due" ? "vencida" : "vigente"}${accessEnd ? ` hasta ${safeShortDate(accessEnd, "")}` : ""}`,
+        title: "Suscripcion actualizada",
+        description: `${plan?.name || subscription.planId || "Plan"} · ${
+          effectiveStatus === "past_due" ? "vencida" : "vigente"
+        }${accessEnd ? ` hasta ${safeShortDate(accessEnd, "")}` : ""}`,
         date: safeIso(subscription.updatedAt || subscription.createdAt, now.toISOString()),
         href: "/dashboard/admin",
         tone: effectiveStatus === "past_due" ? "danger" : effectiveStatus === "trialing" ? "warning" : "success",
-      })
-    );
-  });
-
-  const activities = combinedActivities
+      });
+    }),
+  ]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 20);
 
@@ -541,7 +354,7 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
         verifications: totalVerifications,
       },
     },
-    users: userRows,
+    users: userRows.filter((user) => user.rol !== "cliente"),
     activities,
   };
 }
