@@ -10,8 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
 
-const DEFAULT_ADMIN_EMAIL = "rick6683rick@gmail.com";
-const DEFAULT_ADMIN_PASSWORD = "123456";
+const DEFAULT_ADMIN_EMAIL = "jhonrique@gmail.com";
+const DEFAULT_ADMIN_PASSWORD = "Rick0066@#0066";
 
 export default function SetupAdminPage() {
   const router = useRouter();

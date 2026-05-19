@@ -30,10 +30,10 @@ if (!process.env.AUTH_URL && !process.env.NEXTAUTH_URL) {
   process.env.NEXTAUTH_URL = "http://localhost:3000";
 }
 
-const DEFAULT_ADMIN_EMAIL = (process.env.DEFAULT_ADMIN_EMAIL || "jhonrique@gmail.com").toLowerCase();
-const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "Rick0066@#0066";
-const DEFAULT_ADMIN_NAME = process.env.DEFAULT_ADMIN_NOMBRE || "Jhon Rique";
-const DEFAULT_ADMIN_LASTNAME = process.env.DEFAULT_ADMIN_APELLIDO || "Chito Ruiz";
+const DEFAULT_ADMIN_EMAIL = "jhonrique@gmail.com";
+const DEFAULT_ADMIN_PASSWORD = "Rick0066@#0066";
+const DEFAULT_ADMIN_NAME = "Jhon Rique";
+const DEFAULT_ADMIN_LASTNAME = "Chito Ruiz";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,

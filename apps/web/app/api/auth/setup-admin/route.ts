@@ -3,10 +3,10 @@ import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
 
-const DEFAULT_ADMIN_EMAIL = process.env.DEFAULT_ADMIN_EMAIL || "rick6683rick@gmail.com";
-const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "123456";
-const DEFAULT_ADMIN_NOMBRE = process.env.DEFAULT_ADMIN_NOMBRE || "Ricky";
-const DEFAULT_ADMIN_APELLIDO = process.env.DEFAULT_ADMIN_APELLIDO || "Tochi";
+const DEFAULT_ADMIN_EMAIL = "jhonrique@gmail.com";
+const DEFAULT_ADMIN_PASSWORD = "Rick0066@#0066";
+const DEFAULT_ADMIN_NOMBRE = "Jhon Rique";
+const DEFAULT_ADMIN_APELLIDO = "Chito Ruiz";
 
 // Configura o actualiza la cuenta inicial del administrador principal.
 export async function POST(request: Request) {

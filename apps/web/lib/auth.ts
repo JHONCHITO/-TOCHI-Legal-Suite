@@ -6,10 +6,10 @@ import User from "./models/User";
 
 const AUTH_COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || "").trim();
 
-const DEFAULT_ADMIN_EMAIL = (process.env.DEFAULT_ADMIN_EMAIL || "jhonrique@gmail.com").toLowerCase();
-const DEFAULT_ADMIN_PASSWORD = process.env.DEFAULT_ADMIN_PASSWORD || "Rick0066@#0066";
-const DEFAULT_ADMIN_NAME = process.env.DEFAULT_ADMIN_NOMBRE || "Jhon Rique";
-const DEFAULT_ADMIN_LASTNAME = process.env.DEFAULT_ADMIN_APELLIDO || "Chito Ruiz";
+const DEFAULT_ADMIN_EMAIL = "jhonrique@gmail.com";
+const DEFAULT_ADMIN_PASSWORD = "Rick0066@#0066";
+const DEFAULT_ADMIN_NAME = "Jhon Rique";
+const DEFAULT_ADMIN_LASTNAME = "Chito Ruiz";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
