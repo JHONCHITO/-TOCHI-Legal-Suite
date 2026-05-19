@@ -15,6 +15,11 @@ export function sanitizeLegalAiResponse(text: string) {
   }
 
   cleaned = cleaned
+    .replace(/(?:^|\n)\s*Abrir:\s*\/dashboard\/[^\n]*\n?/gi, "\n")
+    .replace(/(?:^|\n)[^\n]*\/dashboard\/[^\n]*q=[^\n]*\n?/gi, "\n")
+    .replace(/(?:^|\n)\s*q=[^\n]*\n?/gi, "\n");
+
+  cleaned = cleaned
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\s+\n/g, "\n")

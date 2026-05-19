@@ -5,7 +5,7 @@ import Article from "@/lib/models/Article";
 import Articulo from "@/lib/models/Articulo";
 import Ley from "@/lib/models/Ley";
 import Norma from "@/lib/models/Norma";
-import { findExactLegalArticle } from "@/lib/services/legal-catalog";
+import { detectCode, extractArticleNumber, findExactLegalArticle } from "@/lib/services/legal-catalog";
 import { searchSemanticLegalContent } from "@/lib/services/legal-vector-search";
 
 function escapeRegExp(value: string) {
@@ -21,6 +21,10 @@ function snippet(value: unknown, length = 160) {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q")?.trim() || "";
+  const focusCode = detectCode(q);
+  const articleNumber = extractArticleNumber(q);
+  const normalizedFocusCode = focusCode ? String(focusCode.codigo).trim().toLowerCase() : "";
+  const normalizedFocusArticle = articleNumber ? String(articleNumber).trim().toLowerCase() : "";
 
   if (!q) {
     return NextResponse.json([]);
@@ -44,19 +48,43 @@ export async function GET(req: Request) {
     resultados.push(item);
   };
 
+  const matchesFocus = (item: any) => {
+    if (!normalizedFocusCode) {
+      return true;
+    }
+
+    const itemCode = String(item.codigo || item.codigoRef || "").trim().toLowerCase();
+    if (!itemCode || itemCode !== normalizedFocusCode) {
+      return false;
+    }
+
+    if (!normalizedFocusArticle) {
+      return true;
+    }
+
+    const itemArticle = String(item.articulo || item.numeroArticulo || item.numero || "").trim().toLowerCase();
+    return itemArticle === normalizedFocusArticle;
+  };
+
   const exactArticle = await findExactLegalArticle(q);
   if (exactArticle) {
-    addResult({
-      tipo: "exacto",
-      codigo: exactArticle.codigo,
-      articulo: exactArticle.articulo,
-      titulo: exactArticle.titulo,
-      resumen: snippet(exactArticle.contenido, 240),
-      enlace: exactArticle.url,
-    });
+    if (matchesFocus(exactArticle)) {
+      addResult({
+        tipo: "exacto",
+        codigo: exactArticle.codigo,
+        articulo: exactArticle.articulo,
+        titulo: exactArticle.titulo,
+        resumen: snippet(exactArticle.contenido, 240),
+        enlace: exactArticle.url,
+      });
+    }
   }
 
   Object.values(LEGAL_CODE_LIBRARY).forEach((codigo: any) => {
+    if (!matchesFocus({ codigo: codigo.codigo })) {
+      return;
+    }
+
     codigo.articulos.forEach((art: any) => {
       if (
         regex.test(String(art.numero || "")) ||
@@ -66,14 +94,16 @@ export async function GET(req: Request) {
         regex.test(String(codigo.codigo || "")) ||
         regex.test(String(codigo.descripcion || ""))
       ) {
-        addResult({
-          tipo: "local",
-          codigo: codigo.codigo,
-          articulo: art.numero,
-          titulo: art.epigrafe,
-          resumen: snippet(art.resumen, 180),
-          enlace: `/dashboard/leyes/${toLegalSlug(codigo.codigo)}`,
-        });
+        if (matchesFocus({ codigo: codigo.codigo, articulo: art.numero })) {
+          addResult({
+            tipo: "local",
+            codigo: codigo.codigo,
+            articulo: art.numero,
+            titulo: art.epigrafe,
+            resumen: snippet(art.resumen, 180),
+            enlace: `/dashboard/leyes/${toLegalSlug(codigo.codigo)}`,
+          });
+        }
       }
     });
   });
@@ -83,16 +113,18 @@ export async function GET(req: Request) {
 
     const semanticResults = await searchSemanticLegalContent(q, 8);
     semanticResults.forEach((item) => {
-      addResult({
-        tipo: item.tipo,
-        source: item.source,
-        codigo: item.codigo,
-        articulo: item.articulo,
-        titulo: item.titulo,
-        resumen: item.resumen,
-        enlace: item.enlace,
-        score: item.score,
-      });
+      if (matchesFocus(item)) {
+        addResult({
+          tipo: item.tipo,
+          source: item.source,
+          codigo: item.codigo,
+          articulo: item.articulo,
+          titulo: item.titulo,
+          resumen: item.resumen,
+          enlace: item.enlace,
+          score: item.score,
+        });
+      }
     });
 
     const leyesDB = await Ley.find({
@@ -109,6 +141,10 @@ export async function GET(req: Request) {
       .lean();
 
     leyesDB.forEach((ley: any) => {
+      if (!matchesFocus({ codigo: ley.codigo })) {
+        return;
+      }
+
       if (
         regex.test(String(ley.codigo || "")) ||
         regex.test(String(ley.nombre || "")) ||
@@ -132,14 +168,16 @@ export async function GET(req: Request) {
           regex.test(String(ley.nombre || "")) ||
           regex.test(String(ley.descripcion || ""))
         ) {
-          addResult({
-            tipo: "db",
-            codigo: ley.codigo,
-            articulo: art.numero,
-            titulo: art.titulo,
-            resumen: snippet(art.contenido, 180),
-            enlace: `/dashboard/leyes/${toLegalSlug(ley.codigo)}`,
-          });
+          if (matchesFocus({ codigo: ley.codigo, articulo: art.numero })) {
+            addResult({
+              tipo: "db",
+              codigo: ley.codigo,
+              articulo: art.numero,
+              titulo: art.titulo,
+              resumen: snippet(art.contenido, 180),
+              enlace: `/dashboard/leyes/${toLegalSlug(ley.codigo)}`,
+            });
+          }
         }
       });
     });
@@ -157,14 +195,16 @@ export async function GET(req: Request) {
       .lean();
 
     normasDB.forEach((norma: any) => {
-      addResult({
-        tipo: "norma",
-        codigo: norma.codigo,
-        articulo: norma.articulo,
-        titulo: norma.titulo || norma.nombre || "",
-        resumen: snippet(norma.contenido, 180),
-        enlace: `/dashboard/leyes/${toLegalSlug(norma.codigo)}`,
-      });
+      if (matchesFocus({ codigo: norma.codigo, articulo: norma.articulo })) {
+        addResult({
+          tipo: "norma",
+          codigo: norma.codigo,
+          articulo: norma.articulo,
+          titulo: norma.titulo || norma.nombre || "",
+          resumen: snippet(norma.contenido, 180),
+          enlace: `/dashboard/leyes/${toLegalSlug(norma.codigo)}`,
+        });
+      }
     });
 
     const articulosDB = await Articulo.find({
@@ -182,14 +222,16 @@ export async function GET(req: Request) {
       .lean();
 
     articulosDB.forEach((articulo: any) => {
-      addResult({
-        tipo: "articulo",
-        codigo: articulo.codigoRef,
-        articulo: articulo.numeroArticulo,
-        titulo: articulo.tituloArticulo || articulo.titulo || "",
-        resumen: snippet(articulo.contenido, 180),
-        enlace: `/dashboard/leyes/${toLegalSlug(articulo.codigoRef)}`,
-      });
+      if (matchesFocus({ codigo: articulo.codigoRef, articulo: articulo.numeroArticulo })) {
+        addResult({
+          tipo: "articulo",
+          codigo: articulo.codigoRef,
+          articulo: articulo.numeroArticulo,
+          titulo: articulo.tituloArticulo || articulo.titulo || "",
+          resumen: snippet(articulo.contenido, 180),
+          enlace: `/dashboard/leyes/${toLegalSlug(articulo.codigoRef)}`,
+        });
+      }
     });
 
     const articlesDB = await Article.find({
@@ -208,14 +250,16 @@ export async function GET(req: Request) {
       .lean();
 
     articlesDB.forEach((article: any) => {
-      addResult({
-        tipo: "article",
-        codigo: article.codigoRef,
-        articulo: article.numero,
-        titulo: article.epigrafe || article.titulo || "",
-        resumen: snippet(article.contenido, 180),
-        enlace: `/dashboard/leyes/${toLegalSlug(article.codigoRef)}`,
-      });
+      if (matchesFocus({ codigo: article.codigoRef, articulo: article.numero })) {
+        addResult({
+          tipo: "article",
+          codigo: article.codigoRef,
+          articulo: article.numero,
+          titulo: article.epigrafe || article.titulo || "",
+          resumen: snippet(article.contenido, 180),
+          enlace: `/dashboard/leyes/${toLegalSlug(article.codigoRef)}`,
+        });
+      }
     });
   } catch (error) {
     console.log("Mongo no conectado aun");

@@ -357,7 +357,7 @@ function getMergedArticlesForCode(codeData: CodigoLegalData) {
   return [...merged.values()].sort((a, b) => a.number.localeCompare(b.number, "es", { numeric: true }));
 }
 
-function detectCode(question: string) {
+export function detectCode(question: string) {
   const normalized = normalizeText(question);
   let bestMatch: CodigoLegalData | null = null;
   let bestScore = 0;
@@ -401,7 +401,7 @@ function detectCode(question: string) {
   return bestScore > 0 ? bestMatch : null;
 }
 
-function extractArticleNumber(question: string) {
+export function extractArticleNumber(question: string) {
   const normalized = normalizeText(question);
   const hasHint =
     /articulo|art\.|art |numeral|numero|nro/.test(normalized) || /\bart\b/.test(normalized);

@@ -1,10 +1,11 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { sanitizeLegalAiResponse } from "@/lib/ai-response";
 import { consumeAiQuery } from "@/lib/subscription";
 import { searchSemanticLegalContent } from "@/lib/services/legal-vector-search";
 import { buildLegalAssistantFallback } from "@/lib/services/legal-assistant-fallback";
-import { findExactLegalArticle } from "@/lib/services/legal-catalog";
+import { detectCode, extractArticleNumber, findExactLegalArticle } from "@/lib/services/legal-catalog";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,14 @@ const openai = process.env.OPENAI_API_KEY
       apiKey: process.env.OPENAI_API_KEY,
     })
   : null;
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
 
 export async function POST(req: Request) {
   try {
@@ -64,9 +73,21 @@ export async function POST(req: Request) {
     }
 
     const ranked = await searchSemanticLegalContent(pregunta, 8);
+    const focusCode = detectCode(pregunta);
+    const articleNumber = extractArticleNumber(pregunta);
+    const normalizedArticle = articleNumber ? normalizeText(articleNumber) : "";
+    const focusedRanked = focusCode
+      ? ranked.filter((doc: any) => normalizeText(String(doc.codigo || "")) === normalizeText(focusCode.codigo))
+      : ranked;
+    const narrowedRanked = normalizedArticle
+      ? focusedRanked.filter((doc: any) => {
+          const docArticle = normalizeText(String(doc.articulo || ""));
+          return docArticle === normalizedArticle;
+      })
+      : focusedRanked;
 
     if (!openai) {
-      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: ranked, limit: 6 });
+      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: narrowedRanked, limit: 6 });
       return NextResponse.json({
         respuesta: fallback.message,
         fuentes: fallback.references,
@@ -75,8 +96,8 @@ export async function POST(req: Request) {
       });
     }
 
-    if (!ranked.length) {
-      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: ranked, limit: 6 });
+    if (!narrowedRanked.length) {
+      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: narrowedRanked, limit: 6 });
       return NextResponse.json({
         respuesta: fallback.message,
         fuentes: fallback.references,
@@ -94,7 +115,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const contexto = ranked
+    const contexto = narrowedRanked
       .map((doc: any, index: number) => {
         return `Fuente ${index + 1} (${doc.source}):
 Norma: ${doc.titulo}
@@ -115,7 +136,7 @@ ${String(doc.contenido || doc.resumen || "").slice(0, 1200)}
           {
             role: "system",
             content:
-              "Eres un abogado experto en derecho colombiano. Responde con base en el contexto dado y cita el codigo y el articulo cuando sea posible.",
+              "Eres un asesor juridico senior para despachos de abogados en Colombia. Responde en espanol, con tono tecnico, sobrio y profesional. Usa una estructura clara: conclusion breve, fundamento normativo, aplicacion al caso, riesgos o puntos de revision y siguiente paso practico. Cita el codigo, articulo o fuente oficial cuando sea posible. No inventes datos ni cierres genericos para publico general. No cierres con frases como 'consulte con un abogado' o equivalentes. Si falta informacion, dilo con precision y sugiere la accion concreta que seguiria un abogado.",
           },
           {
             role: "user",
@@ -125,8 +146,8 @@ ${String(doc.contenido || doc.resumen || "").slice(0, 1200)}
       });
 
       return NextResponse.json({
-        respuesta: respuestaIA.choices[0]?.message?.content || "Sin respuesta",
-        fuentes: ranked.map((doc: any) => ({
+        respuesta: sanitizeLegalAiResponse(respuestaIA.choices[0]?.message?.content || "Sin respuesta"),
+        fuentes: narrowedRanked.map((doc: any) => ({
           source: doc.source,
           codigo: doc.codigo,
           nombre: doc.nombre,
@@ -137,7 +158,7 @@ ${String(doc.contenido || doc.resumen || "").slice(0, 1200)}
       });
     } catch (error) {
       console.error("Error IA, usando fallback local:", error);
-      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: ranked, limit: 6 });
+      const fallback = await buildLegalAssistantFallback(pregunta, { semanticHits: narrowedRanked, limit: 6 });
       return NextResponse.json({
         respuesta: fallback.message,
         fuentes: fallback.references,

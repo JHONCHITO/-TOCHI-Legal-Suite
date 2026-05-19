@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const q = searchParams.get("q")?.trim() || "";
-  const query = q ? encodeURIComponent(q) : "";
-
   const resultados = [
     {
       fuente: "SUIN-Juriscol",
       titulo: "Buscar leyes y normas",
-      link: query ? `https://www.suin-juriscol.gov.co/search?q=${query}` : "https://www.suin-juriscol.gov.co/",
+      link: "https://www.suin-juriscol.gov.co/",
     },
     {
       fuente: "Rama Judicial",

@@ -6,6 +6,7 @@ import Norma from "@/lib/models/Norma";
 import Articulo from "@/lib/models/Articulo";
 import { consumeAiQuery } from "@/lib/subscription";
 import { sanitizeLegalAiResponse } from "@/lib/ai-response";
+import { CODIGOS_COLOMBIANOS, type CodigoLegalData } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -33,6 +34,77 @@ function cosineSimilarity(a: number[], b: number[]) {
 
   if (!magA || !magB) return 0;
   return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function detectCode(question: string): CodigoLegalData | null {
+  const normalized = normalizeText(question);
+  let bestMatch: CodigoLegalData | null = null;
+  let bestScore = 0;
+
+  for (const code of CODIGOS_COLOMBIANOS) {
+    const aliases = [code.codigo, code.nombre, code.nombreCorto, code.numeroNorma, ...code.areasDelDerecho]
+      .map(normalizeText)
+      .filter(Boolean);
+
+    let score = 0;
+    for (const alias of aliases) {
+      if (normalized.includes(alias)) {
+        score += alias.length > 6 ? 3 : 2;
+      }
+    }
+
+    if (normalized.includes(normalizeText(code.codigo))) {
+      score += 6;
+    }
+    if (normalized.includes(normalizeText(code.nombreCorto))) {
+      score += 5;
+    }
+    if (normalized.includes(normalizeText(code.nombre))) {
+      score += 4;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = code;
+    }
+  }
+
+  return bestScore > 0 ? bestMatch : null;
+}
+
+function extractArticleNumber(question: string) {
+  const normalized = normalizeText(question);
+  const hasHint =
+    /articulo|art\.|art |numeral|numero|nro/.test(normalized) || /\bart\b/.test(normalized);
+
+  if (!hasHint) {
+    return null;
+  }
+
+  const patterns = [
+    /articulo\s+(\d+[a-z]?)/i,
+    /art\.?\s+(\d+[a-z]?)/i,
+    /numeral\s+(\d+[a-z]?)/i,
+    /numero\s+(\d+[a-z]?)/i,
+    /\b(\d+[a-z]?)\b/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return null;
 }
 
 export async function POST(req: Request) {
@@ -114,14 +186,27 @@ export async function POST(req: Request) {
       .sort((a, b) => b.score - a.score)
       .slice(0, 8);
 
-    if (!ranked.length) {
+    const focusCode = detectCode(pregunta);
+    const articleNumber = extractArticleNumber(pregunta);
+    const normalizedArticle = articleNumber ? normalizeText(articleNumber) : "";
+    const focusedRanked = focusCode
+      ? ranked.filter((doc: any) => normalizeText(String(doc.codigo || "")) === normalizeText(focusCode.codigo))
+      : ranked;
+    const narrowedRanked = normalizedArticle
+      ? focusedRanked.filter((doc: any) => {
+          const docArticle = normalizeText(String(doc.articulo || ""));
+          return docArticle === normalizedArticle;
+      })
+      : focusedRanked;
+
+    if (!narrowedRanked.length) {
       return NextResponse.json({
         respuesta: "No encontre informacion suficiente en la base juridica vectorizada.",
         fuentes: [],
       });
     }
 
-    const contexto = ranked
+    const contexto = narrowedRanked
       .map((doc: any, index: number) => {
         return `Fuente ${index + 1} (${doc.source}):
 Norma: ${doc.nombre}
@@ -152,7 +237,7 @@ ${String(doc.contenido || "").slice(0, 1200)}
 
     return NextResponse.json({
       respuesta: sanitizeLegalAiResponse(respuestaIA.choices[0]?.message?.content || "Sin respuesta"),
-      fuentes: ranked.map((doc: any) => ({
+      fuentes: narrowedRanked.map((doc: any) => ({
         source: doc.source,
         codigo: doc.codigo,
         nombre: doc.nombre,

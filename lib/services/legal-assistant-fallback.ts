@@ -2,6 +2,7 @@ import type { CodigoLegalData } from "@/lib/types";
 import { CODIGOS_COLOMBIANOS } from "@/lib/types";
 import { getFallbackLegalUpdates, type LegalAreaKey } from "@/lib/legal-updates";
 import { getLegalCodeContent, getOfficialLegalResources, toLegalSlug } from "@/lib/legal-library";
+import { detectCode, extractArticleNumber } from "@/lib/services/legal-catalog";
 import { searchSemanticLegalContent, type VectorHit } from "@/lib/services/legal-vector-search";
 import { sanitizeLegalAiResponse } from "@/lib/ai-response";
 
@@ -22,6 +23,12 @@ export interface LegalAssistantFallbackResult {
   references: LegalAssistantReference[];
   fallback: true;
   model: "local-fallback";
+}
+
+interface QueryFocus {
+  code: CodigoLegalData | null;
+  articleNumber: string | null;
+  specific: boolean;
 }
 
 const RECENT_CONTEXT_REGEX =
@@ -81,6 +88,17 @@ function isRecentQuery(question: string) {
   return RECENT_CONTEXT_REGEX.test(question);
 }
 
+function getQueryFocus(question: string): QueryFocus {
+  const code = detectCode(question);
+  const articleNumber = extractArticleNumber(question);
+
+  return {
+    code,
+    articleNumber,
+    specific: Boolean(code || articleNumber),
+  };
+}
+
 function inferArea(question: string): LegalAreaKey {
   const normalized = normalizeText(question);
   if (/(penal|delito|fiscal|homicidio|captura|prision)/i.test(normalized)) return "penal";
@@ -120,6 +138,59 @@ function dedupeReferences(references: LegalAssistantReference[]) {
   }
 
   return ordered;
+}
+
+function getDominantCode(references: LegalAssistantReference[]) {
+  const stats = new Map<
+    string,
+    {
+      code: CodigoLegalData;
+      count: number;
+      totalScore: number;
+      maxScore: number;
+    }
+  >();
+
+  for (const reference of references) {
+    if (!reference.codigo) {
+      continue;
+    }
+
+    const code = CODIGOS_COLOMBIANOS.find((item) => item.codigo === reference.codigo);
+    if (!code) {
+      continue;
+    }
+
+    const current = stats.get(code.codigo) || {
+      code,
+      count: 0,
+      totalScore: 0,
+      maxScore: 0,
+    };
+
+    const score = reference.score || 0;
+    current.count += 1;
+    current.totalScore += score;
+    current.maxScore = Math.max(current.maxScore, score);
+    stats.set(code.codigo, current);
+  }
+
+  const ranked = [...stats.values()].sort((a, b) => {
+    if (b.maxScore !== a.maxScore) return b.maxScore - a.maxScore;
+    if (b.count !== a.count) return b.count - a.count;
+    return b.totalScore - a.totalScore;
+  });
+
+  const winner = ranked[0];
+  if (!winner) {
+    return null;
+  }
+
+  if (winner.maxScore >= 2 || winner.count >= 2 || winner.totalScore >= 3) {
+    return winner.code;
+  }
+
+  return null;
 }
 
 function buildSemanticReferences(semanticHits: VectorHit[]) {
@@ -226,12 +297,12 @@ function buildLocalReferences(question: string) {
   return references.sort((a, b) => (b.score || 0) - (a.score || 0));
 }
 
-function buildOfficialReferences(question: string, topCodes: CodigoLegalData[]) {
+function buildOfficialReferences(question: string, topCodes: CodigoLegalData[], specific = false) {
   const area = inferArea(question);
   const monitoring = getFallbackLegalUpdates(area).monitoringLinks;
   const references: LegalAssistantReference[] = [];
 
-  for (const code of topCodes.slice(0, 3)) {
+  for (const code of topCodes.slice(0, specific ? 1 : 3)) {
     for (const resource of getOfficialLegalResources(code)) {
       references.push({
         title: `${code.nombreCorto} - ${resource.label}`,
@@ -283,7 +354,7 @@ function formatReferenceSummary(reference: LegalAssistantReference, index: numbe
   }
 
   if (contextParts.length) {
-    parts.push(`   ${contextParts.join(" · ")}`);
+    parts.push(`   ${contextParts.join(" - ")}`);
   }
 
   return parts.join("\n");
@@ -291,17 +362,20 @@ function formatReferenceSummary(reference: LegalAssistantReference, index: numbe
 
 function buildMessage(question: string, references: LegalAssistantReference[]) {
   const area = inferArea(question);
+  const focus = getQueryFocus(question);
   const monitoring = getFallbackLegalUpdates(area);
 
   if (!references.length) {
-    const officialBlock = buildOfficialReferences(question, []);
+    const officialBlock = buildOfficialReferences(question, focus.code ? [focus.code] : [], focus.specific);
     const lines = officialBlock
-      .slice(0, 4)
+      .slice(0, focus.specific ? 2 : 4)
       .map((reference, index) => formatReferenceSummary(reference, index))
       .join("\n");
 
     return sanitizeLegalAiResponse([
-      "Modo local de respaldo activado.",
+      focus.specific
+        ? "Referencia principal no encontrada en la base local."
+        : "Respuesta generada con base en la base juridica local.",
       "",
       monitoring.summary,
       "",
@@ -315,7 +389,7 @@ function buildMessage(question: string, references: LegalAssistantReference[]) {
     );
   }
 
-  const lines = references.slice(0, 5).map((reference, index) => {
+  const lines = references.slice(0, focus.specific ? 3 : 5).map((reference, index) => {
     return formatReferenceSummary(reference, index);
   });
 
@@ -323,15 +397,25 @@ function buildMessage(question: string, references: LegalAssistantReference[]) {
     ? `\n\nPara actualidad reciente, revisa tambien el resumen de seguimiento:\n${monitoring.summary}`
     : "";
 
+  const leadSentence = focus.specific
+    ? references.length === 1
+      ? "Referencia principal para la consulta:"
+      : "Referencias principales para la consulta:"
+    : "Referencias sugeridas:";
+
   return sanitizeLegalAiResponse([
-    "Modo local de respaldo activado.",
+    focus.specific
+      ? "Respuesta enfocada en la norma detectada."
+      : "Respuesta generada con base en la base juridica local.",
     "",
-    `Encontré ${references.length} referencia${references.length === 1 ? "" : "s"} relevante${references.length === 1 ? "" : "s"}:`,
+    leadSentence,
     "",
     lines.join("\n\n"),
     recentNote,
     "",
-    "Siguiente paso sugerido: contrastar estas referencias con la fuente oficial y estructurar el argumento, la prueba o el escrito correspondiente.",
+    focus.specific
+      ? "Siguiente paso sugerido: trabajar el texto completo de la norma seleccionada, verificar el articulo exacto y convertirlo en fundamento, prueba o escrito."
+      : "Siguiente paso sugerido: contrastar estas referencias con la fuente oficial y estructurar el argumento, la prueba o el escrito correspondiente.",
   ]
     .filter(Boolean)
     .join("\n")
@@ -356,16 +440,66 @@ function collectTopCodes(references: LegalAssistantReference[]) {
 }
 
 function combineReferences(question: string, semanticHits: VectorHit[]) {
+  const focus = getQueryFocus(question);
   const semanticReferences = buildSemanticReferences(semanticHits);
   const localReferences = buildLocalReferences(question);
-  const topCodes = collectTopCodes([...semanticReferences, ...localReferences]);
-  const officialReferences = buildOfficialReferences(question, topCodes);
+  const dominantCode = focus.code || getDominantCode([...semanticReferences, ...localReferences]);
+  const filteredSemantic = dominantCode
+    ? semanticReferences.filter((reference) => reference.codigo === dominantCode.codigo)
+    : semanticReferences;
+  const filteredLocal = dominantCode
+    ? localReferences.filter((reference) => reference.codigo === dominantCode.codigo)
+    : localReferences;
 
-  return dedupeReferences(
-    [...semanticReferences, ...localReferences, ...officialReferences].sort(
-      (a, b) => (b.score || 0) - (a.score || 0)
-    )
+  const articleNumber = focus.articleNumber ? normalizeText(focus.articleNumber) : "";
+  const narrowedSemantic = articleNumber
+    ? filteredSemantic.filter(
+        (reference) =>
+          normalizeText(reference.articulo || "") === articleNumber ||
+          normalizeText(reference.title).includes(`art ${articleNumber}`) ||
+          normalizeText(reference.title).includes(`articulo ${articleNumber}`)
+      )
+    : filteredSemantic;
+  const narrowedLocal = articleNumber
+    ? filteredLocal.filter(
+        (reference) =>
+          normalizeText(reference.articulo || "") === articleNumber ||
+          normalizeText(reference.title).includes(`art ${articleNumber}`) ||
+          normalizeText(reference.title).includes(`articulo ${articleNumber}`)
+      )
+    : filteredLocal;
+
+  const focusedReferences = [...narrowedSemantic, ...narrowedLocal];
+  const topCodes = collectTopCodes(focusedReferences);
+  const officialReferences = buildOfficialReferences(
+    question,
+    topCodes.length ? topCodes : dominantCode ? [dominantCode] : [],
+    focus.specific
   );
+
+  const merged = dedupeReferences(
+    [...focusedReferences, ...officialReferences].sort((a, b) => (b.score || 0) - (a.score || 0))
+  );
+
+  if (focus.specific) {
+    if (dominantCode) {
+      const sameCode = merged.filter((reference) => reference.codigo === dominantCode.codigo);
+      if (sameCode.length) {
+        return sameCode;
+      }
+    }
+
+    if (articleNumber) {
+      const sameArticle = merged.filter(
+        (reference) => normalizeText(reference.articulo || "") === articleNumber
+      );
+      if (sameArticle.length) {
+        return sameArticle;
+      }
+    }
+  }
+
+  return merged;
 }
 
 export async function buildLegalAssistantFallback(
