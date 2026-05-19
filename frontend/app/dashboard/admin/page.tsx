@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, type ElementType } from "react";
 import Link from "next/link";
-import useSWR from "swr";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, type ElementType } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ import {
   Clock3,
   Database,
   FileText,
-  Loader2,
   MoreHorizontal,
   RefreshCcw,
   ShieldCheck,
@@ -41,6 +40,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { formatDateShort, formatDateTime } from "@/lib/utils/format";
+import { useAdminOverviewInitialData } from "@/components/dashboard/admin-overview-provider";
 
 type AdminOverview = {
   summary: {
@@ -103,15 +103,6 @@ type AdminOverview = {
   }>;
 };
 
-const fetcher = async (url: string) => {
-  const res = await fetch(url);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || "Error al cargar el panel admin");
-  }
-  return data as AdminOverview;
-};
-
 const ROLE_LABELS: Record<string, string> = {
   superadmin: "Super Admin",
   admin: "Administrador",
@@ -149,10 +140,10 @@ const ACTIVITY_LABELS: Record<string, string> = {
   documento: "Documento",
   factura: "Factura",
   cita: "Cita",
-  comunicacion: "Comunicación",
-  busqueda: "Búsqueda",
-  verificacion: "Verificación",
-  suscripcion: "Suscripción",
+  comunicacion: "Comunicacion",
+  busqueda: "Busqueda",
+  verificacion: "Verificacion",
+  suscripcion: "Suscripcion",
 };
 
 const ACTIVITY_ICONS: Record<string, ElementType> = {
@@ -175,13 +166,49 @@ const ACTIVITY_BADGES: Record<string, string> = {
   danger: "bg-red-100 text-red-800",
 };
 
+const EMPTY_OVERVIEW: AdminOverview = {
+  summary: {
+    users: {
+      total: 0,
+      active: 0,
+      superadmins: 0,
+      admins: 0,
+      abogados: 0,
+      asistentes: 0,
+      clientes: 0,
+    },
+    subscriptions: {
+      total: 0,
+      active: 0,
+      trialing: 0,
+      pastDue: 0,
+      canceled: 0,
+      expiringSoon: 0,
+    },
+    operations: {
+      cases: 0,
+      clients: 0,
+      documents: 0,
+      invoices: 0,
+      appointments: 0,
+      communications: 0,
+      searches: 0,
+      verifications: 0,
+    },
+  },
+  users: [],
+  activities: [],
+};
+
 export default function AdminHomePage() {
+  const router = useRouter();
   const { toast } = useToast();
-  const { data, error, isLoading, mutate } = useSWR<AdminOverview>("/api/admin/overview", fetcher);
+  const initialData = useAdminOverviewInitialData();
+  const overview = initialData || EMPTY_OVERVIEW;
   const [search, setSearch] = useState("");
 
   const filteredUsers = useMemo(() => {
-    const users = data?.users || [];
+    const users = overview.users || [];
     const term = search.trim().toLowerCase();
     if (!term) {
       return users;
@@ -190,7 +217,7 @@ export default function AdminHomePage() {
     return users.filter((user) =>
       `${user.nombre} ${user.apellido} ${user.email} ${user.rol}`.toLowerCase().includes(term)
     );
-  }, [data?.users, search]);
+  }, [overview.users, search]);
 
   const handleExtendAccess = async (userId: string, days: number) => {
     try {
@@ -210,9 +237,9 @@ export default function AdminHomePage() {
         title: "Acceso extendido",
         description: subscription?.currentPeriodEnd
           ? `Nuevo vencimiento: ${formatDateShort(subscription.currentPeriodEnd)}`
-          : `Se agregaron ${days} días al acceso`,
+          : `Se agregaron ${days} dias al acceso`,
       });
-      mutate();
+      router.refresh();
     } catch (extendError) {
       toast({
         title: "Error",
@@ -237,11 +264,9 @@ export default function AdminHomePage() {
 
       toast({
         title: currentActive ? "Usuario desactivado" : "Usuario activado",
-        description: currentActive
-          ? "El acceso quedó suspendido"
-          : "El acceso quedó habilitado nuevamente",
+        description: currentActive ? "El acceso quedo suspendido" : "El acceso quedo habilitado nuevamente",
       });
-      mutate();
+      router.refresh();
     } catch (toggleError) {
       toast({
         title: "Error",
@@ -252,7 +277,7 @@ export default function AdminHomePage() {
   };
 
   const handleDeleteUser = async (userId: string, displayName: string) => {
-    const confirmed = confirm(`¿Eliminar a ${displayName}? Esta acción no se puede deshacer.`);
+    const confirmed = confirm(`Eliminar a ${displayName}? Esta accion no se puede deshacer.`);
     if (!confirmed) {
       return;
     }
@@ -271,7 +296,7 @@ export default function AdminHomePage() {
         title: "Usuario eliminado",
         description: `${displayName} fue retirado del sistema`,
       });
-      mutate();
+      router.refresh();
     } catch (deleteError) {
       toast({
         title: "Error",
@@ -281,60 +306,42 @@ export default function AdminHomePage() {
     }
   };
 
-  if (error) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Card className="w-full max-w-xl">
-          <CardHeader>
-            <CardTitle className="text-destructive">No se pudo cargar el panel admin</CardTitle>
-            <CardDescription>
-              Verifica que la cuenta tenga rol de superadmin y vuelve a intentar.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => mutate()}>Reintentar</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const summary = data?.summary;
+  const summary = overview.summary;
   const metrics = [
     {
       title: "Usuarios",
-      value: summary?.users.total || 0,
-      description: `${summary?.users.active || 0} activos`,
+      value: summary.users.total || 0,
+      description: `${summary.users.active || 0} activos`,
       icon: Users,
     },
     {
       title: "Clientes",
-      value: summary?.operations.clients || 0,
+      value: summary.operations.clients || 0,
       description: "Clientes en la base",
       icon: Database,
     },
     {
       title: "Casos",
-      value: summary?.operations.cases || 0,
+      value: summary.operations.cases || 0,
       description: "Expedientes registrados",
       icon: Scale,
     },
     {
       title: "Documentos",
-      value: summary?.operations.documents || 0,
+      value: summary.operations.documents || 0,
       description: "Documentos y plantillas",
       icon: FileText,
     },
     {
       title: "Suscripciones activas",
-      value: summary?.subscriptions.active || 0,
-      description: `${summary?.subscriptions.expiringSoon || 0} por vencer`,
+      value: summary.subscriptions.active || 0,
+      description: `${summary.subscriptions.expiringSoon || 0} por vencer`,
       icon: Wallet,
     },
     {
       title: "Vencidas",
-      value: summary?.subscriptions.pastDue || 0,
-      description: `${summary?.subscriptions.canceled || 0} canceladas`,
+      value: summary.subscriptions.pastDue || 0,
+      description: `${summary.subscriptions.canceled || 0} canceladas`,
       icon: AlertTriangle,
     },
   ];
@@ -344,10 +351,10 @@ export default function AdminHomePage() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Badge className="bg-red-100 text-red-800">Solo dueño</Badge>
+            <Badge className="bg-red-100 text-red-800">Solo dueno</Badge>
             <Badge variant="outline">Superadmin</Badge>
           </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight">Panel de administración</h1>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight">Panel de administracion</h1>
           <p className="max-w-3xl text-muted-foreground">
             Vista total de usuarios, suscripciones, actividad reciente y control de acceso del sistema.
           </p>
@@ -359,259 +366,249 @@ export default function AdminHomePage() {
               Gestionar usuarios
             </Link>
           </Button>
-          <Button variant="outline" onClick={() => mutate()}>
+          <Button variant="outline" onClick={() => router.refresh()}>
             <RefreshCcw className="mr-2 h-4 w-4" />
             Actualizar
           </Button>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex min-h-[320px] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {metrics.map((metric) => (
-              <Card key={metric.title}>
-                <CardContent className="flex items-center gap-4 p-6">
-                  <div className="rounded-2xl bg-primary/10 p-3">
-                    <metric.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{metric.title}</p>
-                    <p className="text-2xl font-bold">{metric.value}</p>
-                    <p className="text-sm text-muted-foreground">{metric.description}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div>
-                  <CardTitle>Actividad reciente</CardTitle>
-                  <CardDescription>Registro vivo de lo que ha pasado en la plataforma.</CardDescription>
-                </div>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href="/dashboard/admin/usuarios">
-                    Ver cuentas
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {!data?.activities?.length ? (
-                  <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed p-8 text-center">
-                    <Clock3 className="mb-3 h-8 w-8 text-muted-foreground" />
-                    <p className="font-medium">Aún no hay actividad para mostrar</p>
-                    <p className="text-sm text-muted-foreground">
-                      Cuando se registren casos, documentos, citas o usuarios, aparecerán aquí.
-                    </p>
-                  </div>
-                ) : (
-                  data.activities.map((activity) => {
-                    const ActivityIcon = ACTIVITY_ICONS[activity.type] || Clock3;
-                    return (
-                      <Link
-                        key={activity._id}
-                        href={activity.href || "/dashboard/admin"}
-                        className="flex items-start gap-4 rounded-2xl border p-4 transition-colors hover:bg-muted/40"
-                      >
-                        <div className="rounded-2xl bg-primary/10 p-2">
-                          <ActivityIcon className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge className={ACTIVITY_BADGES[activity.tone || "neutral"]}>
-                              {ACTIVITY_LABELS[activity.type] || "Actividad"}
-                            </Badge>
-                            <p className="font-medium">{activity.title}</p>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{activity.description}</p>
-                          <p className="text-xs text-muted-foreground">{formatDateTime(activity.date)}</p>
-                        </div>
-                      </Link>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Estado de suscripciones</CardTitle>
-                <CardDescription>Resumen de prueba, vigencia y cuentas vencidas.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {[
-                    { label: "Activas", value: summary?.subscriptions.active || 0, tone: "success" },
-                    { label: "En prueba", value: summary?.subscriptions.trialing || 0, tone: "neutral" },
-                    { label: "Vencidas", value: summary?.subscriptions.pastDue || 0, tone: "warning" },
-                    { label: "Canceladas", value: summary?.subscriptions.canceled || 0, tone: "danger" },
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-2xl border p-4">
-                      <p className="text-sm text-muted-foreground">{item.label}</p>
-                      <p className="text-2xl font-bold">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-2xl border bg-muted/40 p-4">
-                  <p className="text-sm font-medium">Reglas de acceso</p>
-                  <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-                    <li>• La prueba gratuita dura 7 días hábiles.</li>
-                    <li>• Si el periodo vence y no se extiende, el acceso se corta.</li>
-                    <li>• El superadmin puede extender días o apagar cuentas desde esta pantalla.</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <CardTitle>Cuentas y accesos</CardTitle>
-                  <CardDescription>Busca, extiende, desactiva o elimina usuarios del sistema.</CardDescription>
-                </div>
-                <div className="relative w-full lg:w-80">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Buscar por nombre, correo o rol..."
-                    className="pl-10"
-                  />
-                </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {metrics.map((metric) => (
+          <Card key={metric.title}>
+            <CardContent className="flex items-center gap-4 p-6">
+              <div className="rounded-2xl bg-primary/10 p-3">
+                <metric.icon className="h-6 w-6 text-primary" />
               </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Usuario</TableHead>
-                    <TableHead>Rol</TableHead>
-                    <TableHead>Acceso</TableHead>
-                    <TableHead>Suscripción</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="w-[80px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => {
-                    const subscription = user.subscription;
-                    const displayName = `${user.nombre} ${user.apellido}`.trim();
-                    const accessUntil = subscription?.accessUntil || subscription?.currentPeriodEnd || subscription?.trialEnd;
-                    const daysLeft = subscription?.daysLeft;
-                    const accessLabel = subscription
-                      ? daysLeft === null || daysLeft === undefined
-                        ? "Sin vencimiento"
-                        : daysLeft < 0
-                          ? "Vencido"
-                          : `${daysLeft} días restantes`
-                      : "Sin plan";
-
-                    return (
-                      <TableRow key={user._id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
-                              {user.nombre?.[0]}
-                              {user.apellido?.[0]}
-                            </div>
-                            <div>
-                              <p className="font-medium">{displayName}</p>
-                              <p className="text-sm text-muted-foreground">{user.email}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={ROLE_BADGES[user.rol] || "bg-slate-100 text-slate-800"}>
-                            {ROLE_LABELS[user.rol] || user.rol}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {subscription ? (
-                            <div className="space-y-1">
-                              <Badge className={STATUS_BADGES[subscription.status] || STATUS_BADGES.active}>
-                                {STATUS_LABELS[subscription.status] || subscription.status}
-                              </Badge>
-                              <p className="text-xs text-muted-foreground">
-                                {accessUntil ? `Hasta ${formatDateShort(accessUntil)}` : "Sin fecha límite"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">{accessLabel}</p>
-                            </div>
-                          ) : (
-                            <Badge variant="secondary">Sin suscripción</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {subscription ? (
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium">{subscription.planName}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {subscription.notes || "Sin observaciones"}
-                              </p>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">No aplica</p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={user.activo ? "default" : "secondary"}>
-                            {user.activo ? "Activo" : "Inactivo"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {user.rol === "superadmin" ? (
-                            <Badge variant="outline">Protegido</Badge>
-                          ) : (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleExtendAccess(user._id, 7)}>
-                                  Extender 7 días
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleExtendAccess(user._id, 30)}>
-                                  Extender 30 días
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleToggleActive(user._id, user.activo)}>
-                                  {user.activo ? "Desactivar" : "Activar"}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleDeleteUser(user._id, displayName)}
-                                >
-                                  Eliminar
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-
-              {filteredUsers.length === 0 && (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  No hay cuentas que coincidan con ese filtro.
-                </div>
-              )}
+              <div>
+                <p className="text-sm text-muted-foreground">{metric.title}</p>
+                <p className="text-2xl font-bold">{metric.value}</p>
+                <p className="text-sm text-muted-foreground">{metric.description}</p>
+              </div>
             </CardContent>
           </Card>
-        </>
-      )}
+        ))}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Actividad reciente</CardTitle>
+              <CardDescription>Registro vivo de lo que ha pasado en la plataforma.</CardDescription>
+            </div>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/dashboard/admin/usuarios">
+                Ver cuentas
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {!overview.activities.length ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed p-8 text-center">
+                <Clock3 className="mb-3 h-8 w-8 text-muted-foreground" />
+                <p className="font-medium">Aun no hay actividad para mostrar</p>
+                <p className="text-sm text-muted-foreground">
+                  Cuando se registren casos, documentos, citas o usuarios, apareceran aqui.
+                </p>
+              </div>
+            ) : (
+              overview.activities.map((activity) => {
+                const ActivityIcon = ACTIVITY_ICONS[activity.type] || Clock3;
+                return (
+                  <Link
+                    key={activity._id}
+                    href={activity.href || "/dashboard/admin"}
+                    className="flex items-start gap-4 rounded-2xl border p-4 transition-colors hover:bg-muted/40"
+                  >
+                    <div className="rounded-2xl bg-primary/10 p-2">
+                      <ActivityIcon className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={ACTIVITY_BADGES[activity.tone || "neutral"]}>
+                          {ACTIVITY_LABELS[activity.type] || "Actividad"}
+                        </Badge>
+                        <p className="font-medium">{activity.title}</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{activity.description}</p>
+                      <p className="text-xs text-muted-foreground">{formatDateTime(activity.date)}</p>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Estado de suscripciones</CardTitle>
+            <CardDescription>Resumen de prueba, vigencia y cuentas vencidas.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                { label: "Activas", value: summary.subscriptions.active || 0 },
+                { label: "En prueba", value: summary.subscriptions.trialing || 0 },
+                { label: "Vencidas", value: summary.subscriptions.pastDue || 0 },
+                { label: "Canceladas", value: summary.subscriptions.canceled || 0 },
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl border p-4">
+                  <p className="text-sm text-muted-foreground">{item.label}</p>
+                  <p className="text-2xl font-bold">{item.value}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-2xl border bg-muted/40 p-4">
+              <p className="text-sm font-medium">Reglas de acceso</p>
+              <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                <li>• La prueba gratuita dura 7 dias habiles.</li>
+                <li>• Si el periodo vence y no se extiende, el acceso se corta.</li>
+                <li>• El superadmin puede extender dias o apagar cuentas desde esta pantalla.</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <CardTitle>Cuentas y accesos</CardTitle>
+              <CardDescription>Busca, extiende, desactiva o elimina usuarios del sistema.</CardDescription>
+            </div>
+            <div className="relative w-full lg:w-80">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Buscar por nombre, correo o rol..."
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Usuario</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead>Acceso</TableHead>
+                <TableHead>Suscripcion</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((user) => {
+                const subscription = user.subscription;
+                const displayName = `${user.nombre} ${user.apellido}`.trim();
+                const accessUntil = subscription?.accessUntil || subscription?.currentPeriodEnd || subscription?.trialEnd;
+                const daysLeft = subscription?.daysLeft;
+                const accessLabel = subscription
+                  ? daysLeft === null || daysLeft === undefined
+                    ? "Sin vencimiento"
+                    : daysLeft < 0
+                      ? "Vencido"
+                      : `${daysLeft} dias restantes`
+                  : "Sin plan";
+
+                return (
+                  <TableRow key={user._id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+                          {user.nombre?.[0]}
+                          {user.apellido?.[0]}
+                        </div>
+                        <div>
+                          <p className="font-medium">{displayName}</p>
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={ROLE_BADGES[user.rol] || "bg-slate-100 text-slate-800"}>
+                        {ROLE_LABELS[user.rol] || user.rol}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {subscription ? (
+                        <div className="space-y-1">
+                          <Badge className={STATUS_BADGES[subscription.status] || STATUS_BADGES.active}>
+                            {STATUS_LABELS[subscription.status] || subscription.status}
+                          </Badge>
+                          <p className="text-xs text-muted-foreground">
+                            {accessUntil ? `Hasta ${formatDateShort(accessUntil)}` : "Sin fecha limite"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{accessLabel}</p>
+                        </div>
+                      ) : (
+                        <Badge variant="secondary">Sin suscripcion</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {subscription ? (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{subscription.planName}</p>
+                          <p className="text-xs text-muted-foreground">{subscription.notes || "Sin observaciones"}</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No aplica</p>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={user.activo ? "default" : "secondary"}>
+                        {user.activo ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {user.rol === "superadmin" ? (
+                        <Badge variant="outline">Protegido</Badge>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleExtendAccess(user._id, 7)}>
+                              Extender 7 dias
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExtendAccess(user._id, 30)}>
+                              Extender 30 dias
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleToggleActive(user._id, user.activo)}>
+                              {user.activo ? "Desactivar" : "Activar"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleDeleteUser(user._id, displayName)}
+                            >
+                              Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+
+          {filteredUsers.length === 0 && (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              No hay cuentas que coincidan con ese filtro.
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

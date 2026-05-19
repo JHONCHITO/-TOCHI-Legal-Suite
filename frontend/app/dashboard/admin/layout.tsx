@@ -12,6 +12,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/mongodb";
 import User from "@/lib/models/User";
+import {
+  createEmptyAdminOverview,
+  loadAdminOverview,
+} from "@/lib/services/admin-overview";
+import { AdminOverviewProvider } from "@/components/dashboard/admin-overview-provider";
 
 export default async function AdminLayout({
   children,
@@ -30,5 +35,11 @@ export default async function AdminLayout({
     redirect("/dashboard");
   }
 
-  return children;
+  const initialOverview = await loadAdminOverview().catch(() => createEmptyAdminOverview());
+
+  return (
+    <AdminOverviewProvider initialData={initialOverview}>
+      {children}
+    </AdminOverviewProvider>
+  );
 }
