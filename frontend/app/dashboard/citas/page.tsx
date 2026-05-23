@@ -203,7 +203,7 @@ export default function CitasPage() {
               Nueva Cita
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Nueva Cita</DialogTitle>
               <DialogDescription>Programa una nueva actuacion o seguimiento.</DialogDescription>
@@ -219,7 +219,7 @@ export default function CitasPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="tipo">Tipo *</Label>
                   <Select
@@ -258,7 +258,7 @@ export default function CitasPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="fecha">Fecha *</Label>
                   <Input

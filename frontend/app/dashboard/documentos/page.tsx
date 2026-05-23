@@ -250,7 +250,7 @@ export default function DocumentosPage() {
               Nuevo Documento
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Crear Nuevo Documento</DialogTitle>
               <DialogDescription>
@@ -266,7 +266,7 @@ export default function DocumentosPage() {
                   onChange={(e) => setNuevoDocumento({ ...nuevoDocumento, nombre: e.target.value })}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Tipo *</Label>
                   <Select
@@ -307,7 +307,7 @@ export default function DocumentosPage() {
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Cliente</Label>
                   <SearchableCombobox
@@ -419,7 +419,7 @@ export default function DocumentosPage() {
       ) : null}
 
       <Tabs defaultValue="plantillas" className="space-y-4">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
           <TabsTrigger value="plantillas">Plantillas</TabsTrigger>
           <TabsTrigger value="documentos">Mis Documentos</TabsTrigger>
           <TabsTrigger value="generador">Generador IA</TabsTrigger>

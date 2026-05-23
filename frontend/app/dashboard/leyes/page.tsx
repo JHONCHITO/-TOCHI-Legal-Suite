@@ -175,7 +175,7 @@ export default function LeyesPage() {
       </Card>
 
       <Tabs defaultValue="codigos" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 lg:w-auto lg:inline-grid">
           <TabsTrigger value="codigos">
             <BookOpen className="mr-2 h-4 w-4" />
             Codigos

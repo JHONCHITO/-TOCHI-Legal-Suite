@@ -34,21 +34,21 @@ export function Header() {
     .slice(0, 2);
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-card px-6">
+    <header className="sticky top-0 z-30 flex h-auto flex-col gap-3 border-b bg-card px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6 sm:py-0">
       {/* Search */}
-      <div className="flex-1 max-w-md">
+      <div className="hidden flex-1 max-w-md md:block">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Buscar casos, clientes, documentos..."
-            className="pl-9 bg-muted/50 border-0"
+            className="h-9 border-0 bg-muted/50 pl-9 md:h-10"
           />
         </div>
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 self-end sm:ml-auto sm:self-auto">
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative" asChild>
           <Link href="/dashboard/notificaciones">

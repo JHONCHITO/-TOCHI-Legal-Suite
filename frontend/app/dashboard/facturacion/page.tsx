@@ -328,7 +328,7 @@ export default function FacturacionPage() {
               Nueva Factura
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[calc(100vw-1rem)] max-h-[90vh] overflow-y-auto sm:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Crear Nueva Factura</DialogTitle>
               <DialogDescription>
@@ -336,7 +336,7 @@ export default function FacturacionPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Numero de Factura</Label>
                   <Input
@@ -355,7 +355,7 @@ export default function FacturacionPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Cliente *</Label>
                   <SearchableCombobox
@@ -443,7 +443,7 @@ export default function FacturacionPage() {
               </div>
 
               <div className="border-t pt-4 space-y-2">
-                <div className="grid grid-cols-2 gap-4 items-end">
+                <div className="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>IVA (%)</Label>
                     <Input

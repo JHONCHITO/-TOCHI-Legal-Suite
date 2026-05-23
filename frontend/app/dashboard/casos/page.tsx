@@ -169,9 +169,9 @@ export default function CasosPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Select value={filterTipo} onValueChange={setFilterTipo}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
@@ -185,7 +185,7 @@ export default function CasosPage() {
                 </SelectContent>
               </Select>
               <Select value={filterEstado} onValueChange={setFilterEstado}>
-                <SelectTrigger className="w-[190px]">
+                <SelectTrigger className="w-full sm:w-[190px]">
                   <SelectValue placeholder="Estado" />
                 </SelectTrigger>
                 <SelectContent>

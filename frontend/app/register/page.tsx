@@ -103,7 +103,7 @@ export default function RegisterPage() {
               )}
 
               <FieldGroup>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="nombre">Nombre</FieldLabel>
                     <Input
@@ -214,7 +214,7 @@ export default function RegisterPage() {
                   </Select>
                 </Field>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="password">Contrasena</FieldLabel>
                     <Input

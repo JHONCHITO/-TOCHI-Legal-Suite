@@ -43,15 +43,15 @@ export default async function DashboardLayout({
 
   return (
     <SessionProvider>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen overflow-x-hidden bg-background">
         {/* Sidebar */}
         <Sidebar />
 
         {/* Contenido principal */}
-        <div className="lg:pl-64 transition-all duration-300">
+        <div className="min-w-0 lg:pl-64 transition-all duration-300">
           <Header />
 
-          <main className="p-6">
+          <main className="min-w-0 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
             {children}
           </main>
         </div>

@@ -204,7 +204,7 @@ ${documentoGenerado.split('\n').map(line => `<text:p>${line}</text:p>`).join('\n
             </div>
 
             <Tabs defaultValue="partes" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
                 <TabsTrigger value="partes">Partes</TabsTrigger>
                 <TabsTrigger value="hechos">Hechos</TabsTrigger>
                 <TabsTrigger value="juridico">Jurídico</TabsTrigger>
@@ -227,7 +227,7 @@ ${documentoGenerado.split('\n').map(line => `<text:p>${line}</text:p>`).join('\n
                     onChange={(e) => setDatosBasicos({ ...datosBasicos, demandado: e.target.value })}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Ciudad</Label>
                     <Input

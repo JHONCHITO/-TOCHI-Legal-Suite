@@ -223,7 +223,7 @@ export default function AdminUsuariosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-3xl font-bold">Administrar Usuarios</h1>
           <p className="text-muted-foreground">
@@ -237,7 +237,7 @@ export default function AdminUsuariosPage() {
               Nuevo Usuario
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Crear Nuevo Usuario</DialogTitle>
               <DialogDescription>
@@ -245,7 +245,7 @@ export default function AdminUsuariosPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Nombre *</Label>
                   <Input
@@ -277,7 +277,7 @@ export default function AdminUsuariosPage() {
                   onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Rol *</Label>
                   <Select
@@ -335,7 +335,7 @@ export default function AdminUsuariosPage() {
                 {users?.length || 0} usuarios registrados
               </CardDescription>
             </div>
-            <div className="relative w-64">
+            <div className="relative w-full lg:w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar usuarios..."

@@ -279,7 +279,7 @@ export default function CronometroAudienciasPage() {
                   {formatTime(tiempoTotal)}
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-2">
                 <div>
                   <p className="text-2xl font-bold">
                     {intervenciones.filter(i => i.completado).length}

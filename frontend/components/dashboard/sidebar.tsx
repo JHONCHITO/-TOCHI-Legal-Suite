@@ -22,9 +22,10 @@ import {
   RadioTower,
   Wrench,
   ShieldCheck,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import useSWR from "swr";
 
@@ -70,11 +71,16 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json()).catch(() =
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { data: session } = useSession();
 
   const { data: userData } = useSWR(session?.user?.id ? `/api/users/me` : null, fetcher);
   const userRole = session?.user?.role || userData?.rol || "abogado";
   const isPrivileged = userRole === "superadmin" || userRole === "admin";
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   const filteredNavItems = isPrivileged
     ? adminNavItems
@@ -85,37 +91,45 @@ export function Sidebar() {
         return item.roles.includes(userRole);
       });
 
+  const showLabels = mobileOpen || !collapsed;
+
+  const closeMobileMenu = () => {
+    setMobileOpen(false);
+  };
+
   return (
     <>
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity",
-          collapsed ? "opacity-0 pointer-events-none" : "opacity-100"
+          "fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px] transition-opacity lg:hidden",
+          mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
-        onClick={() => setCollapsed(true)}
+        onClick={closeMobileMenu}
       />
 
       <Button
         variant="ghost"
         size="icon"
-        className="fixed top-4 left-4 z-50 lg:hidden"
-        onClick={() => setCollapsed(!collapsed)}
+        className="fixed left-3 top-3 z-50 rounded-full border bg-card shadow-sm lg:hidden"
+        onClick={() => setMobileOpen((current) => !current)}
+        aria-label={mobileOpen ? "Cerrar menu lateral" : "Abrir menu lateral"}
       >
-        <Menu className="h-5 w-5" />
+        {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 h-screen bg-sidebar text-sidebar-foreground transition-all duration-300 flex flex-col",
-          collapsed ? "-translate-x-full lg:translate-x-0 lg:w-20" : "w-64",
-          "lg:translate-x-0"
+          "fixed left-0 top-0 z-40 flex h-dvh w-[min(88vw,18rem)] max-w-[18rem] flex-col overflow-y-auto bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-300 lg:shadow-none",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          "lg:translate-x-0 lg:w-64 lg:max-w-none",
+          collapsed && "lg:w-20"
         )}
       >
-        <div className="flex items-center gap-3 px-4 py-6 border-b border-sidebar-border">
+        <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-5">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-bold text-lg">
             T
           </div>
-          {!collapsed && (
+          {showLabels && (
             <div className="flex flex-col">
               <span className="font-bold text-lg">TOCHI</span>
               <span className="text-xs text-sidebar-foreground/70">Legal Suite</span>
@@ -133,7 +147,7 @@ export function Sidebar() {
           </Button>
         </div>
 
-        {!collapsed && (
+        {showLabels && (
           <div className="px-4 py-2 border-b border-sidebar-border">
             <p className="text-xs text-sidebar-foreground/60">Rol:</p>
             <p className="text-sm font-medium text-sidebar-foreground capitalize">
@@ -155,10 +169,11 @@ export function Sidebar() {
                     ? "bg-sidebar-primary text-sidebar-primary-foreground"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
+                onClick={closeMobileMenu}
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
-                {item.badge && !collapsed && (
+                {showLabels && <span className="text-sm font-medium">{item.label}</span>}
+                {item.badge && showLabels && (
                   <span className="ml-auto bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full">
                     {item.badge}
                   </span>
@@ -181,9 +196,10 @@ export function Sidebar() {
                     ? "bg-sidebar-primary text-sidebar-primary-foreground"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
+                onClick={closeMobileMenu}
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+                {showLabels && <span className="text-sm font-medium">{item.label}</span>}
               </Link>
             );
           })}
@@ -192,7 +208,7 @@ export function Sidebar() {
             className="flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/80 hover:bg-destructive/20 hover:text-destructive transition-colors"
           >
             <LogOut className="h-5 w-5 flex-shrink-0" />
-            {!collapsed && <span className="text-sm font-medium">Cerrar Sesion</span>}
+            {showLabels && <span className="text-sm font-medium">Cerrar Sesion</span>}
           </button>
         </div>
       </aside>

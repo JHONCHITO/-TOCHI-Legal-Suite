@@ -316,25 +316,25 @@ export default function ComunicacionPage() {
           <CardDescription>Conserva historial de contacto y proximos compromisos.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               placeholder="Escribe una nota rapida de seguimiento..."
               value={quickMessage}
               onChange={(e) => setQuickMessage(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleQuickRegister()}
             />
-            <Button onClick={handleQuickRegister}>
+            <Button onClick={handleQuickRegister} className="sm:w-auto">
               <Send className="mr-2 h-4 w-4" />
               Registrar
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" className="sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Nuevo registro
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-lg">
                 <DialogHeader>
                   <DialogTitle>Registrar Comunicacion</DialogTitle>
                   <DialogDescription>
@@ -342,7 +342,7 @@ export default function ComunicacionPage() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Canal *</Label>
                       <Select
